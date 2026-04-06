@@ -1,0 +1,19 @@
+{
+  "folders": [
+    { "name": "RSC Academy — Backend", "path": "./backend" },
+    { "name": "RSC Academy — Frontend", "path": "./frontend" }
+  ],
+  "settings": {
+    "editor.formatOnSave": true,
+    "editor.tabSize": 2,
+    "files.eol": "\n"
+  },
+  "extensions": {
+    "recommendations": [
+      "esbenp.prettier-vscode",
+      "dbaeumer.vscode-eslint",
+      "humao.rest-client",
+      "ms-vscode.vscode-json"
+    ]
+  }
+}

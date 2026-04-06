@@ -1,0 +1,17 @@
+const r=require('express').Router(),c=require('../controllers/avaliacao.controller');
+const {authenticate,authorize}=require('../middleware/auth.middleware');
+r.use(authenticate);
+r.get('/',            c.list);
+r.get('/minhas-tentativas', c.minhasTentativas);
+r.get('/:id',         c.getById);
+r.post('/',           authorize('professor','admin'), c.create);
+r.put('/:id',         authorize('professor','admin'), c.update);
+r.patch('/:id/publicar', authorize('professor','admin'), c.publicar);
+r.delete('/:id',      authorize('professor','admin'), c.remove);
+r.post('/:id/iniciar', authorize('aluno'), c.iniciar);
+r.post('/responder',   authorize('aluno'), c.responderQuestao);
+r.post('/tentativa/:tentativa_id/concluir', authorize('aluno'), c.concluir);
+r.get('/:id/resultados', authorize('professor','admin'), c.resultados);
+r.get('/:id/entregas',                    authorize('professor','admin'), c.listarEntregas);
+r.patch('/tentativa/:tentativa_id/corrigir', authorize('professor','admin'), c.corrigirManual);
+module.exports=r;
