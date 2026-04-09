@@ -40,7 +40,6 @@ export default function LoginPage() {
     } finally { setLoading(false); }
   }
 
-  function fillDemo(email, senha) { setForm(f => ({ ...f, email, senha })); }
 
   return (
     <div className="login-wrap">
@@ -75,12 +74,7 @@ export default function LoginPage() {
                 <button className="form-link" onClick={() => setAlert({ type: 'success', msg: 'Instruções enviadas para o e-mail cadastrado.' })}>Esqueci minha senha</button>
                 <button className="form-link" onClick={() => { setTab('register'); setAlert(null); }}>Criar conta</button>
               </div>
-              <div className="divider">Acesso rápido (demo)</div>
-              <div className="demo-btns">
-                <button className="btn-ghost" onClick={() => fillDemo('admin@rsc.edu', 'Admin@123')}>👑 Admin</button>
-                <button className="btn-ghost" onClick={() => fillDemo('ana@rsc.edu', 'Prof@123')}>🏫 Professor</button>
-                <button className="btn-ghost" onClick={() => fillDemo('lucas@aluno.rsc.edu', 'Aluno@123')}>🎓 Aluno</button>
-              </div>
+
             </>
           )}
 

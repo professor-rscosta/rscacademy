@@ -108,8 +108,6 @@ body {
 .radio-opt.active { border-color: var(--emerald); background: rgba(16,185,129,0.06); color: var(--emerald-dark); font-weight: 500; }
 .radio-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--slate-300); flex-shrink: 0; transition: all .2s; }
 .radio-opt.active .radio-dot { border-color: var(--emerald); background: var(--emerald); }
-.demo-btns { display: flex; gap: 8px; }
-.demo-btns button { flex: 1; margin-top: 0; padding: 8px; font-size: 12px; }
 
 /* ── Dashboard Shell ── */
 .dash-shell { display: flex; min-height: 100vh; }

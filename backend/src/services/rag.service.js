@@ -319,9 +319,18 @@ function markUsed(ids) {
   }
 }
 
+// ── Calcular qualidade do texto extraído (% de chars alfa) ───
+function textQuality(text) {
+  if (!text || text.length === 0) return 0;
+  const alpha = (text.match(/[a-zA-ZÀ-ÿ]/g)||[]).length;
+  const total = text.replace(/\s/g,'').length || 1;
+  return Math.round(100 * alpha / total);
+}
+
 module.exports = {
   chunkText,
   extractTextFromBase64,
+  textQuality,
   indexDocument,
   retrieveContext,
   formatContextForPrompt,

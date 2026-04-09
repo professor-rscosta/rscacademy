@@ -38,7 +38,13 @@ async function upload(req, res, next) {
 
     const texto = await ragSvc.extractTextFromBase64(base64, mimeType, fileName);
     const textoLimpo = (texto||'').replace(/[ \t]{2,}/g, ' ').trim();
-    const qualidade  = ragSvc.textQuality(textoLimpo);
+    // Calcular qualidade inline (% de chars alfabéticos)
+    const qualidade = (() => {
+      if (!textoLimpo) return 0;
+      const alpha = (textoLimpo.match(/[a-zA-ZÀ-ÿ]/g)||[]).length;
+      const total = textoLimpo.replace(/\s/g,'').length || 1;
+      return Math.round(100 * alpha / total);
+    })();
     const palavras   = textoLimpo.split(/\s+/).filter(w => /[a-zA-ZÀ-ÿ]{3,}/.test(w));
 
     console.log(`[RAG] Extração: ${textoLimpo.length} chars, ${palavras.length} palavras, qualidade ${qualidade}%`);
@@ -143,4 +149,14 @@ async function stats(req, res, next) {
   } catch(e){ next(e); }
 }
 
-module.exports = { list, upload, reindexar, remove, searchContextos, stats };
+// ── Listar contextos de um documento (preview) ───────────────
+async function listContextos(req, res, next) {
+  try {
+    const { dbFindAll } = require('../database/init');
+    const contextos = dbFindAll('rag_contextos')
+      .filter(c => c.doc_id === Number(req.params.id));
+    res.json({ contextos, total: contextos.length });
+  } catch(e){ next(e); }
+}
+
+module.exports = { list, upload, reindexar, remove, searchContextos, listContextos, stats };

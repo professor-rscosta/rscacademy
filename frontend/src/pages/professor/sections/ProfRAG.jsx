@@ -45,7 +45,7 @@ function ModalUpload({ disciplinas, onClose, onSalvo }) {
   const [error, setError] = useState('');
 
   const ACCEPT = '.pdf,.doc,.docx,.txt,.md,.json,.csv';
-  const MAX_MB = 20;
+  const MAX_MB = 25;
 
   const processFile = (file) => {
     if (!file) return;
@@ -66,7 +66,7 @@ function ModalUpload({ disciplinas, onClose, onSalvo }) {
         ...form,
         tags: form.tags ? form.tags.split(',').map(t=>t.trim()) : [],
         base64: arquivo.base64, fileName: arquivo.nome, mimeType: arquivo.tipo, tamanho: arquivo.tamanho,
-      });
+      }, { timeout: 180000 }); // 3 min para PDFs grandes
       const q = r.data.qualidade_extracao || 0;
       const qIcon = q >= 70 ? '✅' : q >= 40 ? '⚠️' : '🔴';
       setProgress(qIcon+' Indexado! '+r.data.total_chunks+' trechos · qualidade '+q+'%');
@@ -187,7 +187,8 @@ function PreviewModal({ doc, onClose }) {
   const [buscando, setBuscando] = useState(false);
 
   useEffect(() => {
-    api.get('/rag/search?query=*&disciplina_id='+doc.disciplina_id+'&topK=6')
+    // Carregar TODOS os contextos do documento via endpoint dedicado
+    api.get('/rag/'+doc.id+'/contextos')
       .then(r => setCtxs(r.data.contextos||[]))
       .catch(console.error);
   }, [doc.id]);
