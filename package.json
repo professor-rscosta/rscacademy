@@ -4,7 +4,12 @@
   "scripts": {
     "build": "cd frontend && npm run build",
     "deploy": "cd frontend && npm run build && cd .. && git add backend/public -f && git add -A && git commit -m \"deploy: $(date '+%Y-%m-%d %H:%M')\" && git push",
+    
     "dev:backend": "cd backend && npm run dev",
-    "dev:frontend": "cd frontend && npm run dev"
+    "dev:frontend": "cd frontend && npm run dev",
+    
+    "start": "node backend/src/server.js",
+    "dev": "nodemon backend/src/server.js",
+    "seed": "node backend/src/database/seed.js"
   }
 }
