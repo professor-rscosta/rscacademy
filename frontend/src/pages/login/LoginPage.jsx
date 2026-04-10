@@ -47,12 +47,17 @@ export default function LoginPage() {
         <div className="hero-pattern" />
         <div className="hero-orb orb1" /><div className="hero-orb orb2" />
         <div style={{ position: 'relative', zIndex: 1 }}>
-          {/* Logo Image */}
-          <div style={{ display:'flex', justifyContent:'center', marginBottom:'2rem' }}>
+          {/* Logo Image — centralizada no hero */}
+          <div style={{ display:'flex', justifyContent:'center', alignItems:'center', marginBottom:'2rem' }}>
             <img
               src="/logo-rscacademy.png"
               alt="RSC Academy"
-              style={{ width: 220, height: 'auto', filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.35))' }}
+              style={{
+                width: 240,
+                height: 'auto',
+                display: 'block',
+                filter: 'drop-shadow(0 8px 32px rgba(0,0,0,0.4))',
+              }}
             />
           </div>
           <h1 className="hero-heading">Aprendizado <em>inteligente</em> para todos</h1>
@@ -120,12 +125,17 @@ export default function LoginPage() {
       <div className="login-form-side">
         <div className="form-box">
 
-          {/* Logo no topo do formulário (mobile) */}
-          <div style={{ display:'flex', justifyContent:'center', marginBottom:'1.5rem' }} className="login-logo-mobile">
+          {/* Logo centralizada no topo do formulário */}
+          <div style={{ display:'flex', justifyContent:'center', alignItems:'center', marginBottom:'1.75rem' }}>
             <img
               src="/logo-rscacademy.png"
               alt="RSC Academy"
-              style={{ width: 140, height: 'auto' }}
+              style={{
+                width: 130,
+                height: 'auto',
+                display: 'block',
+                filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.15))',
+              }}
             />
           </div>
 
