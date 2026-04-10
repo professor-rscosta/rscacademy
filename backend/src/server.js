@@ -74,7 +74,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }
 app.get('/health',     (req, res) => res.json({ status: 'ok', time: new Date() }));
 
 // ── Frontend React (produção) ─────────────────────────────────
-const frontendDist = path.join(__dirname, '../../frontend/dist');
+const frontendDist = path.join(__dirname, '../public');
 const fs = require('fs');
 
 if (process.env.NODE_ENV === 'production' && fs.existsSync(frontendDist)) {
