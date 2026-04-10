@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import Logo from '../../components/ui/Logo';
 
 export default function LoginPage() {
   const { login, register } = useAuth();
@@ -40,21 +39,79 @@ export default function LoginPage() {
     } finally { setLoading(false); }
   }
 
-
   return (
     <div className="login-wrap">
+
       {/* ── Hero ── */}
       <div className="login-hero">
         <div className="hero-pattern" />
         <div className="hero-orb orb1" /><div className="hero-orb orb2" />
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <Logo />
+          {/* Logo Image */}
+          <div style={{ display:'flex', justifyContent:'center', marginBottom:'2rem' }}>
+            <img
+              src="/logo-rscacademy.png"
+              alt="RSC Academy"
+              style={{ width: 220, height: 'auto', filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.35))' }}
+            />
+          </div>
           <h1 className="hero-heading">Aprendizado <em>inteligente</em> para todos</h1>
           <p className="hero-sub">Plataforma completa com IA integrada para professores, alunos e gestores educacionais.</p>
           <div className="hero-badges">
-            {['IA Generativa', 'Gamificação', 'Trilhas Adaptativas', 'Analytics', 'Multi-tenant'].map(b => (
+            {['IA Generativa', 'Gamificação', 'Trilhas Adaptativas', 'Analytics', 'TRI'].map(b => (
               <span key={b} className="hero-badge">{b}</span>
             ))}
+          </div>
+
+          {/* Botão Conheça o Desenvolvedor */}
+          <div style={{ marginTop: '2.5rem', display:'flex', justifyContent:'center' }}>
+            <a
+              href="https://rscosta.rscacademy.com.br/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '12px 24px',
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #f59e0b 100%)',
+                backgroundSize: '200% 200%',
+                color: '#1e1b4b',
+                fontWeight: 700,
+                fontSize: 14,
+                borderRadius: 50,
+                textDecoration: 'none',
+                boxShadow: '0 4px 20px rgba(245,158,11,0.45), 0 0 0 2px rgba(255,255,255,0.15)',
+                border: '2px solid rgba(255,255,255,0.3)',
+                backdropFilter: 'blur(4px)',
+                transition: 'all 0.3s ease',
+                position: 'relative',
+                overflow: 'hidden',
+                letterSpacing: '0.3px',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = 'translateY(-2px) scale(1.03)';
+                e.currentTarget.style.boxShadow = '0 8px 30px rgba(245,158,11,0.6), 0 0 0 2px rgba(255,255,255,0.25)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                e.currentTarget.style.boxShadow = '0 4px 20px rgba(245,158,11,0.45), 0 0 0 2px rgba(255,255,255,0.15)';
+              }}
+            >
+              <span style={{ fontSize: 18 }}>👨‍💻</span>
+              <span>Conheça o Desenvolvedor</span>
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 22,
+                height: 22,
+                background: 'rgba(30,27,75,0.15)',
+                borderRadius: '50%',
+                fontSize: 11,
+                fontWeight: 900,
+              }}>↗</span>
+            </a>
           </div>
         </div>
       </div>
@@ -62,6 +119,16 @@ export default function LoginPage() {
       {/* ── Form Side ── */}
       <div className="login-form-side">
         <div className="form-box">
+
+          {/* Logo no topo do formulário (mobile) */}
+          <div style={{ display:'flex', justifyContent:'center', marginBottom:'1.5rem' }} className="login-logo-mobile">
+            <img
+              src="/logo-rscacademy.png"
+              alt="RSC Academy"
+              style={{ width: 140, height: 'auto' }}
+            />
+          </div>
+
           {tab === 'login' && (
             <>
               <p className="form-title">Bem-vindo de volta 👋</p>
@@ -75,6 +142,29 @@ export default function LoginPage() {
                 <button className="form-link" onClick={() => { setTab('register'); setAlert(null); }}>Criar conta</button>
               </div>
 
+              {/* Botão desenvolvedor versão mobile (abaixo do form) */}
+              <div style={{ marginTop:'1.5rem', textAlign:'center' }} className="login-dev-mobile">
+                <a
+                  href="https://rscosta.rscacademy.com.br/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 7,
+                    padding: '9px 18px',
+                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                    color: '#1e1b4b',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    borderRadius: 50,
+                    textDecoration: 'none',
+                    boxShadow: '0 3px 12px rgba(245,158,11,0.35)',
+                  }}
+                >
+                  <span>👨‍💻</span> Conheça o Desenvolvedor <span>↗</span>
+                </a>
+              </div>
             </>
           )}
 

@@ -268,3 +268,11 @@ tbody tr:hover td { background: var(--slate-50); }
 .loading-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; flex-direction: column; gap: 1rem; }
 .spinner { width: 40px; height: 40px; border: 3px solid var(--slate-200); border-top-color: var(--emerald); border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Login page — logo e botão dev responsivo ── */
+.login-logo-mobile { display: none; }
+.login-dev-mobile  { display: none; }
+@media (max-width: 768px) {
+  .login-logo-mobile { display: flex !important; }
+  .login-dev-mobile  { display: block !important; }
+}
