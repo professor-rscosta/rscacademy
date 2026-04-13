@@ -16,15 +16,21 @@ import GenericSection from '../shared/GenericSection';
 export default function AlunoDashboard() {
   const [active, setActive]       = useState('dashboard');
   const [sidebarOpen, setSidebar] = useState(false);
+  // deepNav: { trilhaId, avaliacaoId } para navegação direta da disciplina
+  const [deepNav, setDeepNav]     = useState(null);
 
-  const navigate = (section) => { setActive(section); setSidebar(false); };
+  const navigate = (section, params = null) => {
+    setActive(section);
+    setSidebar(false);
+    setDeepNav(params);
+  };
 
   const renderSection = () => {
     switch (active) {
       case 'dashboard':   return <AlunoHome onNavigate={navigate} />;
-      case 'disciplinas': return <AlunoMinhasDisciplinas />;
-      case 'trilhas':     return <AlunoTrilhas />;
-      case 'avaliacoes':  return <AlunoAvaliacoes />;
+      case 'disciplinas': return <AlunoMinhasDisciplinas onNavigate={navigate} />;
+      case 'trilhas':     return <AlunoTrilhas initialTrilhaId={deepNav?.trilhaId} onReady={() => setDeepNav(null)} />;
+      case 'avaliacoes':  return <AlunoAvaliacoes initialAvaliacaoId={deepNav?.avaliacaoId} onReady={() => setDeepNav(null)} />;
       case 'atividades':  return <AlunoAtividades />;
       case 'mural':       return <AlunoMural />;
       case 'materiais':   return <AlunoMateriais />;
@@ -38,17 +44,9 @@ export default function AlunoDashboard() {
 
   return (
     <div className="dash-shell">
-      {/* Overlay mobile */}
       <div className={'sidebar-overlay'+(sidebarOpen?' open':'')} onClick={() => setSidebar(false)} />
-
-      {/* Sidebar */}
-      <div className={'sidebar'+(sidebarOpen?' open':'')}>
-        <Sidebar active={active} setActive={(s) => navigate(s)} perfil="aluno" />
-      </div>
-
-      {/* Conteúdo principal */}
+      <div className={'sidebar'+(sidebarOpen?' open':'')}><Sidebar active={active} setActive={(s) => navigate(s)} perfil="aluno" /></div>
       <main className="dash-main">
-        {/* Topbar mobile */}
         <div className="mobile-topbar">
           <button className="mobile-hamburger" onClick={() => setSidebar(o => !o)} aria-label="Menu">
             {sidebarOpen ? '✕' : '☰'}
@@ -60,7 +58,6 @@ export default function AlunoDashboard() {
             </button>
           )}
         </div>
-
         {renderSection()}
       </main>
     </div>

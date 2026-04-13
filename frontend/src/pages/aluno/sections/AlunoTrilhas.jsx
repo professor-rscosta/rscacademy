@@ -8,7 +8,7 @@ const TIPO_ICONS = {
   preenchimento:'✏️', associacao:'🔗', ordenacao:'🔢', upload_arquivo:'📎',
 };
 
-export default function AlunoTrilhas() {
+export default function AlunoTrilhas({ initialTrilhaId, onReady }) {
   const [disciplinas, setDiscs]     = useState([]);
   const [trilhaMap, setTrilhaMap]   = useState({});
   const [questoesMap, setQMap]      = useState({});
@@ -52,6 +52,21 @@ export default function AlunoTrilhas() {
     } catch(e){ console.error(e); }
     setLoading(false);
   };
+
+  // Auto-open trail if navigated from discipline module
+  useEffect(() => {
+    if (!initialTrilhaId || loading) return;
+    // Find and open the trail
+    for (const [discId, tList] of Object.entries(trilhaMap)) {
+      const t = tList.find(tr => tr.id === Number(initialTrilhaId));
+      if (t) {
+        setAberta(t);
+        setDiscAberta({ id: Number(discId) });
+        onReady?.();
+        break;
+      }
+    }
+  }, [initialTrilhaId, loading, trilhaMap]);
 
   useEffect(() => { load(); }, []);
 

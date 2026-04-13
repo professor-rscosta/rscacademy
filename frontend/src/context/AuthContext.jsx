@@ -34,6 +34,12 @@ export function AuthProvider({ children }) {
     return res.data;
   }
 
+  async function updateProfile(dados) {
+    const res = await api.put('/auth/me', dados);
+    setUser(res.data.user);
+    return res.data.user;
+  }
+
   function logout() {
     localStorage.removeItem('rsc_token');
     delete api.defaults.headers.common['Authorization'];
@@ -41,7 +47,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, register, loading }}>
+    <AuthContext.Provider value={{ user, setUser, login, logout, register, updateProfile, loading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -6,7 +6,7 @@ import api from '../../../hooks/useApi';
 import { EmptyState } from '../../../components/ui';
 import AlunoModuloDisciplina from './AlunoModuloDisciplina';
 
-export default function AlunoMinhasDisciplinas() {
+export default function AlunoMinhasDisciplinas({ onNavigate }) {
   const [turmas, setTurmas]       = useState([]);
   const [loading, setLoading]     = useState(true);
   const [moduloAberto, setModulo] = useState(null); // { discId, discNome }
@@ -24,6 +24,7 @@ export default function AlunoMinhasDisciplinas() {
       <AlunoModuloDisciplina
         disciplinaId={moduloAberto.discId}
         onVoltar={() => setModulo(null)}
+        onNavigate={onNavigate}
       />
     );
   }

@@ -74,7 +74,7 @@ function StatusBadge({ status }) {
 }
 
 // ── Componente Principal ──────────────────────────────────────
-export default function AlunoModuloDisciplina({ disciplinaId, onVoltar }) {
+export default function AlunoModuloDisciplina({ disciplinaId, onVoltar, onNavigate }) {
   const [data, setData]     = useState(null);
   const [loading, setLoading] = useState(true);
   const [aba, setAba]       = useState('sobre');
@@ -428,7 +428,14 @@ export default function AlunoModuloDisciplina({ disciplinaId, onVoltar }) {
                         <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
                           {vencido
                             ? <span style={{ fontSize:11, padding:'3px 10px', borderRadius:99, background:'#fef3c7', color:'#92400e', fontWeight:600 }}>⚠️ Prazo encerrado</span>
-                            : <span style={{ fontSize:11, padding:'3px 10px', borderRadius:99, background:'#dcfce7', color:'#166534', fontWeight:600 }}>✅ Disponível</span>
+                            : <>
+                                <span style={{ fontSize:11, padding:'3px 10px', borderRadius:99, background:'#dcfce7', color:'#166534', fontWeight:600 }}>✅ Disponível</span>
+                                <button
+                                  onClick={() => onNavigate?.('avaliacoes', { avaliacaoId: av.id })}
+                                  style={{ padding:'8px 16px', background:'var(--navy)', color:'white', border:'none', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer', marginTop:4, whiteSpace:'nowrap' }}>
+                                  📝 Iniciar Avaliação
+                                </button>
+                              </>
                           }
                         </div>
                       </div>

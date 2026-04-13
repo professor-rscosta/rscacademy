@@ -10,5 +10,6 @@ router.post('/register', authController.register);
 
 // GET /api/auth/me  (protected)
 router.get('/me', authenticate, authController.me);
+router.put('/me', authenticate, authController.updateMe);
 
 module.exports = router;

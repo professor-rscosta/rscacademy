@@ -85,3 +85,5 @@ export function ProgressBar({ value }) {
     </div>
   );
 }
+
+export { default as UserProfileModal } from './UserProfileModal';

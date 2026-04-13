@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import UserProfileModal from '../ui/UserProfileModal';
 import Logo from '../ui/Logo';
 
 const initials = (name) => name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
@@ -65,6 +67,7 @@ const MENUS = {
 
 export default function Sidebar({ active, setActive }) {
   const { user, logout } = useAuth();
+  const [showProfile, setShowProfile] = useState(false);
   const sections = MENUS[user.perfil] || [];
   return (
     <aside className="sidebar">
@@ -80,15 +83,23 @@ export default function Sidebar({ active, setActive }) {
         </div>
       ))}
       <div className="sidebar-footer">
-        <div className="user-card">
-          <div className="user-avatar">{initials(user.nome)}</div>
+        <div className="user-card" style={{ cursor:'pointer' }} onClick={() => setShowProfile(true)} title="Editar perfil">
+          {/* Avatar com foto ou iniciais */}
+          <div className="user-avatar" style={{
+            background: user?.foto ? `url(${user.foto}) center/cover` : undefined,
+            backgroundSize: 'cover',
+            fontSize: user?.foto ? 0 : undefined,
+          }}>
+            {!user?.foto && initials(user.nome)}
+          </div>
           <div className="user-info">
             <div className="name">{user.nome.split(' ')[0]}</div>
-            <div className="role">{user.perfil}</div>
+            <div className="role" style={{ display:'flex', alignItems:'center', gap:4 }}>{user.perfil} <span style={{ fontSize:9, opacity:.6 }}>✏️</span></div>
           </div>
-          <button className="btn-logout" onClick={logout} title="Sair">↩</button>
+          <button className="btn-logout" onClick={e => { e.stopPropagation(); logout(); }} title="Sair">↩</button>
         </div>
       </div>
+      {showProfile && <UserProfileModal onClose={() => setShowProfile(false)} />}
     </aside>
   );
 }

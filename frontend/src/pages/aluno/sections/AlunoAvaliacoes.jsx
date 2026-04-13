@@ -208,7 +208,7 @@ function Cronometro({ segundos, onExpire }) {
   );
 }
 
-export default function AlunoAvaliacoes() {
+export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
   const [avs, setAvs]           = useState([]);
   const [loading, setLoading]   = useState(true);
   const [fase, setFase]         = useState('lista');
@@ -222,6 +222,16 @@ export default function AlunoAvaliacoes() {
   const [tempoSeg, setTempoSeg] = useState(null);
 
   useEffect(() => { load(); }, []);
+
+  // Auto-open avaliacao if navigated from discipline module
+  useEffect(() => {
+    if (!initialAvaliacaoId || loading || avs.length === 0) return;
+    const av = avs.find(a => a.id === Number(initialAvaliacaoId));
+    if (av) {
+      iniciar(av);
+      onReady?.();
+    }
+  }, [initialAvaliacaoId, loading, avs]);
 
   const load = async () => {
     try {

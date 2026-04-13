@@ -38,4 +38,23 @@ async function me(req, res) {
   res.json({ user: req.user });
 }
 
-module.exports = { login, register, me };
+
+// ── Atualizar perfil próprio ──────────────────────────────────
+async function updateMe(req, res, next) {
+  try {
+    const { nome, foto } = req.body;
+    const { dbUpdate, dbFindById } = require('../database/init');
+
+    const updates = {};
+    if (nome?.trim()) updates.nome = nome.trim();
+    if (foto !== undefined) updates.foto = foto; // base64 ou null para remover
+
+    const updated = dbUpdate('usuarios', req.user.id, updates);
+    if (!updated) return res.status(404).json({ error: 'Usuário não encontrado.' });
+
+    const { senha_hash, ...safe } = updated;
+    res.json({ user: safe, message: 'Perfil atualizado!' });
+  } catch(e){ next(e); }
+}
+
+module.exports = { updateMe, login, register, me };
