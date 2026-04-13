@@ -7,7 +7,23 @@ const MENUS = {
   admin: [
     { section:'Painel',    items:[{id:'dashboard',   icon:'📊', label:'Dashboard'}] },
     { section:'Usuários',  items:[{id:'usuarios',    icon:'👥', label:'Gerenciar Usuários'},{id:'aprovacoes', icon:'✅', label:'Aprovações Pendentes'}] },
-    { section:'Acadêmico', items:[{id:'disciplinas', icon:'📚', label:'Disciplinas'},{id:'turmas', icon:'🏫', label:'Turmas'},{id:'relatorios', icon:'📈', label:'Relatórios Globais'}] },
+    { section:'Acadêmico', items:[
+      {id:'disciplinas', icon:'📚', label:'Disciplinas'},
+      {id:'turmas',      icon:'🏫', label:'Turmas'},
+      {id:'trilhas',     icon:'🗺️', label:'Trilhas'},
+      {id:'questoes',    icon:'❓', label:'Banco de Questões'},
+      {id:'avaliacoes',  icon:'📝', label:'Avaliações'},
+      {id:'atividades',  icon:'📋', label:'Atividades'},
+    ]},
+    { section:'Conteúdo',  items:[
+      {id:'materiais',   icon:'📁', label:'Materiais Didáticos'},
+      {id:'mural',       icon:'📌', label:'Mural de Avisos'},
+      {id:'rag',         icon:'🧠', label:'Base RAG (IA)'},
+    ]},
+    { section:'Análise',   items:[
+      {id:'relatorios',  icon:'📈', label:'Relatórios Globais'},
+      {id:'boletim',     icon:'📋', label:'Boletim de Notas'},
+    ]},
   ],
   professor: [
     { section:'Painel',    items:[{id:'dashboard',   icon:'📊', label:'Dashboard'}] },
