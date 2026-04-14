@@ -335,7 +335,105 @@ async function matricularLote(req, res, next) {
   } catch(e){ next(e); }
 }
 
-module.exports = { listarTodosAlunos, matricularLote,
+
+// ── Matricular lote em disciplinas específicas ─────────────
+async function matricularNasDisciplinas(req, res, next) {
+  try {
+    const t = turmaRepo.findById(req.params.id);
+    if (!t) return res.status(404).json({ error: 'Turma não encontrada.' });
+    const err = _checkDono(req, t);
+    if (err && req.user.perfil !== 'admin') return res.status(403).json({ error: err });
+
+    const { aluno_ids, disciplina_ids } = req.body;
+    if (!Array.isArray(aluno_ids) || aluno_ids.length === 0)
+      return res.status(400).json({ error: 'aluno_ids é obrigatório.' });
+    if (!Array.isArray(disciplina_ids) || disciplina_ids.length === 0)
+      return res.status(400).json({ error: 'Selecione ao menos uma disciplina.' });
+
+    // Verificar que as disciplinas pertencem à turma
+    const discsDaTurma = tdRepo.disciplinaIds(t.id);
+    const discsInvalidas = disciplina_ids.filter(d => !discsDaTurma.includes(Number(d)));
+    if (discsInvalidas.length > 0)
+      return res.status(400).json({ error: 'Uma ou mais disciplinas não pertencem a esta turma.' });
+
+    const resultados = { matriculados: [], ja_matriculados: [], erros: [] };
+
+    for (const aid of aluno_ids) {
+      const aluno = userRepo.findById(aid);
+      if (!aluno || aluno.perfil !== 'aluno') {
+        resultados.erros.push({ id: aid, msg: 'Aluno não encontrado.' });
+        continue;
+      }
+
+      // Matricular na turma se ainda não estiver
+      if (!turmaRepo.jaMatriculado(aluno.id, t.id)) {
+        // Verificar regra: 1 turma ativa por aluno
+        const turmasAtivas = turmaRepo.getTurmasAluno(aluno.id)
+          .map(m => turmaRepo.findById(m.turma_id)).filter(ta => ta?.ativo);
+        if (turmasAtivas.length > 0) {
+          resultados.erros.push({ id: aid, nome: aluno.nome, msg: `Já em outra turma: "${turmasAtivas[0].nome}"` });
+          continue;
+        }
+        turmaRepo.matricular(aluno.id, t.id);
+      }
+
+      // Matricular em cada disciplina selecionada
+      let algumaNova = false;
+      for (const did of disciplina_ids) {
+        if (!adRepo.jaMatriculado(aluno.id, did, t.id)) {
+          adRepo.matricular(aluno.id, did, t.id);
+          algumaNova = true;
+        }
+      }
+
+      if (algumaNova) resultados.matriculados.push(aluno.nome);
+      else resultados.ja_matriculados.push(aluno.nome);
+    }
+
+    let msg = '';
+    if (resultados.matriculados.length > 0)    msg += `✅ ${resultados.matriculados.length} aluno(s) matriculado(s). `;
+    if (resultados.ja_matriculados.length > 0)  msg += `⚠️ ${resultados.ja_matriculados.length} já matriculado(s). `;
+    if (resultados.erros.length > 0)            msg += `❌ ${resultados.erros.length} com erro.`;
+
+    res.status(201).json({ message: msg.trim(), ...resultados });
+  } catch(e){ next(e); }
+}
+
+// ── Listar disciplinas de um aluno em uma turma ─────────────
+async function disciplinasDoAlunoNaTurma(req, res, next) {
+  try {
+    const { aluno_id, turma_id } = req.params;
+    const vinculos = adRepo.findByAlunoTurma(aluno_id, turma_id);
+    const disciplinas = vinculos.map(v => {
+      const d = require('../repositories/disciplina.repository').findById(v.disciplina_id);
+      return d ? { ...d, enrolled_at: v.enrolled_at } : null;
+    }).filter(Boolean);
+    res.json({ disciplinas, total: disciplinas.length });
+  } catch(e){ next(e); }
+}
+
+// ── Desmatricular aluno de disciplina específica ───────────
+async function desmatricularDaDisciplina(req, res, next) {
+  try {
+    const { turma_id, aluno_id, disciplina_id } = req.params;
+    const t = turmaRepo.findById(turma_id);
+    if (!t) return res.status(404).json({ error: 'Turma não encontrada.' });
+    const err = _checkDono(req, t);
+    if (err && req.user.perfil !== 'admin') return res.status(403).json({ error: err });
+
+    adRepo.desmatricular(aluno_id, disciplina_id, turma_id);
+
+    // Se não tem mais disciplinas nesta turma, remove da turma também
+    const resto = adRepo.findByAlunoTurma(aluno_id, turma_id);
+    if (resto.length === 0) {
+      turmaRepo.desmatricular(aluno_id, turma_id);
+    }
+
+    res.json({ message: 'Desmatriculado da disciplina com sucesso.' });
+  } catch(e){ next(e); }
+}
+
+module.exports = { listarTodosAlunos, matricularLote, matricularNasDisciplinas, disciplinasDoAlunoNaTurma, desmatricularDaDisciplina,
   list, getById, create, update, remove,
   listDisciplinas, vincularDisciplina, desvincularDisciplina,
   buscarAluno, matricularAluno, removerAluno,

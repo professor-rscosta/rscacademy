@@ -53,10 +53,10 @@ export default function LoginPage() {
               src="/logo-rscacademy.png"
               alt="RSC Academy"
               style={{
-                width: 240,
+                width: 260,
                 height: 'auto',
                 display: 'block',
-                filter: 'drop-shadow(0 8px 32px rgba(0,0,0,0.4))',
+                borderRadius: 16,
               }}
             />
           </div>
@@ -131,10 +131,10 @@ export default function LoginPage() {
               src="/logo-rscacademy.png"
               alt="RSC Academy"
               style={{
-                width: 130,
+                width: 140,
                 height: 'auto',
                 display: 'block',
-                filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.15))',
+                borderRadius: 12,
               }}
             />
           </div>

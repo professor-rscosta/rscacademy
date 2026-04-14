@@ -16,6 +16,7 @@ const questaoRepo   = require('../repositories/questao.repository');
 const respostaRepo  = require('../repositories/resposta.repository');
 const atividadeRepo = require('../repositories/atividade.repository');
 const avaliacaoRepo = require('../repositories/avaliacao.repository');
+const adRepo        = require('../repositories/aluno_disciplina.repository');
 
 async function list(req, res, next) {
   try {
@@ -53,10 +54,17 @@ async function getById(req, res, next) {
 
     // Aluno só pode ver disciplina da sua turma
     if (req.user.perfil === 'aluno') {
-      const turmaIds = turmaRepo.getTurmasAluno(req.user.id).map(m => m.turma_id);
-      const discIds  = tdRepo.disciplinaIdsDoAluno(turmaIds);
-      if (!discIds.includes(d.id)) {
-        return res.status(403).json({ error: 'Esta disciplina não pertence à sua turma.' });
+      // Verificar matrícula individual na disciplina
+      const meusDiscIds = adRepo.disciplinaIds(req.user.id);
+      if (meusDiscIds.length > 0 && !meusDiscIds.includes(d.id)) {
+        return res.status(403).json({ error: 'Você não está matriculado nesta disciplina.' });
+      } else if (meusDiscIds.length === 0) {
+        // Fallback para sistema antigo
+        const turmaIds = turmaRepo.getTurmasAluno(req.user.id).map(m => m.turma_id);
+        const discIds  = tdRepo.disciplinaIdsDoAluno(turmaIds);
+        if (!discIds.includes(d.id)) {
+          return res.status(403).json({ error: 'Você não está matriculado nesta disciplina.' });
+        }
       }
     }
 
@@ -104,9 +112,14 @@ async function getModulo(req, res, next) {
 
     // Aluno só acessa disciplinas da sua turma
     if (req.user.perfil === 'aluno') {
-      const turmaIds = turmaRepo.getTurmasAluno(req.user.id).map(m => m.turma_id);
-      const discIds  = tdRepo.disciplinaIdsDoAluno(turmaIds);
-      if (!discIds.includes(d.id)) return res.status(403).json({ error: 'Acesso negado.' });
+      const meusDiscIds = adRepo.disciplinaIds(req.user.id);
+      if (meusDiscIds.length > 0 && !meusDiscIds.includes(d.id)) {
+        return res.status(403).json({ error: 'Você não está matriculado nesta disciplina.' });
+      } else if (meusDiscIds.length === 0) {
+        const turmaIds = turmaRepo.getTurmasAluno(req.user.id).map(m => m.turma_id);
+        const discIds  = tdRepo.disciplinaIdsDoAluno(turmaIds);
+        if (!discIds.includes(d.id)) return res.status(403).json({ error: 'Acesso negado.' });
+      }
     }
 
     // Professor (info + foto/bio)

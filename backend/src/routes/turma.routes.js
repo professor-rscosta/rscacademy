@@ -30,6 +30,9 @@ r.delete('/:id',      profOuAdmin, c.remove);
 r.get('/buscar/aluno',                     profOuAdmin, c.buscarAluno);
 r.get('/lista/alunos',                     profOuAdmin, c.listarTodosAlunos);
 r.post('/:id/alunos/lote',                 profOuAdmin, c.matricularLote);
+r.post('/:id/alunos/disciplinas',           profOuAdmin, c.matricularNasDisciplinas);
+r.get( '/:turma_id/alunos/:aluno_id/disciplinas', profOuAdmin, c.disciplinasDoAlunoNaTurma);
+r.delete('/:turma_id/alunos/:aluno_id/disciplinas/:disciplina_id', profOuAdmin, c.desmatricularDaDisciplina);
 r.post('/:id/alunos',                      profOuAdmin, c.matricularAluno);
 r.delete('/:turma_id/alunos/:aluno_id',    profOuAdmin, c.removerAluno);
 
