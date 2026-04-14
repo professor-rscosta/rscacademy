@@ -557,77 +557,67 @@ async function boletimTurma(req, res, next) {
   } catch(e){ next(e); }
 }
 
-// ── 9. Exportação Excel ────────────────────────────────────────
+// ── 9. Exportação Excel (xlsx — puro JS, sem deps nativas) ──────
 async function exportarExcel(req, res, next) {
   try {
     const { tipo, id } = req.params;
-    const ExcelJS = require('exceljs');
-    const wb = new ExcelJS.Workbook();
-    wb.creator = 'RSC Academy';
-    wb.created = new Date();
+    const XLSX = require('xlsx');
 
-    const headerStyle = { font:{bold:true,color:{argb:'FFFFFFFF'},size:11}, fill:{type:'pattern',pattern:'solid',fgColor:{argb:'FF1E3A5F'}}, alignment:{horizontal:'center',vertical:'middle'}, border:{bottom:{style:'thin'}} };
-    const subHeaderStyle = { font:{bold:true,size:10}, fill:{type:'pattern',pattern:'solid',fgColor:{argb:'FFE8F0FE'}}, alignment:{horizontal:'center'} };
-    const goodStyle  = { font:{color:{argb:'FF166534'}}, fill:{type:'pattern',pattern:'solid',fgColor:{argb:'FFdcfce7'}} };
-    const badStyle   = { font:{color:{argb:'FF991B1B'}}, fill:{type:'pattern',pattern:'solid',fgColor:{argb:'FFfee2e2'}} };
-    const warnStyle  = { font:{color:{argb:'FF92400E'}}, fill:{type:'pattern',pattern:'solid',fgColor:{argb:'FFfef3c7'}} };
+    const wb = XLSX.utils.book_new();
 
-    function applyHeader(row) {
-      row.eachCell(c => Object.assign(c, headerStyle));
-      row.height = 24;
+    // Helpers
+    function addSheet(name, rows) {
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      // Auto column width
+      const cols = rows[0] ? rows[0].map((_, i) => ({
+        wch: Math.max(...rows.map(r => String(r[i]||'').length).filter(n=>n<80), 10)
+      })) : [];
+      ws['!cols'] = cols;
+      XLSX.utils.book_append_sheet(wb, ws, name.slice(0,31));
     }
 
     if (tipo === 'trilha') {
-      const trilha = trilhaRepo.findById(id);
+      const trilha  = trilhaRepo.findById(id);
       if (!trilha) return res.status(404).json({ error: 'Trilha não encontrada.' });
+      const disc    = discRepo.findById(trilha.disciplina_id);
       const questoes = questaoRepo.findByTrilha(id);
-      const disc = discRepo.findById(trilha.disciplina_id);
+      const rsAll   = questoes.flatMap(q => respostaRepo.findByQuestao(q.id));
+      const alunosIds = [...new Set(rsAll.map(r => r.aluno_id))];
 
-      // Aba 1 — Resumo
-      const wsRes = wb.addWorksheet('Resumo');
-      wsRes.columns = [{width:30},{width:20}];
-      applyHeader(wsRes.addRow(['Relatório por Trilha — '+trilha.nome, '']));
-      wsRes.mergeCells('A1:B1');
-      wsRes.addRow(['Disciplina', disc?.nome||'—']);
-      wsRes.addRow(['Total de Questões', questoes.length]);
-      const rsAll = questoes.flatMap(q => respostaRepo.findByQuestao(q.id));
-      wsRes.addRow(['Total de Respostas', rsAll.length]);
-      wsRes.addRow(['Taxa de Acerto', pct(rsAll.filter(r=>r.is_correct).length, rsAll.length)+'%']);
-      wsRes.addRow(['Gerado em', new Date().toLocaleString('pt-BR')]);
+      // Aba Resumo
+      addSheet('Resumo', [
+        ['Relatório por Trilha', trilha.nome],
+        ['Disciplina', disc?.nome||'—'],
+        ['Total Questões', questoes.length],
+        ['Total Respostas', rsAll.length],
+        ['Taxa de Acerto', pct(rsAll.filter(r=>r.is_correct).length, rsAll.length)+'%'],
+        ['Gerado em', new Date().toLocaleString('pt-BR')],
+      ]);
 
-      // Aba 2 — Questões
-      const wsQ = wb.addWorksheet('Questões');
-      wsQ.columns = [{header:'#',width:5},{header:'Enunciado',width:50},{header:'Tipo',width:15},{header:'Respostas',width:12},{header:'Acertos',width:10},{header:'Erros',width:10},{header:'Taxa Acerto %',width:14},{header:'Tempo Médio (s)',width:16},{header:'Status TRI',width:14}];
-      applyHeader(wsQ.getRow(1));
+      // Aba Questões
+      const qRows = [['#','Enunciado','Tipo','Respostas','Acertos','Erros','Taxa %','Tempo Médio (s)','TRI']];
       questoes.forEach((q,i) => {
         const rs = respostaRepo.findByQuestao(q.id);
         const ac = rs.filter(r=>r.is_correct).length;
-        const taxa = pct(ac, rs.length);
-        const row = wsQ.addRow([i+1, q.enunciado.slice(0,100), q.tipo, rs.length, ac, rs.length-ac, taxa+'%',
+        qRows.push([i+1, q.enunciado.slice(0,100), q.tipo, rs.length, ac, rs.length-ac,
+          pct(ac,rs.length)+'%',
           rs.length>0 ? round2(rs.reduce((s,r)=>s+(r.tempo_gasto_ms||0),0)/rs.length/1000) : '-',
           q.tri?.status||'não calibrado']);
-        if (taxa >= 70) row.getCell(7).style = goodStyle;
-        else if (taxa < 40) row.getCell(7).style = badStyle;
-        else row.getCell(7).style = warnStyle;
       });
+      addSheet('Questões', qRows);
 
-      // Aba 3 — Alunos
-      const alunosIds = new Set(rsAll.map(r=>r.aluno_id));
-      const wsA = wb.addWorksheet('Alunos');
-      wsA.columns = [{header:'Nome',width:30},{header:'E-mail',width:30},{header:'Respondidas',width:13},{header:'Acertos',width:10},{header:'Erros',width:10},{header:'Taxa %',width:10},{header:'XP Ganho',width:12},{header:'Última Atividade',width:22}];
-      applyHeader(wsA.getRow(1));
+      // Aba Alunos
+      const aRows = [['Nome','E-mail','Respondidas','Acertos','Taxa %','XP','Última Atividade']];
       for (const aid of alunosIds) {
         const u = userRepo.findById(aid);
         if (!u) continue;
         const rsAl = respostaRepo.findByAlunoTrilha(aid, id);
         const ac = rsAl.filter(r=>r.is_correct).length;
-        const taxa = pct(ac, rsAl.length);
-        const row = wsA.addRow([u.nome, u.email, rsAl.length, ac, rsAl.length-ac, taxa+'%',
+        aRows.push([u.nome, u.email, rsAl.length, ac, pct(ac,rsAl.length)+'%',
           rsAl.reduce((s,r)=>s+(r.xp_ganho||0),0),
           rsAl.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))[0]?.created_at?.split('T')[0]||'-']);
-        if (taxa >= 70) row.getCell(6).style = goodStyle;
-        else if (taxa < 40) row.getCell(6).style = badStyle;
       }
+      addSheet('Alunos', aRows);
 
     } else if (tipo === 'aluno') {
       const aluno = userRepo.findById(id);
@@ -635,133 +625,98 @@ async function exportarExcel(req, res, next) {
       const todasRs = respostaRepo.findByAluno(Number(id));
       const { theta, nivel } = calcTheta(Number(id));
 
-      // Aba 1 — Perfil
-      const wsPerfil = wb.addWorksheet('Perfil do Aluno');
-      wsPerfil.columns = [{width:30},{width:40}];
-      applyHeader(wsPerfil.addRow(['Relatório Individual — '+aluno.nome, '']));
-      wsPerfil.mergeCells('A1:B1');
-      wsPerfil.addRow(['Nome', aluno.nome]);
-      wsPerfil.addRow(['E-mail', aluno.email]);
-      wsPerfil.addRow(['Nível TRI (θ)', nivel+' ('+theta+')']);
-      wsPerfil.addRow(['Total Respostas', todasRs.length]);
-      wsPerfil.addRow(['Taxa de Acerto', pct(todasRs.filter(r=>r.is_correct).length,todasRs.length)+'%']);
-      wsPerfil.addRow(['XP Total', todasRs.reduce((s,r)=>s+(r.xp_ganho||0),0)]);
-      wsPerfil.addRow(['Gerado em', new Date().toLocaleString('pt-BR')]);
+      // Aba Perfil
+      addSheet('Perfil do Aluno', [
+        ['Relatório Individual', aluno.nome],
+        ['E-mail', aluno.email],
+        ['Nível TRI', nivel+' ('+theta+')'],
+        ['Total Respostas', todasRs.length],
+        ['Taxa de Acerto', pct(todasRs.filter(r=>r.is_correct).length,todasRs.length)+'%'],
+        ['XP Total', todasRs.reduce((s,r)=>s+(r.xp_ganho||0),0)],
+        ['Gerado em', new Date().toLocaleString('pt-BR')],
+      ]);
 
-      // Aba 2 — Desempenho por Trilha
-      const wsTrilhas = wb.addWorksheet('Por Trilha');
-      wsTrilhas.columns = [{header:'Trilha',width:30},{header:'Disciplina',width:25},{header:'Respondidas',width:13},{header:'Total Questões',width:15},{header:'Progresso %',width:13},{header:'Acertos',width:10},{header:'Taxa %',width:10},{header:'XP Ganho',width:12},{header:'Status',width:14}];
-      applyHeader(wsTrilhas.getRow(1));
+      // Aba Por Trilha
+      const tRows = [['Trilha','Disciplina','Respondidas','Total','Progresso %','Acertos','Taxa %','XP','Status']];
       const trilhasIds = [...new Set(todasRs.map(r=>{ const q=questaoRepo.findById(r.questao_id); return q?.trilha_id; }).filter(Boolean))];
       for (const tid of trilhasIds) {
-        const t   = trilhaRepo.findById(tid);
-        const disc= discRepo.findById(t?.disciplina_id);
-        const qs  = questaoRepo.findByTrilha(tid);
-        const rsAl= respostaRepo.findByAlunoTrilha(Number(id), tid);
-        const ac  = rsAl.filter(r=>r.is_correct).length;
-        const taxa = pct(ac, rsAl.length);
-        const row = wsTrilhas.addRow([t?.nome||'-', disc?.nome||'-', rsAl.length, qs.length,
-          pct(rsAl.length,qs.length)+'%', ac, taxa+'%',
+        const t = trilhaRepo.findById(tid);
+        const disc = discRepo.findById(t?.disciplina_id);
+        const qs = questaoRepo.findByTrilha(tid);
+        const rsAl = respostaRepo.findByAlunoTrilha(Number(id), tid);
+        const ac = rsAl.filter(r=>r.is_correct).length;
+        tRows.push([t?.nome||'-', disc?.nome||'-', rsAl.length, qs.length,
+          pct(rsAl.length,qs.length)+'%', ac, pct(ac,rsAl.length)+'%',
           rsAl.reduce((s,r)=>s+(r.xp_ganho||0),0),
           rsAl.length>=qs.length?'Concluída':rsAl.length>0?'Em andamento':'Não iniciada']);
-        if (taxa>=70) row.getCell(7).style=goodStyle;
-        else if (taxa<40) row.getCell(7).style=badStyle;
-        else row.getCell(7).style=warnStyle;
       }
+      addSheet('Por Trilha', tRows);
 
-      // Aba 3 — Histórico Completo
-      const wsHist = wb.addWorksheet('Histórico');
-      wsHist.columns = [{header:'Data',width:20},{header:'Questão (resumo)',width:50},{header:'Tipo',width:15},{header:'Trilha',width:25},{header:'Acertou?',width:12},{header:'Score',width:10},{header:'Tempo (s)',width:12},{header:'XP',width:10}];
-      applyHeader(wsHist.getRow(1));
+      // Aba Histórico
+      const hRows = [['Data','Questão','Tipo','Trilha','Acertou?','Score','Tempo (s)','XP']];
       for (const r of todasRs.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))) {
         const q = questaoRepo.findById(r.questao_id);
         const t = q ? trilhaRepo.findById(q.trilha_id) : null;
-        const row = wsHist.addRow([
-          r.created_at?.split('T')[0]||'-',
-          q?.enunciado?.slice(0,80)||'-',
-          q?.tipo||'-', t?.nome||'-',
-          r.is_correct?'✅ Sim':'❌ Não',
-          round2(r.score||0),
-          r.tempo_gasto_ms ? Math.round(r.tempo_gasto_ms/1000) : '-',
-          r.xp_ganho||0,
-        ]);
-        if (r.is_correct) row.getCell(5).style=goodStyle;
-        else row.getCell(5).style=badStyle;
+        hRows.push([r.created_at?.split('T')[0]||'-', q?.enunciado?.slice(0,80)||'-',
+          q?.tipo||'-', t?.nome||'-', r.is_correct?'Sim':'Não',
+          round2(r.score||0), r.tempo_gasto_ms?Math.round(r.tempo_gasto_ms/1000):'-', r.xp_ganho||0]);
       }
+      addSheet('Histórico', hRows);
 
     } else if (tipo === 'turma') {
       const turma = turmaRepo.findById(id);
       if (!turma) return res.status(404).json({ error: 'Turma não encontrada.' });
       const matriculas = turmaRepo.getAlunos(turma.id);
-      const discIds    = tdRepo.disciplinaIds(turma.id);
-      const disciplinas= discIds.map(i=>discRepo.findById(i)).filter(Boolean);
+      const discIds = tdRepo.disciplinaIds(turma.id);
 
-      // Aba 1 — Ranking
-      const wsRanking = wb.addWorksheet('Ranking da Turma');
-      wsRanking.columns = [{header:'Pos.',width:6},{header:'Nome',width:30},{header:'E-mail',width:30},{header:'Taxa Acerto %',width:15},{header:'Theta TRI',width:12},{header:'Nível',width:15},{header:'Total Respostas',width:16},{header:'XP Total',width:12},{header:'Desempenho',width:14}];
-      applyHeader(wsRanking.getRow(1));
-      const rankingData = matriculas.map(mat=>{
+      // Aba Ranking
+      const rRows = [['Pos.','Nome','E-mail','Taxa %','Theta TRI','Nível','Respostas','XP']];
+      const rankingData = matriculas.map(mat => {
         const u = userRepo.findById(mat.aluno_id);
         if (!u) return null;
         const rs = respostaRepo.findByAluno(u.id);
         const ac = rs.filter(r=>r.is_correct).length;
-        const taxa = pct(ac,rs.length);
         const t = calcTheta(u.id);
-        return { nome:u.nome, email:u.email, taxa, ...t, total:rs.length, xp:rs.reduce((s,r)=>s+(r.xp_ganho||0),0) };
+        return { nome:u.nome, email:u.email, taxa:pct(ac,rs.length), ...t, total:rs.length, xp:rs.reduce((s,r)=>s+(r.xp_ganho||0),0) };
       }).filter(Boolean).sort((a,b)=>b.taxa-a.taxa);
-      rankingData.forEach((a,i)=>{
-        const desemp = desempenhoLabel(a.taxa);
-        const row = wsRanking.addRow([i+1, a.nome, a.email, a.taxa+'%', a.theta, a.nivel, a.total, a.xp, desemp.label]);
-        if (a.taxa>=70) row.getCell(4).style=goodStyle;
-        else if (a.taxa<40) row.getCell(4).style=badStyle;
-        else row.getCell(4).style=warnStyle;
-      });
+      rankingData.forEach((a,i) => rRows.push([i+1,a.nome,a.email,a.taxa+'%',a.theta,a.nivel,a.total,a.xp]));
+      addSheet('Ranking da Turma', rRows);
 
-      // Aba 2 — Análise por Trilha
-      const wsTrilhas = wb.addWorksheet('Análise por Trilha');
-      wsTrilhas.columns = [{header:'Disciplina',width:25},{header:'Trilha',width:30},{header:'Questões',width:10},{header:'Participaram',width:14},{header:'Respostas',width:12},{header:'Taxa Média %',width:14},{header:'Desempenho',width:14}];
-      applyHeader(wsTrilhas.getRow(1));
+      // Aba Trilhas
+      const trRows = [['Disciplina','Trilha','Questões','Participaram','Respostas','Taxa %']];
       for (const discId of discIds) {
         const disc = discRepo.findById(discId);
         const trilhas = trilhaRepo.findByDisciplina(discId);
         for (const t of trilhas) {
           const qs = questaoRepo.findByTrilha(t.id);
           const rsAll = qs.flatMap(q=>respostaRepo.findByQuestao(q.id)).filter(r=>matriculas.some(m=>m.aluno_id===r.aluno_id));
-          const ac  = rsAll.filter(r=>r.is_correct).length;
-          const taxa = pct(ac,rsAll.length);
-          const row = wsTrilhas.addRow([disc?.nome||'-', t.nome, qs.length,
-            new Set(rsAll.map(r=>r.aluno_id)).size, rsAll.length, taxa+'%', desempenhoLabel(taxa).label]);
-          if (taxa>=70) row.getCell(6).style=goodStyle;
-          else if (taxa<40) row.getCell(6).style=badStyle;
-          else row.getCell(6).style=warnStyle;
+          const ac = rsAll.filter(r=>r.is_correct).length;
+          trRows.push([disc?.nome||'-', t.nome, qs.length, new Set(rsAll.map(r=>r.aluno_id)).size, rsAll.length, pct(ac,rsAll.length)+'%']);
         }
       }
+      addSheet('Por Trilha', trRows);
 
-      // Aba 3 — Questões Críticas
-      const wsQC = wb.addWorksheet('Questões Críticas');
-      wsQC.columns = [{header:'Questão',width:60},{header:'Tipo',width:15},{header:'Trilha',width:25},{header:'Respostas',width:12},{header:'Taxa Acerto %',width:14}];
-      applyHeader(wsQC.getRow(1));
+      // Aba Questões Críticas
+      const qcRows = [['Questão','Tipo','Trilha','Respostas','Taxa %']];
       const todasQs = discIds.flatMap(did=>trilhaRepo.findByDisciplina(did).flatMap(t=>questaoRepo.findByTrilha(t.id)));
-      const qsComDados = todasQs.map(q=>{
+      todasQs.map(q=>{
         const rs = respostaRepo.findByQuestao(q.id).filter(r=>matriculas.some(m=>m.aluno_id===r.aluno_id));
         const ac = rs.filter(r=>r.is_correct).length;
-        const taxa = pct(ac,rs.length);
         const t = trilhaRepo.findById(q.trilha_id);
-        return { q, rs:rs.length, taxa, trilha:t?.nome||'-' };
-      }).filter(q=>q.rs>0).sort((a,b)=>a.taxa-b.taxa).slice(0,20);
-      qsComDados.forEach(({q,rs,taxa,trilha})=>{
-        const row = wsQC.addRow([q.enunciado.slice(0,100), q.tipo, trilha, rs, taxa+'%']);
-        row.getCell(5).style = taxa<40?badStyle:taxa<60?warnStyle:goodStyle;
-      });
+        return { q, rs:rs.length, taxa:pct(ac,rs.length), trilha:t?.nome||'-' };
+      }).filter(q=>q.rs>0).sort((a,b)=>a.taxa-b.taxa).slice(0,20)
+        .forEach(({q,rs,taxa,trilha}) => qcRows.push([q.enunciado.slice(0,100), q.tipo, trilha, rs, taxa+'%']));
+      addSheet('Questões Críticas', qcRows);
     }
 
-    // Enviar o arquivo
-    const nomeArquivo = `RSCacademy_relatorio_${tipo}_${id}_${Date.now()}.xlsx`;
+    // Enviar arquivo
+    const buf = XLSX.write(wb, { type:'buffer', bookType:'xlsx' });
+    const nome = 'RSCacademy_'+tipo+'_'+id+'_'+Date.now()+'.xlsx';
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="${nomeArquivo}"`);
-    await wb.xlsx.write(res);
-    res.end();
+    res.setHeader('Content-Disposition', 'attachment; filename="'+nome+'"');
+    res.send(buf);
   } catch(e){ next(e); }
 }
+
 
 module.exports = { profGeral, porTurma, porTrilha, relatorioAluno, turmaCompleto, adminGeral, boletimAluno, boletimTurma, exportarExcel };
