@@ -11,6 +11,7 @@ const discRepo  = require('../repositories/disciplina.repository');
 const tdRepo    = require('../repositories/turma_disciplina.repository');
 const trilhaRepo = require('../repositories/trilha.repository');
 const { gerarCodigo } = require('../database/init');
+const adRepo    = require('../repositories/aluno_disciplina.repository');
 
 // ── Helpers internos ────────────────────────────────────────
 function _turmaComDiscs(turma) {
