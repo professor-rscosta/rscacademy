@@ -255,7 +255,87 @@ async function minhasTurmas(req, res, next) {
   } catch(e){ next(e); }
 }
 
-module.exports = {
+
+// ── Listar todos os alunos ativos (para seleção múltipla) ────
+async function listarTodosAlunos(req, res, next) {
+  try {
+    const { busca, turma_id } = req.query;
+    let alunos = userRepo.findAll()
+      .filter(u => u.perfil === 'aluno' && u.status === 'ativo');
+
+    if (busca?.trim()) {
+      const q = busca.trim().toLowerCase();
+      alunos = alunos.filter(u =>
+        u.nome.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+      );
+    }
+
+    // Marcar quais já estão nesta turma
+    const jaMatriculados = new Set();
+    if (turma_id) {
+      turmaRepo.getAlunos(turma_id).forEach(m => jaMatriculados.add(m.aluno_id));
+    }
+
+    const result = alunos.map(u => {
+      const { senha_hash, ...safe } = u;
+      const turmasAtivas = turmaRepo.getTurmasAluno(u.id)
+        .map(m => turmaRepo.findById(m.turma_id)).filter(t => t?.ativo);
+      return {
+        ...safe,
+        ja_nesta_turma: jaMatriculados.has(u.id),
+        turma_atual: turmasAtivas[0] ? turmasAtivas[0].nome : null,
+      };
+    });
+
+    res.json({ alunos: result, total: result.length });
+  } catch(e){ next(e); }
+}
+
+// ── Matricular múltiplos alunos de uma vez ───────────────────
+async function matricularLote(req, res, next) {
+  try {
+    const t = turmaRepo.findById(req.params.id);
+    if (!t) return res.status(404).json({ error: 'Turma não encontrada.' });
+    const err = _checkDono(req, t);
+    if (err && req.user.perfil !== 'admin') return res.status(403).json({ error: err });
+
+    const { aluno_ids } = req.body;
+    if (!Array.isArray(aluno_ids) || aluno_ids.length === 0)
+      return res.status(400).json({ error: 'aluno_ids é obrigatório.' });
+
+    const resultados = { matriculados: [], ja_matriculados: [], erros: [] };
+
+    for (const aid of aluno_ids) {
+      const aluno = userRepo.findById(aid);
+      if (!aluno || aluno.perfil !== 'aluno') {
+        resultados.erros.push({ id: aid, msg: 'Aluno não encontrado.' });
+        continue;
+      }
+      if (turmaRepo.jaMatriculado(aluno.id, t.id)) {
+        resultados.ja_matriculados.push(aluno.nome);
+        continue;
+      }
+      // Regra: 1 turma ativa por aluno
+      const turmasAtivas = turmaRepo.getTurmasAluno(aluno.id)
+        .map(m => turmaRepo.findById(m.turma_id)).filter(ta => ta?.ativo);
+      if (turmasAtivas.length > 0) {
+        resultados.erros.push({ id: aid, nome: aluno.nome, msg: `Já em "${turmasAtivas[0].nome}"` });
+        continue;
+      }
+      turmaRepo.matricular(aluno.id, t.id);
+      resultados.matriculados.push(aluno.nome);
+    }
+
+    let msg = '';
+    if (resultados.matriculados.length > 0) msg += `✅ ${resultados.matriculados.length} aluno(s) matriculado(s). `;
+    if (resultados.ja_matriculados.length > 0) msg += `⚠️ ${resultados.ja_matriculados.length} já estavam matriculados. `;
+    if (resultados.erros.length > 0) msg += `❌ ${resultados.erros.length} com erro.`;
+
+    res.status(201).json({ message: msg.trim(), ...resultados });
+  } catch(e){ next(e); }
+}
+
+module.exports = { listarTodosAlunos, matricularLote,
   list, getById, create, update, remove,
   listDisciplinas, vincularDisciplina, desvincularDisciplina,
   buscarAluno, matricularAluno, removerAluno,

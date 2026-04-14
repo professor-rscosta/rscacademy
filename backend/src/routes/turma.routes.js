@@ -28,6 +28,8 @@ r.delete('/:id',      profOuAdmin, c.remove);
 
 // ── Alunos: buscar + matricular + desmatricular ───────────────────────
 r.get('/buscar/aluno',                     profOuAdmin, c.buscarAluno);
+r.get('/lista/alunos',                     profOuAdmin, c.listarTodosAlunos);
+r.post('/:id/alunos/lote',                 profOuAdmin, c.matricularLote);
 r.post('/:id/alunos',                      profOuAdmin, c.matricularAluno);
 r.delete('/:turma_id/alunos/:aluno_id',    profOuAdmin, c.removerAluno);
 

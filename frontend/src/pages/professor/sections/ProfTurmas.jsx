@@ -12,6 +12,380 @@ import { Modal, EmptyState, Avatar } from '../../../components/ui';
 
 const TABS = ['disciplinas', 'alunos'];
 
+
+// ════════════════════════════════════════════════════════════
+// ALUNOS TAB — componente completo com busca avançada,
+// seleção múltipla e vinculação à disciplina
+// ════════════════════════════════════════════════════════════
+function AlunosTab({ turma, alunos, disciplinas, onRefresh, onAlert }) {
+  const [modo, setModo]             = useState('matriculados');  // 'matriculados' | 'adicionar'
+  const [busca, setBusca]           = useState('');
+  const [todosAlunos, setTodos]     = useState([]);
+  const [carregando, setCarregando] = useState(false);
+  const [selecionados, setSel]      = useState(new Set());
+  const [discVincular, setDiscVinc] = useState('');
+  const [matriculando, setMatric]   = useState(false);
+  const [confirmando, setConf]      = useState(false);
+  const [paginaAtual, setPagina]    = useState(1);
+  const POR_PAGINA = 10;
+
+  // ── busca em tempo real ──────────────────────────────────
+  useEffect(() => {
+    if (modo !== 'adicionar') return;
+    const timer = setTimeout(() => carregarAlunos(busca), 300);
+    return () => clearTimeout(timer);
+  }, [busca, modo]);
+
+  const carregarAlunos = async (q = '') => {
+    setCarregando(true);
+    try {
+      const r = await api.get('/turmas/lista/alunos?turma_id='+turma.id+(q?'&busca='+encodeURIComponent(q):''));
+      setTodos(r.data.alunos || []);
+      setPagina(1);
+    } catch(e) { console.error(e); }
+    setCarregando(false);
+  };
+
+  const toggleSel = (id) => {
+    if (selecionados.has(id)) {
+      const next = new Set(selecionados); next.delete(id); setSel(next);
+    } else {
+      const next = new Set(selecionados); next.add(id); setSel(next);
+    }
+  };
+
+  const disponiveis = todosAlunos.filter(a => !a.ja_nesta_turma);
+  const selecionadosCount = selecionados.size;
+
+  // Selecionar/Desmarcar todos disponíveis
+  const toggleTodos = () => {
+    if (selecionadosCount === disponiveis.length && disponiveis.length > 0) {
+      setSel(new Set());
+    } else {
+      setSel(new Set(disponiveis.map(a => a.id)));
+    }
+  };
+
+  const matricularSelecionados = async () => {
+    if (selecionados.size === 0) return;
+    setMatric(true); setConf(false);
+    try {
+      const r = await api.post('/turmas/'+turma.id+'/alunos/lote', { aluno_ids: [...selecionados] });
+      onAlert({ type:'success', msg: '✅ '+r.data.message });
+      setSel(new Set()); setBusca('');
+      onRefresh();
+      setModo('matriculados');
+    } catch(e) {
+      onAlert({ type:'error', msg: e.response?.data?.error || 'Erro ao matricular.' });
+    }
+    setMatric(false);
+  };
+
+  const removerAluno = async (alunoId, nome) => {
+    if (!window.confirm('Remover "'+nome+'" desta turma?')) return;
+    try {
+      await api.delete('/turmas/'+turma.id+'/alunos/'+alunoId);
+      onAlert({ type:'success', msg: '✅ Aluno removido da turma.' });
+      onRefresh();
+    } catch(e) {
+      onAlert({ type:'error', msg: e.response?.data?.error || 'Erro ao remover.' });
+    }
+  };
+
+  // ── Filtro local dos matriculados ─────────────────────────
+  const [buscaMatric, setBuscaMatric] = useState('');
+  const alunosFiltrados = alunos.filter(a =>
+    !buscaMatric || a.nome.toLowerCase().includes(buscaMatric.toLowerCase()) ||
+    a.email.toLowerCase().includes(buscaMatric.toLowerCase())
+  );
+
+  // Paginação dos alunos disponíveis
+  const totalPaginas = Math.ceil(todosAlunos.length / POR_PAGINA);
+  const alunosPagina = todosAlunos.slice((paginaAtual-1)*POR_PAGINA, paginaAtual*POR_PAGINA);
+
+  const inputStyle = {
+    flex:1, padding:'9px 12px', border:'1.5px solid var(--slate-200)', borderRadius:8,
+    fontSize:13, outline:'none', fontFamily:'var(--font-body)',
+  };
+
+  return (
+    <div>
+      {/* ── Abas modo ───────────────────────────────────────── */}
+      <div style={{ display:'flex', gap:6, marginBottom:'1.25rem', borderBottom:'2px solid var(--slate-200)', paddingBottom:0 }}>
+        {[
+          ['matriculados', '👨‍🎓 Matriculados ('+alunos.length+')'],
+          ['adicionar',    '➕ Adicionar Alunos'],
+        ].map(([v,l]) => (
+          <button key={v} onClick={() => { setModo(v); if(v==='adicionar') carregarAlunos(''); }} style={{
+            padding:'9px 18px', border:'none', background:'none', cursor:'pointer',
+            fontWeight: modo===v?800:400, color: modo===v?'var(--emerald)':'var(--slate-500)',
+            borderBottom: modo===v?'2px solid var(--emerald)':'2px solid transparent', marginBottom:-2, fontSize:13,
+          }}>{l}</button>
+        ))}
+      </div>
+
+      {/* ════════════════════════════════════════════════════
+          MODO: ALUNOS MATRICULADOS
+      ════════════════════════════════════════════════════ */}
+      {modo === 'matriculados' && (
+        <div className="card">
+          {/* Busca local */}
+          <div style={{ display:'flex', gap:8, marginBottom:'1rem', alignItems:'center' }}>
+            <input
+              value={buscaMatric}
+              onChange={e => setBuscaMatric(e.target.value)}
+              placeholder="🔍 Filtrar por nome ou e-mail..."
+              style={inputStyle}
+              onFocus={e => e.target.style.borderColor='var(--emerald)'}
+              onBlur={e => e.target.style.borderColor='var(--slate-200)'}
+            />
+            {buscaMatric && (
+              <button onClick={() => setBuscaMatric('')} style={{ padding:'9px 12px', border:'1px solid var(--slate-200)', borderRadius:8, background:'white', fontSize:12, cursor:'pointer' }}>✕</button>
+            )}
+            <span style={{ fontSize:12, color:'var(--slate-500)', whiteSpace:'nowrap' }}>
+              {alunosFiltrados.length} aluno(s){buscaMatric ? ' encontrado(s)' : ''}
+            </span>
+          </div>
+
+          {alunos.length === 0 ? (
+            <div style={{ textAlign:'center', padding:'2.5rem', color:'var(--slate-400)' }}>
+              <div style={{ fontSize:40, marginBottom:8 }}>👨‍🎓</div>
+              <div style={{ fontWeight:600, marginBottom:4 }}>Nenhum aluno matriculado</div>
+              <div style={{ fontSize:13 }}>Vá em "Adicionar Alunos" para matricular.</div>
+            </div>
+          ) : alunosFiltrados.length === 0 ? (
+            <div style={{ textAlign:'center', padding:'2rem', color:'var(--slate-400)', fontSize:13 }}>
+              Nenhum aluno encontrado para "{buscaMatric}"
+            </div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {alunosFiltrados.map((a, i) => (
+                <div key={a.aluno_id || a.id} style={{
+                  display:'flex', alignItems:'center', gap:12, padding:'12px 14px',
+                  border:'1px solid var(--slate-200)', borderRadius:10,
+                  background: i%2===0 ? 'white' : 'var(--slate-50)',
+                  transition:'background .1s',
+                }}
+                  onMouseEnter={e => e.currentTarget.style.background='#f0fdf4'}
+                  onMouseLeave={e => e.currentTarget.style.background=i%2===0?'white':'var(--slate-50)'}
+                >
+                  <Avatar name={a.nome} size={38} foto={a.foto} />
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:700, fontSize:13, color:'var(--navy)' }}>{a.nome}</div>
+                    <div style={{ fontSize:11, color:'var(--slate-400)', marginTop:1 }}>{a.email}</div>
+                    {/* Disciplinas que o aluno acessa via esta turma */}
+                    {disciplinas.length > 0 && (
+                      <div style={{ display:'flex', gap:4, flexWrap:'wrap', marginTop:4 }}>
+                        {disciplinas.map(d => (
+                          <span key={d.id} style={{ fontSize:10, padding:'1px 7px', borderRadius:99, background:'#ecfdf5', color:'#059669', border:'1px solid #a7f3d0' }}>
+                            📚 {d.nome}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
+                    <span style={{ fontSize:11, padding:'2px 9px', borderRadius:99, background:'#dcfce7', color:'#166534', fontWeight:600 }}>
+                      ✅ Ativo
+                    </span>
+                    <div style={{ fontSize:10, color:'var(--slate-400)' }}>
+                      📅 {(a.joined_at||a.created_at||'').split('T')[0]}
+                    </div>
+                    <button onClick={() => removerAluno(a.aluno_id||a.id, a.nome)} style={{
+                      padding:'4px 12px', border:'1px solid #fecaca', borderRadius:7,
+                      background:'#fef2f2', color:'#dc2626', cursor:'pointer', fontSize:11, fontWeight:600,
+                    }}>🗑️ Remover</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════
+          MODO: ADICIONAR ALUNOS
+      ════════════════════════════════════════════════════ */}
+      {modo === 'adicionar' && (
+        <div>
+          {/* Painel flutuante de seleção */}
+          {selecionadosCount > 0 && (
+            <div style={{
+              position:'sticky', top:8, zIndex:100, marginBottom:'1rem',
+              background:'white', border:'2px solid var(--emerald)', borderRadius:12,
+              padding:'14px 18px', boxShadow:'0 4px 20px rgba(16,185,129,.25)',
+              display:'flex', alignItems:'center', gap:12, flexWrap:'wrap',
+            }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:800, fontSize:15, color:'var(--emerald)' }}>
+                  ✅ {selecionadosCount} aluno(s) selecionado(s)
+                </div>
+                {disciplinas.length > 0 && (
+                  <div style={{ fontSize:12, color:'var(--slate-500)', marginTop:2 }}>
+                    Serão matriculados e terão acesso a: {disciplinas.map(d=>d.nome).join(', ')}
+                  </div>
+                )}
+              </div>
+              <button onClick={() => setSel(new Set())} style={{ padding:'6px 12px', border:'1px solid #fecaca', borderRadius:8, background:'#fef2f2', color:'#dc2626', fontSize:12, cursor:'pointer', fontWeight:600 }}>
+                ❌ Limpar
+              </button>
+              <button onClick={() => setConf(true)} disabled={matriculando} style={{
+                padding:'10px 22px', background:'var(--emerald)', color:'white', border:'none',
+                borderRadius:9, fontWeight:700, fontSize:13, cursor:'pointer',
+                boxShadow:'0 2px 10px #10b98140',
+              }}>
+                {matriculando ? '⏳ Matriculando...' : '🎓 Matricular Selecionados'}
+              </button>
+            </div>
+          )}
+
+          {/* Card de busca */}
+          <div className="card" style={{ marginBottom:'1rem' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.875rem', flexWrap:'wrap', gap:8 }}>
+              <div>
+                <div style={{ fontFamily:'var(--font-head)', fontSize:15, fontWeight:700, color:'var(--navy)' }}>🔍 Busca Avançada de Alunos</div>
+                <div style={{ fontSize:12, color:'var(--slate-500)' }}>
+                  {carregando ? '🔄 Buscando...' : todosAlunos.length+' aluno(s) encontrado(s)'}
+                </div>
+              </div>
+              <div style={{ display:'flex', gap:6 }}>
+                <button onClick={toggleTodos} style={{
+                  padding:'6px 14px', border:'1px solid var(--emerald)', borderRadius:8,
+                  background:'#ecfdf5', color:'var(--emerald)', fontSize:12, fontWeight:700, cursor:'pointer',
+                }}>
+                  {selecionadosCount === disponiveis.length && disponiveis.length > 0 ? '❌ Desmarcar todos' : '✅ Selecionar todos disponíveis ('+disponiveis.length+')'}
+                </button>
+              </div>
+            </div>
+
+            {/* Campo de busca em tempo real */}
+            <div style={{ position:'relative', marginBottom:'1rem' }}>
+              <input
+                value={busca}
+                onChange={e => setBusca(e.target.value)}
+                placeholder="🔍 Buscar por nome ou e-mail... (busca em tempo real)"
+                style={{ ...inputStyle, width:'100%', paddingRight: busca?40:12, boxSizing:'border-box' }}
+                onFocus={e => e.target.style.borderColor='var(--emerald)'}
+                onBlur={e => e.target.style.borderColor='var(--slate-200)'}
+              />
+              {busca && (
+                <button onClick={() => setBusca('')} style={{
+                  position:'absolute', right:10, top:'50%', transform:'translateY(-50%)',
+                  border:'none', background:'none', cursor:'pointer', fontSize:16, color:'var(--slate-400)',
+                }}>✕</button>
+              )}
+            </div>
+
+            {/* Aviso sobre disciplinas que serão acessíveis */}
+            {disciplinas.length > 0 && (
+              <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:8, padding:'10px 14px', fontSize:12, color:'#1d4ed8', marginBottom:'1rem', display:'flex', alignItems:'center', gap:8 }}>
+                <span style={{ fontSize:16 }}>📚</span>
+                <span>Ao matricular, o aluno terá acesso automático às disciplinas: <strong>{disciplinas.map(d=>d.nome).join(', ')}</strong></span>
+              </div>
+            )}
+
+            {/* Lista com checkboxes */}
+            {carregando ? (
+              <div style={{ textAlign:'center', padding:'2rem' }}><div className="spinner" style={{ margin:'0 auto' }} /></div>
+            ) : todosAlunos.length === 0 ? (
+              <div style={{ textAlign:'center', color:'var(--slate-400)', padding:'2rem', fontSize:13 }}>
+                {busca ? 'Nenhum aluno encontrado para "'+busca+'"' : 'Nenhum aluno cadastrado.'}
+              </div>
+            ) : (
+              <>
+                <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                  {alunosPagina.map(a => {
+                    const bloqueado = a.ja_nesta_turma || !!a.turma_atual;
+                    const sel = selecionados.has(a.id);
+                    return (
+                      <div key={a.id} onClick={() => { if (!bloqueado) toggleSel(a.id); }} style={{
+                        display:'flex', alignItems:'center', gap:12, padding:'11px 13px',
+                        border:'1.5px solid '+(sel?'var(--emerald)':bloqueado?'var(--slate-100)':'var(--slate-200)'),
+                        borderRadius:10, cursor:bloqueado?'default':'pointer',
+                        background: sel?'#ecfdf5':bloqueado?'var(--slate-50)':'white',
+                        opacity: bloqueado ? 0.55 : 1, transition:'all .12s',
+                      }}
+                        onMouseEnter={e => { if (!bloqueado) e.currentTarget.style.borderColor='var(--emerald)'; }}
+                        onMouseLeave={e => { if (!sel && !bloqueado) e.currentTarget.style.borderColor='var(--slate-200)'; }}
+                      >
+                        {/* Checkbox visual */}
+                        <div style={{
+                          width:20, height:20, borderRadius:5, flexShrink:0,
+                          border:'2px solid '+(sel?'var(--emerald)':bloqueado?'var(--slate-200)':'var(--slate-300)'),
+                          background: sel ? 'var(--emerald)' : 'white',
+                          display:'flex', alignItems:'center', justifyContent:'center',
+                          transition:'all .1s',
+                        }}>
+                          {sel && <span style={{ color:'white', fontSize:12, lineHeight:1 }}>✓</span>}
+                        </div>
+                        <Avatar name={a.nome} size={36} foto={a.foto} />
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontWeight:600, fontSize:13, color:'var(--navy)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.nome}</div>
+                          <div style={{ fontSize:11, color:'var(--slate-400)' }}>{a.email}</div>
+                        </div>
+                        {a.ja_nesta_turma
+                          ? <span style={{ fontSize:11, padding:'2px 9px', borderRadius:99, background:'#dcfce7', color:'#166534', fontWeight:600, whiteSpace:'nowrap' }}>✅ Já nesta turma</span>
+                          : a.turma_atual
+                            ? <span style={{ fontSize:11, padding:'2px 9px', borderRadius:99, background:'#fef3c7', color:'#92400e', fontWeight:600, whiteSpace:'nowrap' }}>⚠️ Em: {a.turma_atual}</span>
+                            : <span style={{ fontSize:11, padding:'2px 9px', borderRadius:99, background:'var(--slate-100)', color:'var(--slate-500)', fontWeight:600, whiteSpace:'nowrap' }}>Disponível</span>
+                        }
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Paginação */}
+                {totalPaginas > 1 && (
+                  <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:8, marginTop:'1rem', paddingTop:'1rem', borderTop:'1px solid var(--slate-100)' }}>
+                    <button onClick={() => setPagina(p => Math.max(1, p-1))} disabled={paginaAtual===1} style={{ padding:'6px 14px', border:'1px solid var(--slate-200)', borderRadius:8, background:'white', cursor:paginaAtual===1?'default':'pointer', fontSize:13, opacity:paginaAtual===1?.5:1 }}>
+                      ← Anterior
+                    </button>
+                    <span style={{ fontSize:13, color:'var(--slate-500)' }}>
+                      Página {paginaAtual} de {totalPaginas} · {todosAlunos.length} alunos
+                    </span>
+                    <button onClick={() => setPagina(p => Math.min(totalPaginas, p+1))} disabled={paginaAtual===totalPaginas} style={{ padding:'6px 14px', border:'1px solid var(--slate-200)', borderRadius:8, background:'white', cursor:paginaAtual===totalPaginas?'default':'pointer', fontSize:13, opacity:paginaAtual===totalPaginas?.5:1 }}>
+                      Próxima →
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal de confirmação ────────────────────────────── */}
+      {confirmando && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
+          onClick={e => e.target===e.currentTarget && setConf(false)}>
+          <div style={{ background:'white', borderRadius:14, width:'100%', maxWidth:420, boxShadow:'0 20px 60px rgba(0,0,0,.25)', overflow:'hidden' }}>
+            <div style={{ padding:'1.25rem 1.5rem', background:'linear-gradient(135deg,var(--navy),var(--navy-mid))', color:'white' }}>
+              <div style={{ fontFamily:'var(--font-head)', fontSize:16, fontWeight:700 }}>🎓 Confirmar Matrícula</div>
+            </div>
+            <div style={{ padding:'1.5rem' }}>
+              <p style={{ fontSize:14, color:'var(--slate-600)', marginBottom:'1rem', lineHeight:1.6 }}>
+                Você está prestes a matricular <strong>{selecionadosCount} aluno(s)</strong> na turma <strong>{turma.nome}</strong>.
+              </p>
+              {disciplinas.length > 0 && (
+                <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:8, padding:'10px 14px', fontSize:12, color:'#1d4ed8', marginBottom:'1rem' }}>
+                  📚 Eles terão acesso às disciplinas: <strong>{disciplinas.map(d=>d.nome).join(', ')}</strong>
+                </div>
+              )}
+              <div style={{ display:'flex', gap:10 }}>
+                <button onClick={() => setConf(false)} style={{ flex:1, padding:'10px 0', border:'1px solid var(--slate-200)', borderRadius:9, background:'white', cursor:'pointer', fontSize:13, fontWeight:600 }}>Cancelar</button>
+                <button onClick={matricularSelecionados} disabled={matriculando} style={{ flex:2, padding:'10px 0', border:'none', borderRadius:9, background:'var(--emerald)', color:'white', cursor:'pointer', fontSize:13, fontWeight:700 }}>
+                  {matriculando ? '⏳ Matriculando...' : '✅ Confirmar Matrícula'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 export default function ProfTurmas({ autoCreate } = {}) {
   const { user } = useAuth();
   const [turmas, setTurmas]   = useState([]);
@@ -24,11 +398,6 @@ export default function ProfTurmas({ autoCreate } = {}) {
   const [saving, setSaving]   = useState(false);
   const [alert, setAlert]     = useState(null);
 
-  // Estados de matrícula
-  const [buscarEmail, setBuscarEmail] = useState('');
-  const [buscando, setBuscando]       = useState(false);
-  const [alunoEnc, setAlunoEnc]       = useState(null);
-  const [buscaErro, setBuscaErro]     = useState('');
   const [matriculando, setMatriculando] = useState(false);
 
   const load = async () => {
@@ -48,7 +417,7 @@ export default function ProfTurmas({ autoCreate } = {}) {
       const r = await api.get('/turmas/'+t.id);
       setDetalhe(r.data.turma);
       setTab('disciplinas');
-      setBuscarEmail(''); setBuscaErro(''); setAlunoEnc(null); setAlert(null);
+      setAlert(null);
     } catch(e){ console.error(e); }
   };
 
@@ -104,37 +473,7 @@ export default function ProfTurmas({ autoCreate } = {}) {
   };
 
   // ── Alunos ───────────────────────────────────────────────────
-  const buscarAluno = async () => {
-    if (!buscarEmail.trim()) return;
-    setBuscando(true); setBuscaErro(''); setAlunoEnc(null);
-    try {
-      const r = await api.get('/turmas/buscar/aluno?email='+encodeURIComponent(buscarEmail.trim()));
-      setAlunoEnc(r.data);
-    } catch(e){ setBuscaErro(e.response?.data?.error||'Aluno não encontrado.'); }
-    setBuscando(false);
-  };
 
-  const matricular = async (alunoId) => {
-    setMatriculando(true);
-    try {
-      const r = await api.post('/turmas/'+detalhe.id+'/alunos', { aluno_id: alunoId });
-      setAlert({ type:'success', msg: r.data.message });
-      setBuscarEmail(''); setAlunoEnc(null); setBuscaErro('');
-      refreshDetalhe();
-      setTurmas(p => p.map(t => t.id===detalhe.id ? { ...t, total_alunos:(t.total_alunos||0)+1 } : t));
-      setTimeout(() => setAlert(null), 3000);
-    } catch(e){ setAlert({ type:'error', msg:e.response?.data?.error||'Erro.' }); }
-    setMatriculando(false);
-  };
-
-  const removerAluno = async (alunoId) => {
-    if (!window.confirm('Remover aluno da turma?')) return;
-    try {
-      await api.delete('/turmas/'+detalhe.id+'/alunos/'+alunoId);
-      refreshDetalhe();
-      setTurmas(p => p.map(t => t.id===detalhe.id ? { ...t, total_alunos:Math.max(0,(t.total_alunos||1)-1) } : t));
-    } catch(e){ alert(e.response?.data?.error||'Erro.'); }
-  };
 
   // ════════════════════════════════════════════════════════════
   // DETALHE DA TURMA
@@ -241,81 +580,13 @@ export default function ProfTurmas({ autoCreate } = {}) {
 
         {/* ── ABA ALUNOS ── */}
         {tabAtiva === 'alunos' && (
-          <>
-            {/* Matricular aluno */}
-            <div className="card" style={{ marginBottom:'1rem' }}>
-              <div style={{ fontFamily:'var(--font-head)', fontSize:14, fontWeight:600, color:'var(--navy)', marginBottom:'0.75rem' }}>
-                ➕ Matricular Aluno por E-mail
-              </div>
-              <div style={{ background:'#f0f9ff', border:'1px solid #bae6fd', borderRadius:8, padding:'10px 14px', fontSize:12, color:'#075985', marginBottom:12 }}>
-                🔒 Apenas professores e administradores podem matricular alunos. Um aluno pode estar em apenas <strong>uma turma ativa</strong>.
-              </div>
-              <div style={{ display:'flex', gap:8, marginBottom:10 }}>
-                <input
-                  value={buscarEmail}
-                  onChange={e => setBuscarEmail(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && buscarAluno()}
-                  placeholder="E-mail do aluno (ex: lucas@aluno.rsc.edu)"
-                  style={{ flex:1, padding:'9px 12px', border:'1.5px solid var(--slate-200)', borderRadius:8, fontFamily:'var(--font-body)', fontSize:13, outline:'none' }}
-                  onFocus={e => e.target.style.borderColor='var(--emerald)'}
-                  onBlur={e => e.target.style.borderColor='var(--slate-200)'}
-                />
-                <button onClick={buscarAluno} disabled={!buscarEmail.trim()||buscando} style={{ padding:'9px 16px', background:'var(--navy)', color:'white', border:'none', borderRadius:8, fontWeight:600, fontSize:13, cursor:'pointer', opacity:!buscarEmail.trim()||buscando?0.5:1 }}>
-                  {buscando ? '🔍...' : '🔍 Buscar'}
-                </button>
-              </div>
-
-              {buscaErro && <div className="alert alert-error" style={{ marginBottom:8 }}>{buscaErro}</div>}
-
-              {alunoEnc && (
-                <div style={{ background:'var(--slate-50)', border:'1px solid var(--slate-200)', borderRadius:10, padding:'12px 14px', display:'flex', alignItems:'center', gap:12 }}>
-                  <Avatar name={alunoEnc.aluno.nome} size={40} />
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontWeight:600, fontSize:13, color:'var(--navy)' }}>{alunoEnc.aluno.nome}</div>
-                    <div style={{ fontSize:11, color:'var(--slate-400)' }}>{alunoEnc.aluno.email}</div>
-                    {alunoEnc.turmas?.length > 0 && (
-                      <div style={{ fontSize:11, color:'#92400e', background:'#fffbeb', border:'1px solid #fcd34d', borderRadius:4, padding:'2px 6px', marginTop:4, display:'inline-block' }}>
-                        ⚠️ Já em: {alunoEnc.turmas.map(t => t.nome).join(', ')}
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => matricular(alunoEnc.aluno.id)}
-                    disabled={matriculando || alunoEnc.turmas?.length > 0}
-                    style={{ padding:'9px 18px', background:'var(--emerald)', color:'white', border:'none', borderRadius:8, fontWeight:600, fontSize:13, cursor:'pointer', opacity: matriculando||alunoEnc.turmas?.length>0 ? 0.5 : 1 }}>
-                    {matriculando ? '...' : alunoEnc.turmas?.length > 0 ? 'Já em outra turma' : '✅ Matricular'}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Lista de alunos */}
-            <div className="card">
-              <div style={{ fontFamily:'var(--font-head)', fontSize:14, fontWeight:600, color:'var(--navy)', marginBottom:'0.75rem' }}>
-                👨‍🎓 Alunos Matriculados ({alunos.length})
-              </div>
-              {alunos.length === 0 ? (
-                <EmptyState icon="👨‍🎓" title="Nenhum aluno matriculado" sub="Use o campo acima para matricular alunos pelo e-mail." />
-              ) : (
-                <div className="table-wrap">
-                  <table>
-                    <thead><tr><th>Aluno</th><th>E-mail</th><th>Status</th><th>Matriculado em</th><th></th></tr></thead>
-                    <tbody>
-                      {alunos.map(a => (
-                        <tr key={a.id}>
-                          <td><div style={{ display:'flex', alignItems:'center', gap:8 }}><Avatar name={a.nome} size={28} /><span style={{ fontWeight:500 }}>{a.nome}</span></div></td>
-                          <td style={{ fontSize:12, color:'var(--slate-500)' }}>{a.email}</td>
-                          <td><span style={{ padding:'2px 8px', borderRadius:50, background:'rgba(16,185,129,0.1)', color:'var(--emerald-dark)', fontSize:11 }}>✅ Ativo</span></td>
-                          <td style={{ fontSize:11, color:'var(--slate-400)' }}>{a.joined_at?.split('T')[0]}</td>
-                          <td><button className="btn-sm btn-danger" onClick={() => removerAluno(a.id)}>Remover</button></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </>
+          <AlunosTab
+            turma={detalhe}
+            alunos={alunos}
+            disciplinas={disciplinas}
+            onRefresh={() => { abrirDetalhe(detalhe); }}
+            onAlert={(a) => { setAlert(a); setTimeout(()=>setAlert(null),5000); }}
+          />
         )}
       </>
     );

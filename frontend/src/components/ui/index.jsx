@@ -68,11 +68,14 @@ export function Modal({ title, onClose, children }) {
 }
 
 // ── Avatar initials ──────────────────────────────────────────
-export function Avatar({ name, size = 28, bg = 'linear-gradient(135deg,#0ea5e9,#10b981)' }) {
-  const initials = name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+export function Avatar({ name='?', size = 28, bg = 'linear-gradient(135deg,#0ea5e9,#10b981)', foto = null }) {
+  const initials = (name||'?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
   return (
-    <div style={{ width: size, height: size, borderRadius: '50%', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: size * 0.38, color: 'white', flexShrink: 0 }}>
-      {initials}
+    <div style={{ width: size, height: size, borderRadius: '50%',
+      background: foto ? `url(${foto}) center/cover` : bg,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontWeight: 700, fontSize: foto ? 0 : size * 0.38, color: 'white', flexShrink: 0 }}>
+      {!foto && initials}
     </div>
   );
 }

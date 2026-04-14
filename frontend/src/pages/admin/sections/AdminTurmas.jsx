@@ -34,6 +34,9 @@ function TurmaDetalhe({ turma, onVoltar, onUpdate }) {
   const [alunos, setAlunos]   = useState([]);
   const [todasDiscs, setTodas] = useState([]);
   const [busca, setBusca]     = useState('');
+  const [todosAlunos, setTodosAlunos] = useState([]);
+  const [selecionados, setSelecionados] = useState(new Set());
+  const [modoLista, setModoLista] = useState(false);
   const [resultado, setResultado] = useState([]);
   const [alert, setAlert]     = useState(null);
   const [loading, setLoading] = useState(true);
@@ -74,8 +77,25 @@ function TurmaDetalhe({ turma, onVoltar, onUpdate }) {
 
   const buscarAluno = async () => {
     if (!busca.trim()) return;
-    const r = await api.get(`/turmas/buscar/aluno?q=${encodeURIComponent(busca)}`).catch(() => ({ data:{ alunos:[] } }));
-    setResultado(r.data.alunos || []);
+    const r = await api.get(`/turmas/buscar/aluno?email=${encodeURIComponent(busca)}`).catch(() => ({ data:null }));
+    if (r.data?.aluno) setResultado([r.data.aluno]);
+    else setResultado([]);
+  };
+
+  const loadTodosAlunos = async (b='') => {
+    const r = await api.get(`/turmas/lista/alunos?turma_id=${turma.id}`+(b?`&busca=${encodeURIComponent(b)}`:''))
+      .catch(() => ({ data:{ alunos:[] } }));
+    setTodosAlunos(r.data.alunos||[]);
+  };
+
+  const matricularLote = async () => {
+    if (selecionados.size === 0) return;
+    try {
+      const r = await api.post(`/turmas/${turma.id}/alunos/lote`, { aluno_ids: [...selecionados] });
+      setAlert({ type:'success', msg: r.data.message });
+      setSelecionados(new Set()); load(); loadTodosAlunos(busca);
+    } catch(e) { setAlert({ type:'error', msg: e.response?.data?.error||'Erro.' }); }
+    setTimeout(() => setAlert(null), 4000);
   };
 
   const matricular = async (alunoId) => {
