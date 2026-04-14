@@ -1,10 +1,13 @@
 {
   "name": "rsc-academy",
   "version": "1.0.0",
+  "description": "RSC Academy - Plataforma EdTech",
+  "main": "backend/src/server.js",
   "scripts": {
-    "build": "cd frontend && npm run build",
-    "deploy": "cd frontend && npm run build && cd .. && git add backend/public -f && git add -A && git commit -m \"deploy: $(date '+%Y-%m-%d %H:%M')\" && git push",
+    "start": "cd backend && node src/server.js",
+    "build": "cd backend && npm install",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev"
-  }
+  },
+  "dependencies": {}
 }
