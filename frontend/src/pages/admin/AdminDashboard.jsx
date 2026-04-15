@@ -38,6 +38,7 @@ export default function AdminDashboard() {
       case 'materiais':   return <ProfMateriais />;
       case 'mural':       return <ProfMural />;
       case 'rag':         return <ProfRAG />;
+      case 'chatbot':     return <AlunoChatbot />;
       case 'boletim':     return <ProfBoletim />;
       default:            return <AdminHome onNavigate={navigate} />;
     }

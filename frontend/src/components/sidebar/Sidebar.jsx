@@ -21,6 +21,7 @@ const MENUS = {
       {id:'materiais',   icon:'📁', label:'Materiais Didáticos'},
       {id:'mural',       icon:'📌', label:'Mural de Avisos'},
       {id:'rag',         icon:'🧠', label:'Base RAG (IA)'},
+      {id:'chatbot',     icon:'🤖', label:'Assistente IA'},
     ]},
     { section:'Análise',   items:[
       {id:'relatorios',  icon:'📈', label:'Relatórios Globais'},
@@ -41,6 +42,7 @@ const MENUS = {
       {id:'mural',     icon:'📌', label:'Mural de Avisos'},
       {id:'materiais', icon:'📁', label:'Materiais Didáticos'},
       {id:'rag', icon:'🧠', label:'Base RAG (IA)'},
+      {id:'chatbot', icon:'🤖', label:'Assistente IA'},
     ]},
     { section:'Análise',   items:[{id:'relatorios', icon:'📈', label:'Relatórios TRI'},{id:'boletim', icon:'📋', label:'Boletim de Notas'}] },
   ],

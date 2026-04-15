@@ -61,6 +61,7 @@ const rotas = [
   ['chatbot',     './routes/chatbot.routes'],
   ['atividades',  './routes/atividade.routes'],
   ['rag',         './routes/rag.routes'],
+  ['assistente',   './routes/assistente.routes'],
   ['boletim',     './routes/boletim.routes'],
 ];
 

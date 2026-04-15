@@ -106,16 +106,14 @@ async function disciplinas(req, res, next) {
     let minhasDiscs = [];
     if (req.user.perfil === 'aluno') {
       const turmaIds = (turmaRepo.getTurmasAluno(req.user.id)||[]).map(m => m.turma_id);
-      const allDiscIds = turmaIds.flatMap(tid => tdRepo.disciplinaIds(tid));
-      // Disciplinas da turma que têm RAG
-      const discsDaTurma = allDiscIds
-        .filter(did => discIds.includes(did))
-        .map(did => discRepo.findById(did))
-        .filter(Boolean);
-      
-      // Se o aluno não tem turma ou a turma não tem RAG, mostra TODAS as disciplinas com RAG
+      const adRepo = require('../repositories/aluno_disciplina.repository');
+      const discIdsAluno = adRepo.disciplinaIds(req.user.id);
+      const allDiscIds = discIdsAluno.length > 0 ? discIdsAluno : turmaIds.flatMap(tid => tdRepo.disciplinaIds(tid));
+      const discsDaTurma = allDiscIds.filter(did => discIds.includes(did)).map(did => discRepo.findById(did)).filter(Boolean);
       if (discsDaTurma.length > 0) {
         minhasDiscs = discsDaTurma;
+      } else if (allDiscIds.length > 0) {
+        minhasDiscs = allDiscIds.map(did => discRepo.findById(did)).filter(Boolean);
       } else {
         minhasDiscs = discIds.map(did => discRepo.findById(did)).filter(Boolean);
       }

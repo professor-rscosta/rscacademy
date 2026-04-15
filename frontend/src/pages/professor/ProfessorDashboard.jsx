@@ -9,6 +9,7 @@ import ProfMural from './sections/ProfMural';
 import ProfMateriais from './sections/ProfMateriais';
 import ProfRelatorios from './sections/ProfRelatorios';
 import ProfBoletim from './sections/ProfBoletim';
+import AlunoChatbot from '../aluno/sections/AlunoChatbot';
 import ProfAvaliacoes from './sections/ProfAvaliacoes';
 import ProfAtividades from './sections/ProfAtividades';
 import ProfRAG from './sections/ProfRAG';
@@ -41,6 +42,7 @@ export default function ProfessorDashboard() {
       case 'mural':       return <ProfMural autoCreate={action==='criar'} />;
       case 'materiais':   return <ProfMateriais />;
       case 'rag':         return <ProfRAG />;
+      case 'chatbot':     return <AlunoChatbot />;
       case 'relatorios':  return <ProfRelatorios />;
       case 'boletim':     return <ProfBoletim />;
       default:            return <GenericSection title="Em desenvolvimento" sub="Próximas etapas" icon="🔧" />;
