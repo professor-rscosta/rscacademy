@@ -139,8 +139,9 @@ async function buscarContextos(pergunta, disciplinaId = null, topK = 8) {
   const topCandidatos = scored.slice(0, Math.min(20, scored.length));
   const selecionados  = mmrRerank(topCandidatos, queryEmbed, 0.7, topK);
 
-  // Context expansion: incluir chunks vizinhos
-  const resultado = expandirContexto(selecionados, comEmbed);
+  // Context expansion usando ragSvc
+  const ragSvc = require('./rag.service');
+  const resultado = ragSvc.expandContext(selecionados, disciplinaId);
 
   return { chunks: resultado, queryEmbed, usouEmbeddings: true };
 }

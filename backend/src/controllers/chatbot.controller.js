@@ -30,12 +30,15 @@ async function chat(req, res, next) {
     }
 
     // Buscar contexto RAG dos documentos da disciplina
-    const contextos = ragSvc.retrieveContext(mensagem, [], 5, disciplina_id ? Number(disciplina_id) : null);
-    const ragContext = ragSvc.formatContextForPrompt(contextos);
-    const fontes     = [...new Set(contextos.map(c => c.fonte).filter(Boolean))];
+    // Busca TF-IDF com Top-8
+    const contextos = ragSvc.retrieveContext(mensagem, [], 8, disciplina_id ? Number(disciplina_id) : null);
+    // Context expansion: chunks vizinhos
+    const contextoExpandido = ragSvc.expandContext(contextos, disciplina_id ? Number(disciplina_id) : null);
+    const ragContext = ragSvc.formatContextForPrompt(contextoExpandido);
+    const fontes     = [...new Set(contextoExpandido.map(c => c.fonte).filter(Boolean))];
 
     // Marcar uso dos contextos
-    if (contextos.length > 0) ragSvc.markUsed(contextos.map(c => c.id));
+    if (contextoExpandido.length > 0) ragSvc.markUsed(contextoExpandido.map(c => c.id));
 
     const contexto_usuario = {
       nome:           user?.nome,
