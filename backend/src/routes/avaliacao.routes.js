@@ -13,5 +13,8 @@ r.post('/responder',   authorize('aluno'), c.responderQuestao);
 r.post('/tentativa/:tentativa_id/concluir', authorize('aluno'), c.concluir);
 r.get('/:id/resultados', authorize('professor','admin'), c.resultados);
 r.get('/:id/entregas',                    authorize('professor','admin'), c.listarEntregas);
+r.post('/:id/clonar',                     authorize('professor','admin'), c.clonar);
+r.post('/:id/turmas',                     authorize('professor','admin'), c.vincularTurmas);
+r.get('/:id/turmas',                      authorize('professor','admin'), c.turmasDaAvaliacao);
 r.patch('/tentativa/:tentativa_id/corrigir', authorize('professor','admin'), c.corrigirManual);
 module.exports=r;

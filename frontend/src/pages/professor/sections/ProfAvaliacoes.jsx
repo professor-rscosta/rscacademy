@@ -724,6 +724,23 @@ export default function ProfAvaliacoes({ autoCreate } = {}) {
     catch(e){ alert(e.response?.data?.error||'Erro.'); }
   };
 
+  const handleClonar = async (av) => {
+    const titulo = prompt('Nome da cópia:', av.titulo + ' (cópia)');
+    if (!titulo) return;
+    try {
+      const r = await api.post('/avaliacoes/'+av.id+'/clonar', { titulo });
+      setAvs(p => [...p, r.data.avaliacao]);
+      alert('✅ ' + r.data.message);
+    } catch(e) { alert(e.response?.data?.error || 'Erro ao clonar.'); }
+  };
+
+  const handleVincularTurmas = async (av, turmaIds) => {
+    try {
+      await api.post('/avaliacoes/'+av.id+'/turmas', { turma_ids: turmaIds });
+      alert('✅ Avaliação vinculada a ' + turmaIds.length + ' turma(s)!');
+    } catch(e) { alert(e.response?.data?.error || 'Erro.'); }
+  };
+
   const handleDelete = async (id) => {
     if (!window.confirm('Excluir avaliação?')) return;
     await api.delete('/avaliacoes/'+id);

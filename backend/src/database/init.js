@@ -4,7 +4,7 @@ const DB_PATH=path.join(__dirname,'../../database/rsc_academy.json');
 const EMPTY_DB={
   usuarios:[],disciplinas:[],trilhas:[],questoes:[],respostas:[],
   turmas:[],aluno_turma:[],turma_disciplinas:[],aluno_disciplina:[],materiais:[],avisos:[],rag_contextos:[],atividades:[],entregas_atividade:[],rag_documentos:[],
-  avaliacoes:[],tentativas:[],medalhas_config:[],medalhas_aluno:[],missoes:[],missoes_aluno:[],
+  avaliacoes:[],tentativas:[],turma_avaliacoes:[],medalhas_config:[],medalhas_aluno:[],missoes:[],missoes_aluno:[],
   _seq:{usuarios:0,disciplinas:0,trilhas:0,questoes:0,respostas:0,turmas:0,
         materiais:0,avisos:0,rag_contextos:0,avaliacoes:0,tentativas:0,
         medalhas_config:0,medalhas_aluno:0,missoes:0,missoes_aluno:0,atividades:0,entregas_atividade:0},

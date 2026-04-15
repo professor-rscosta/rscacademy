@@ -208,6 +208,43 @@ function Cronometro({ segundos, onExpire }) {
   );
 }
 
+
+// ── SweetAlert-style Confirm Modal ───────────────────────────
+function ConfirmModal({ onConfirm, onCancel, titulo, mensagem, confirmLabel='✅ Confirmar', cancelLabel='❌ Cancelar', tipo='warning' }) {
+  const cores = {
+    warning: { bg:'#fffbeb', borda:'#f59e0b', icone:'⚠️', btn:'#f59e0b', btnText:'#1e293b' },
+    success: { bg:'#f0fdf4', borda:'#10b981', icone:'✅', btn:'#10b981', btnText:'white' },
+    danger:  { bg:'#fef2f2', borda:'#ef4444', icone:'🚨', btn:'#ef4444', btnText:'white' },
+  }[tipo] || cores?.warning;
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.55)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem', backdropFilter:'blur(2px)' }}>
+      <div style={{ background:'white', borderRadius:20, width:'100%', maxWidth:420, boxShadow:'0 25px 60px rgba(0,0,0,.3)', overflow:'hidden', animation:'slideUp .2s ease' }}>
+        <div style={{ padding:'2rem', textAlign:'center' }}>
+          <div style={{ fontSize:56, marginBottom:12 }}>⚠️</div>
+          <div style={{ fontFamily:'var(--font-head)', fontSize:20, fontWeight:800, color:'var(--navy)', marginBottom:8 }}>{titulo}</div>
+          <div style={{ fontSize:14, color:'var(--slate-600)', lineHeight:1.6, marginBottom:'1.5rem' }}>{mensagem}</div>
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={onCancel} style={{ flex:1, padding:'12px 0', border:'2px solid var(--slate-200)', borderRadius:10, background:'white', cursor:'pointer', fontSize:14, fontWeight:600, color:'var(--slate-600)', transition:'all .15s' }}
+              onMouseEnter={e=>{e.currentTarget.style.background='var(--slate-50)'}}
+              onMouseLeave={e=>{e.currentTarget.style.background='white'}}
+            >
+              ↩️ Cancelar
+            </button>
+            <button onClick={onConfirm} style={{ flex:2, padding:'12px 0', border:'none', borderRadius:10, background:'linear-gradient(135deg,#f59e0b,#d97706)', color:'white', cursor:'pointer', fontSize:14, fontWeight:700, boxShadow:'0 4px 14px rgba(245,158,11,.4)', transition:'all .15s' }}
+              onMouseEnter={e=>{e.currentTarget.style.opacity='.9'}}
+              onMouseLeave={e=>{e.currentTarget.style.opacity='1'}}
+            >
+              ✅ Confirmar Envio
+            </button>
+          </div>
+        </div>
+      </div>
+      <style>{`@keyframes slideUp { from { transform:translateY(20px); opacity:0; } to { transform:none; opacity:1; } }`}</style>
+    </div>
+  );
+}
+
 export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
   const [avs, setAvs]           = useState([]);
   const [loading, setLoading]   = useState(true);
@@ -219,6 +256,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
   const [respostas, setRespostas] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [resultado, setResultado] = useState(null);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [tempoSeg, setTempoSeg] = useState(null);
 
   useEffect(() => { load(); }, []);
@@ -553,6 +591,16 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
             );
           })}
         </div>
+      )}
+
+      {/* ── Modal de confirmação de envio (SweetAlert-style) ── */}
+      {showConfirm && (
+        <ConfirmModal
+          titulo="Enviar Avaliação?"
+          mensagem="Tem certeza que deseja enviar sua avaliação? Após o envio, não será possível alterar suas respostas."
+          onConfirm={concluirAvaliacao}
+          onCancel={() => setShowConfirm(false)}
+        />
       )}
     </>
   );

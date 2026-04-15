@@ -263,14 +263,20 @@ async function concluir(req, res, next) {
     gamifService.updateStreak(req.user.id);
     const novasMedalhas = gamifService.checkMedals(req.user.id);
 
-    let feedbackGeral = aprovado ? `✅ Parabéns! Nota ${nota}/10.` : `📚 Nota ${nota}/10. Continue estudando!`;
+    const corretas = respostasCorrigidas.filter(r => r.score >= 0.8).length;
+    let feedbackGeral = aprovado ? '✅ Parabéns! Nota ' + nota + '/10.' : '📚 Nota ' + nota + '/10. Continue estudando!';
     try {
       const u = userRepo.findById(req.user.id);
-      feedbackGeral = await aiService.generateFeedback({
-        questao: { tipo:'avaliacao', enunciado: av.titulo }, resposta_aluno: `Nota: ${nota}/10`,
-        score: nota/10, theta_antes: u?.theta||0, theta_depois: u?.theta||0, xp_ganho: xpGanho,
-      });
-    } catch {}
+      // Preparar dados detalhados para feedback pedagógico
+      const respostasDetalhadas = respostasCorrigidas.map(rc => ({
+        ...rc,
+        questao: questaoRepo.findById(rc.questao_id),
+        resposta_aluno: tentativa.respostas?.find(r => r.questao_id === rc.questao_id)?.resposta,
+      }));
+      feedbackGeral = await gerarFeedbackPedagogico(u, av, nota, corretas, questoesConfig.length, respostasDetalhadas);
+    } catch(feedErr) {
+      console.log('[Avaliacao] Feedback IA falhou:', feedErr.message);
+    }
 
     avaliacaoRepo.updateTentativa(tentativa.id, {
       status: 'concluida', nota, aprovado, pontos_brutos: pontosBrutos, peso_total: pesoTotal,
@@ -278,7 +284,38 @@ async function concluir(req, res, next) {
       xp_ganho: xpGanho, feedback_geral: feedbackGeral,
     });
 
-    res.json({ nota, aprovado, xp_ganho: xpGanho, nota_minima: av.nota_minima, respostas: respostasCorrigidas, feedback_geral: feedbackGeral, novas_medalhas: novasMedalhas, estatisticas: { total_questoes: questoesConfig.length, corretas: respostasCorrigidas.filter(r => r.score >= 0.8).length, taxa_acerto: Math.round(respostasCorrigidas.filter(r => r.score >= 0.8).length / questoesConfig.length * 100) } });
+    // Montar resposta detalhada com info de questões
+    const corretasCount = respostasCorrigidas.filter(r => r.score >= 0.8).length;
+    const respostasCompletas = respostasCorrigidas.map(rc => {
+      const q = questaoRepo.findById(rc.questao_id);
+      const rAluno = tentativa.respostas?.find(r => r.questao_id === rc.questao_id);
+      return {
+        ...rc,
+        questao_enunciado:  q?.enunciado || '',
+        questao_tipo:       q?.tipo || '',
+        questao_gabarito:   q?.gabarito ?? null,
+        questao_alternativas: q?.alternativas || null,
+        questao_explicacao: q?.explicacao || '',
+        resposta_aluno:     rAluno?.resposta ?? null,
+        tempo_gasto_ms:     rAluno?.tempo_gasto_ms || null,
+      };
+    });
+
+    res.json({
+      nota, aprovado, xp_ganho: xpGanho,
+      nota_minima: av.nota_minima,
+      avaliacao_titulo: av.titulo,
+      concluida_em: new Date().toISOString(),
+      respostas: respostasCompletas,
+      feedback_geral: feedbackGeral,
+      novas_medalhas: novasMedalhas,
+      estatisticas: {
+        total_questoes: questoesConfig.length,
+        corretas: corretasCount,
+        erros: questoesConfig.length - corretasCount,
+        taxa_acerto: Math.round(corretasCount / questoesConfig.length * 100),
+      }
+    });
   } catch(e){ next(e); }
 }
 
@@ -317,7 +354,117 @@ async function minhasTentativas(req, res, next) {
   } catch(e){ next(e); }
 }
 
-module.exports = { list, getById, create, update, remove, publicar, iniciar, responderQuestao, concluir, resultados, minhasTentativas, listarEntregas, corrigirManual };
+
+// ── CLONAR avaliação ──────────────────────────────────────────
+async function clonar(req, res, next) {
+  try {
+    const av = avaliacaoRepo.findById(req.params.id);
+    if (!av) return res.status(404).json({ error: 'Avaliação não encontrada.' });
+    const { turma_id, titulo } = req.body;
+
+    const clone = avaliacaoRepo.create({
+      ...av,
+      id: undefined,
+      titulo: titulo || av.titulo + ' (cópia)',
+      professor_id: req.user.id,
+      turma_id: turma_id ? Number(turma_id) : av.turma_id,
+      status: 'rascunho',
+      created_at: new Date().toISOString(),
+    });
+    res.status(201).json({ avaliacao: clone, message: 'Avaliação clonada com sucesso!' });
+  } catch(e){ next(e); }
+}
+
+// ── VINCULAR avaliação a turma(s) ────────────────────────────
+async function vincularTurmas(req, res, next) {
+  try {
+    const av = avaliacaoRepo.findById(req.params.id);
+    if (!av) return res.status(404).json({ error: 'Avaliação não encontrada.' });
+
+    const { turma_ids } = req.body;
+    if (!Array.isArray(turma_ids) || turma_ids.length === 0)
+      return res.status(400).json({ error: 'turma_ids é obrigatório.' });
+
+    const { dbInsert, dbDeleteWhere, dbFindWhere } = require('../database/init');
+    const T = 'turma_avaliacoes';
+
+    // Remover vínculos anteriores e recriar
+    dbDeleteWhere(T, r => r.avaliacao_id === av.id);
+    const vinculados = [];
+    for (const tid of turma_ids) {
+      dbInsert(T, { avaliacao_id: av.id, turma_id: Number(tid), vinculado_em: new Date().toISOString() });
+      vinculados.push(Number(tid));
+    }
+
+    // Também atualizar turma_id principal se só uma turma
+    if (turma_ids.length === 1) avaliacaoRepo.update(av.id, { turma_id: Number(turma_ids[0]) });
+
+    res.json({ message: `Avaliação vinculada a ${vinculados.length} turma(s).`, turmas: vinculados });
+  } catch(e){ next(e); }
+}
+
+// ── LISTAR turmas de uma avaliação ────────────────────────────
+async function turmasDaAvaliacao(req, res, next) {
+  try {
+    const { dbFindWhere } = require('../database/init');
+    const vinculos = dbFindWhere('turma_avaliacoes', r => r.avaliacao_id === Number(req.params.id));
+    const turmaRepo = require('../repositories/turma.repository');
+    const turmas = vinculos.map(v => turmaRepo.findById(v.turma_id)).filter(Boolean);
+    res.json({ turmas });
+  } catch(e){ next(e); }
+}
+
+// ── GERAR FEEDBACK PEDAGÓGICO AVANÇADO ───────────────────────
+async function gerarFeedbackPedagogico(aluno, av, nota, corretas, totalQ, respostasDetalhadas) {
+  const taxa = Math.round(corretas / totalQ * 100);
+  const titulo = av.titulo || 'Avaliação';
+
+  const promptFeedback = [
+    'Você é um especialista em pedagogia com expertise em BNCC, TRI e avaliação por competências.',
+    'Gere um feedback educacional personalizado e motivador para um aluno que acabou de concluir uma avaliação.',
+    '',
+    `Aluno: ${aluno.nome}`,
+    `Avaliação: ${titulo}`,
+    `Nota: ${nota}/10`,
+    `Taxa de acerto: ${taxa}%`,
+    `Questões corretas: ${corretas} de ${totalQ}`,
+    '',
+    'Desempenho por tipo de questão:',
+    ...respostasDetalhadas.map(r => {
+      const q = r.questao;
+      if (!q) return '';
+      return `- ${q.tipo}: ${r.is_correct ? '✅ Correto' : '❌ Incorreto'} | ${q.enunciado?.slice(0,80)}...`;
+    }).filter(Boolean),
+    '',
+    'Gere um feedback com exatamente estas seções (use markdown):',
+    '## 🎯 Resultado',
+    '(Resumo do desempenho em 1-2 frases)',
+    '',
+    '## ✅ Pontos Fortes',
+    '(O que o aluno demonstrou dominar)',
+    '',
+    '## 📚 O que Revisar',
+    '(Conteúdos/competências que precisam de atenção)',
+    '',
+    '## 💡 Sugestões de Estudo',
+    '(3 sugestões práticas baseadas nos erros)',
+    '',
+    '## 🚀 Próximos Passos',
+    '(Motivação e orientação para o aluno avançar)',
+    '',
+    'Tom: encorajador, didático e baseado em competências da BNCC.',
+    'Máximo 300 palavras no total.',
+  ].join("\n");
+
+  const llm = require('../services/llm.service');
+  return llm.chat({
+    system: 'Você é um especialista em educação e avaliação pedagógica.',
+    messages: [{ role: 'user', content: promptFeedback }],
+    maxTokens: 600,
+  });
+}
+
+module.exports = { list, getById, create, update, remove, publicar, iniciar, responderQuestao, concluir, resultados, minhasTentativas, listarEntregas, corrigirManual, clonar, vincularTurmas, turmasDaAvaliacao };
 
 // ── Listar entregas de upload para o professor corrigir ────────
 async function listarEntregas(req, res, next) {
