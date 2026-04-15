@@ -20,10 +20,22 @@ app.use(helmet());
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
+    if (process.env.NODE_ENV !== 'production') return callback(null, true);
+
     const allowed = (process.env.FRONTEND_URL || '*').split(',').map(u => u.trim());
-    if (allowed.includes('*') || allowed.includes(origin) || process.env.NODE_ENV !== 'production') {
-      return callback(null, true);
-    }
+
+    // Whitelist explícita
+    if (allowed.includes('*') || allowed.includes(origin)) return callback(null, true);
+
+    // Permitir subdomínios Hostinger (preview/staging)
+    if (/\.hostingersite\.com$/.test(origin)) return callback(null, true);
+    if (/\.hostinger\.com$/.test(origin)) return callback(null, true);
+
+    // Permitir localhost em qualquer porta
+    if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) return callback(null, true);
+    if (/^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)) return callback(null, true);
+
+    console.log('[CORS] Bloqueado:', origin);
     callback(new Error('CORS bloqueado: ' + origin));
   },
   credentials: true,
@@ -98,10 +110,21 @@ async function start() {
   await initDatabase();
   app.listen(PORT, () => {
     console.log(`🚀 RSC Academy Backend → http://localhost:${PORT}`);
-    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'sua_chave_aqui') {
-      console.warn('⚠️  OPENAI_API_KEY não configurada.');
+    // Verificar provider configurado
+    const provider = process.env.AI_PROVIDER || (process.env.GEMINI_API_KEY ? 'gemini' : 'openai');
+    if (provider === 'gemini') {
+      if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'sua_chave_aqui') {
+        console.warn('⚠️  GEMINI_API_KEY não configurada.');
+      } else {
+        const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+        console.log('✅ Google Gemini conectado → ' + model);
+      }
     } else {
-      console.log('✅ OpenAI API conectada → gpt-4o-mini');
+      if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'sua_chave_aqui') {
+        console.warn('⚠️  OPENAI_API_KEY não configurada.');
+      } else {
+        console.log('✅ OpenAI API conectada → ' + (process.env.OPENAI_MODEL || 'gpt-4o-mini'));
+      }
     }
   });
 }
