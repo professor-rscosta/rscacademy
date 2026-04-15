@@ -29,6 +29,25 @@ function getApiKey(provider) {
   return k;
 }
 
+
+// ── Retry com backoff para rate limits ───────────────────────
+async function withRetry(fn, maxAttempts = 3, baseDelay = 2000) {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      return await fn();
+    } catch(e) {
+      const is429 = e.message?.includes('429') || e.message?.includes('quota') || e.message?.includes('rate');
+      if (is429 && i < maxAttempts - 1) {
+        const delay = baseDelay * Math.pow(2, i);
+        console.log('[LLM] Rate limit. Tentativa ' + (i+2) + '/' + maxAttempts + ' em ' + delay + 'ms...');
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      throw e;
+    }
+  }
+}
+
 // ── Chamada OpenAI ────────────────────────────────────────────
 async function callOpenAI({ system, messages, maxTokens = 1500, jsonMode = false }) {
   const apiKey = getApiKey('openai');
@@ -58,7 +77,7 @@ async function callOpenAI({ system, messages, maxTokens = 1500, jsonMode = false
 // ── Chamada Gemini ────────────────────────────────────────────
 async function callGemini({ system, messages, maxTokens = 1500 }) {
   const apiKey = getApiKey('gemini');
-  const model  = process.env.GEMINI_MODEL || 'gemini-2.0-flash-lite';
+  const model  = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
   // Converter formato de mensagens para Gemini
   const contents = [];
@@ -96,6 +115,7 @@ async function callGemini({ system, messages, maxTokens = 1500 }) {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const msg = err.error?.message || res.statusText;
+    if (res.status === 429) throw new Error('Gemini 429: limite de requisições atingido. Aguarde alguns segundos e tente novamente.');
     throw new Error('Gemini ' + res.status + ': ' + msg);
   }
 
@@ -143,8 +163,8 @@ async function getEmbedding(text) {
 async function chat({ system, messages, maxTokens = 1500, jsonMode = false }) {
   const provider = getProvider();
   try {
-    if (provider === 'gemini') return await callGemini({ system, messages, maxTokens });
-    return await callOpenAI({ system, messages, maxTokens, jsonMode });
+    if (provider === 'gemini') return await withRetry(() => callGemini({ system, messages, maxTokens }));
+    return await withRetry(() => callOpenAI({ system, messages, maxTokens, jsonMode }));
   } catch(e) {
     console.error('[LLM] ' + provider + ' error:', e.message);
     throw e;

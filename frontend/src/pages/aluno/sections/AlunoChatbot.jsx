@@ -192,8 +192,13 @@ export default function AlunoChatbot() {
         }];
       });
     } catch(e) {
-      const err = e.response?.data?.error || 'Erro ao processar arquivo.';
-      setMsgs(p => p.slice(0,-1).concat([{ id:Date.now()+2, role:'assistant', content:'❌ '+err }]));
+      const status = e.response?.status;
+      const err = e.response?.data?.error || e.message || 'Erro ao processar arquivo.';
+      let msg = '❌ ' + err;
+      if (status === 413 || err.includes('large')) msg = '❌ Arquivo muito grande. Tente um arquivo menor (máx 5MB).';
+      if (status === 422) msg = '❌ Não foi possível ler o arquivo. Use PDF com texto selecionável, DOCX ou TXT.';
+      if (status === 503 || err.includes('API') || err.includes('chave')) msg = '❌ Assistente de IA não configurado. Verifique as variáveis de ambiente.';
+      setMsgs(p => p.slice(0,-1).concat([{ id:Date.now()+2, role:'assistant', content:msg }]));
     } finally { setUpFile(false); }
   };
 
@@ -230,8 +235,19 @@ export default function AlunoChatbot() {
         modoArquivo,
       }]));
     } catch(e) {
-      const err = e.response?.data?.error || 'Erro ao conectar com o assistente.';
-      setMsgs(p => p.slice(0,-1).concat([{ id:Date.now()+2, role:'assistant', content:'❌ '+err }]));
+      const status = e.response?.status;
+      const err = e.response?.data?.error || e.message || 'Erro ao conectar com o assistente.';
+      let msg;
+      if (status === 429 || err.includes('429') || err.includes('quota') || err.includes('limite')) {
+        msg = '⏳ Limite de requisições atingido. Aguarde alguns segundos e tente novamente.';
+      } else if (status === 503 || err.includes('API') || err.includes('chave') || err.includes('configurad')) {
+        msg = '⚙️ Assistente IA não configurado. Verifique GEMINI_API_KEY ou OPENAI_API_KEY nas variáveis de ambiente.';
+      } else if (status === 500) {
+        msg = '❌ Erro no servidor: ' + err;
+      } else {
+        msg = '❌ ' + err;
+      }
+      setMsgs(p => p.slice(0,-1).concat([{ id:Date.now()+2, role:'assistant', content:msg }]));
     } finally { setLoading(false); inputRef.current?.focus(); }
   }, [input, loading, discId, modoArquivo, arquivoKey]);
 

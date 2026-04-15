@@ -120,17 +120,29 @@ async function uploadChatFile(req, res, next) {
   try {
     const { base64, mimeType, fileName, disciplina_id } = req.body;
     if (!base64 || !fileName) return res.status(400).json({ error: 'base64 e fileName são obrigatórios.' });
+    console.log('[Upload] arquivo:', fileName, 'tamanho base64:', (base64?.length||0), 'bytes');
 
     // Extrair texto
     const ragSvc = require('../services/rag.service');
-    const textoExtraido = await ragSvc.extractTextFromBase64(base64, mimeType, fileName);
+    let textoExtraido;
+    try {
+      textoExtraido = await ragSvc.extractTextFromBase64(base64, mimeType, fileName);
+    } catch(extractErr) {
+      console.error('[Upload] extract error:', extractErr.message);
+      return res.status(422).json({ error: 'Falha ao extrair texto: ' + extractErr.message });
+    }
 
-    if (!textoExtraido || textoExtraido.trim().length < 50) {
-      return res.status(400).json({ error: 'Não foi possível extrair texto do arquivo. Verifique se é um PDF/DOCX com texto selecionável.' });
+    const textoLimpo = (textoExtraido || '').trim();
+    console.log('[Upload] texto extraído:', textoLimpo.length, 'chars');
+    if (textoLimpo.length < 50) {
+      return res.status(400).json({
+        error: 'Não foi possível extrair texto deste arquivo. Use PDF com texto selecionável, DOCX ou TXT.',
+        chars_extraidos: textoLimpo.length,
+      });
     }
 
     // Criar chunks
-    const chunks = ragSvc.chunkText(textoExtraido);
+    const chunks = ragSvc.chunkText(textoLimpo);
     const { dbInsert, dbDeleteWhere } = require('../database/init');
 
     // Criar doc temporário (prefixo "temp_chat_userId")
@@ -157,7 +169,7 @@ async function uploadChatFile(req, res, next) {
     // Gerar embedding em background
     assistenteSvc.indexarPendentes(disciplina_id ? Number(disciplina_id) : null).catch(() => {});
 
-    const qualidade = ragSvc.textQuality(textoExtraido);
+    const qualidade = ragSvc.textQuality(textoLimpo);
     res.json({
       message: `✅ "${fileName}" processado! ${chunks.length} trechos indexados.`,
       fileName,
