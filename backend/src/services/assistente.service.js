@@ -4,6 +4,7 @@
  */
 
 const { dbFindAll, dbUpdate, dbInsert } = require('../database/init');
+const webSearch = require('./websearch.service');
 
 // ── Memória de sessão (in-memory por usuário) ──────────────────
 const sessoes = new Map(); // userId -> { historico, resumo, ultimaAtividade }
@@ -190,12 +191,51 @@ async function gerarResumoDocumento(docId, textoExtraido) {
   } catch(e) { return ''; }
 }
 
+
+// ── Avaliar relevância dos chunks (RAG confidence score) ──────
+function avaliarRelevanciaRAG(chunks, usouEmbeddings) {
+  if (!chunks || chunks.length === 0) return { score: 0, confiante: false };
+
+  // Com embeddings: usar cosine similarity scores
+  if (usouEmbeddings) {
+    const scores = chunks.filter(c => c._score).map(c => c._score);
+    if (scores.length > 0) {
+      const maxScore = Math.max(...scores);
+      const avgScore = scores.reduce((a,b) => a+b, 0) / scores.length;
+      return {
+        score: maxScore,
+        confiante: maxScore >= 0.60,  // 60% similaridade mínima
+        detalhe: 'semântico: max=' + maxScore.toFixed(2) + ' avg=' + avgScore.toFixed(2),
+      };
+    }
+  }
+
+  // Com TF-IDF: usar scores de relevância
+  const tfidfScores = chunks.filter(c => c._score).map(c => c._score);
+  if (tfidfScores.length > 0) {
+    const maxScore = Math.max(...tfidfScores);
+    return {
+      score: maxScore,
+      confiante: maxScore >= 0.01 && chunks.length >= 2,
+      detalhe: 'tfidf: max=' + maxScore.toFixed(4) + ' chunks=' + chunks.length,
+    };
+  }
+
+  // Sem scores: verificar se há conteúdo suficiente
+  const totalPalavras = chunks.reduce((s, c) => s + (c.conteudo||'').split(/\s+/).length, 0);
+  return {
+    score: chunks.length > 0 ? 0.5 : 0,
+    confiante: chunks.length >= 1 && totalPalavras >= 50,
+    detalhe: 'conteudo: chunks=' + chunks.length + ' palavras=' + totalPalavras,
+  };
+}
+
 // ── Chat principal com RAG avançado ────────────────────────────
 async function chat({ userId, mensagem, disciplinaId, modoFileSear = false }) {
   const sessao = getSession(userId);
   addToSession(userId, 'user', mensagem);
 
-  // Busca vetorial
+  // ── PASSO 1: Busca no RAG ─────────────────────────────────────
   let resultado;
   try {
     resultado = await buscarContextos(mensagem, disciplinaId, 8);
@@ -205,61 +245,107 @@ async function chat({ userId, mensagem, disciplinaId, modoFileSear = false }) {
   }
 
   const { chunks, usouEmbeddings } = resultado;
-  const contextoFormatado = formatarContexto(chunks);
-  const fontes = [...new Set(chunks.map(c => c.fonte).filter(Boolean))];
 
-  // Resumo global dos documentos indexados
+  // ── PASSO 2: Avaliar relevância do RAG ────────────────────────
+  const relevancia = avaliarRelevanciaRAG(chunks, usouEmbeddings);
+  console.log('[Assistente] RAG score:', relevancia.detalhe, '| confiante:', relevancia.confiante);
+
+  // Verificar se há docs na disciplina (para decidir fallback correto)
+  let temDocsNaDisciplina = false;
+  if (disciplinaId) {
+    const docs = dbFindAll('rag_documentos').filter(d => d.disciplina_id === Number(disciplinaId));
+    temDocsNaDisciplina = docs.length > 0;
+  } else {
+    const ctxs = dbFindAll('rag_contextos');
+    temDocsNaDisciplina = ctxs.length > 0;
+  }
+
+  // ── PASSO 3: Decidir fonte e buscar ───────────────────────────
+  let modoFonte = 'rag';      // 'rag' | 'web' | 'hibrido'
+  let webResultados = null;
+  let webTexto = '';
+
+  const usarWeb = !relevancia.confiante && webSearch.estaDisponivel();
+
+  if (usarWeb) {
+    try {
+      console.log('[Assistente] RAG insuficiente, buscando na web...');
+      const wsResult = await webSearch.search(mensagem);
+      if (wsResult && wsResult.resultados?.length > 0) {
+        webResultados = wsResult.resultados;
+        webTexto = webSearch.formatarParaPrompt(wsResult.resultados);
+        modoFonte = chunks.length > 0 ? 'hibrido' : 'web';
+        console.log('[Assistente] Web search: ' + wsResult.resultados.length + ' resultados via ' + wsResult.provider + (wsResult.fromCache ? ' (cache)' : ''));
+      }
+    } catch(e) {
+      console.error('[Assistente] Web search falhou:', e.message);
+    }
+  }
+
+  // ── PASSO 4: Montar contexto e prompt ─────────────────────────
+  const contextoRAG = formatarContexto(chunks);
+  const fontes = [...new Set(chunks.map(c => c.fonte).filter(Boolean))];
+  const fontesWeb = webResultados ? webResultados.map(r => r.fonte).filter(Boolean) : [];
+
   let resumoGlobal = '';
   if (disciplinaId) {
     const docs = dbFindAll('rag_documentos').filter(d => d.disciplina_id === Number(disciplinaId));
     if (docs.length > 0) {
-      resumoGlobal = docs.map(d => `• ${d.titulo}: ${d.descricao || 'Documento indexado'}`).join('\n');
+      resumoGlobal = docs.map(d => '• ' + d.titulo + ': ' + (d.descricao || 'Documento indexado')).join('\n');
     }
   }
 
-  // Histórico formatado (últimas 6 trocas)
   const historicoFormatado = sessao.historico.slice(-12, -1)
-    .map(m => `${m.role === 'user' ? 'Aluno' : 'Assistente'}: ${m.content}`)
+    .map(m => (m.role === 'user' ? 'Aluno' : 'Assistente') + ': ' + m.content)
     .join('\n');
 
-  // System prompt avançado
-  const system = [
+  // Indicador de fonte para o prompt
+  const indicadorFonte = {
+    rag:    '📚 Use os documentos abaixo. Inicie a resposta com "📚 Baseado nos documentos da plataforma:"',
+    web:    '🌐 Use os resultados da web abaixo. Inicie a resposta com "🌐 Baseado em busca na web:"',
+    hibrido:'🔀 Combine documentos e web. Inicie com "🔀 Baseado nos documentos e busca na web:"',
+  }[modoFonte];
+
+  const systemParts = [
     '# Assistente Virtual RSC Academy',
-    'Você é um assistente especializado na análise de documentos acadêmicos.',
-    'Responda de forma clara, objetiva e didática, com base nos documentos fornecidos.',
-    'Use markdown simples para formatação quando necessário.',
+    'Você é um assistente especializado em educação. Responda de forma clara, objetiva e didática.',
+    'Use markdown para formatação quando necessário.',
     '',
-    resumoGlobal ? `## Documentos disponíveis:\n${resumoGlobal}` : '',
+    historicoFormatado ? '## Histórico recente:\n' + historicoFormatado : '',
     '',
-    contextoFormatado ? `## Base de conhecimento relevante:\n${contextoFormatado}` : '',
+    resumoGlobal ? '## Documentos disponíveis:\n' + resumoGlobal : '',
     '',
-    historicoFormatado ? `## Histórico recente:\n${historicoFormatado}` : '',
+    modoFonte !== 'web' && contextoRAG ? '## 📚 Base de conhecimento (documentos):\n' + contextoRAG : '',
     '',
-    '## Instruções:',
-    '- Baseie suas respostas prioritariamente nos documentos fornecidos',
-    '- Cite o trecho/fonte quando usar uma informação específica do documento',
-    '- Se a informação não estiver nos documentos, diga claramente: "Esta informação não está nos documentos carregados"',
-    '- Seja didático e use exemplos quando possível',
-    usouEmbeddings ? '- [Sistema: usando busca semântica avançada]' : '- [Sistema: usando busca por palavras-chave]',
+    modoFonte !== 'rag' && webTexto ? '## 🌐 Resultados da busca na web:\n' + webTexto : '',
+    '',
+    '## Instruções obrigatórias:',
+    indicadorFonte,
+    '- Seja específico e cite trechos quando usar documentos',
+    '- Seja didático e use exemplos práticos',
+    !temDocsNaDisciplina ? '- Não há documentos nesta disciplina, use seu conhecimento geral' : '',
+    modoFonte === 'rag' ? '- Se a informação não estiver nos documentos, diga claramente e ofereça buscar na web' : '',
+    modoFonte === 'web' ? '- Cite as fontes web usadas na resposta' : '',
   ].filter(Boolean).join('\n');
 
-  // Chamar LLM (OpenAI ou Gemini conforme AI_PROVIDER)
+  // ── PASSO 5: Chamar LLM ───────────────────────────────────────
   const resposta = await llm.chat({
-    system,
+    system: systemParts,
     messages: [{ role: 'user', content: mensagem }],
     maxTokens: 1500,
   });
 
   addToSession(userId, 'assistant', resposta);
-
-  // Marcar uso dos chunks
-  chunks.forEach(c => { if (c.id) dbUpdate('rag_contextos', c.id, { vezes_usado: (c.vezes_usado||0)+1 }); });
+  chunks.forEach(ch => { if (ch.id) dbUpdate('rag_contextos', ch.id, { vezes_usado: (ch.vezes_usado||0)+1 }); });
 
   return {
     resposta,
     fontes,
+    fontes_web: fontesWeb,
     chunks_usados: chunks.length,
     usou_embeddings: usouEmbeddings,
+    modo_fonte: modoFonte,
+    rag_score: relevancia.score,
     historico_tamanho: sessao.historico.length,
   };
 }

@@ -8,6 +8,7 @@ const userRepo    = require('../repositories/user.repository');
 const respostaRepo = require('../repositories/resposta.repository');
 const turmaRepo   = require('../repositories/turma.repository');
 const discRepo    = require('../repositories/disciplina.repository');
+const webSearch   = require('../services/websearch.service');
 const tdRepo      = require('../repositories/turma_disciplina.repository');
 
 async function chat(req, res, next) {
@@ -62,14 +63,20 @@ async function chat(req, res, next) {
       system.push(`Disciplina atual: ${discNome}`);
     }
 
-    if (ragContext) {
+    if (ragContext && modoFonte === 'rag') {
       system.push('');
-      system.push('=== BASE DE CONHECIMENTO OFICIAL ===');
+      system.push('=== 📚 BASE DE CONHECIMENTO OFICIAL ===');
+      system.push('Inicie sua resposta com: "📚 Baseado nos documentos da plataforma:"');
       system.push('As informações abaixo são de documentos oficiais cadastrados pelo professor.');
-      system.push('Priorize sempre estas informações ao responder. Cite a fonte quando relevante.');
-      system.push('');
       system.push(ragContext);
-      system.push('=== FIM DA BASE DE CONHECIMENTO ===');
+      system.push('=== FIM ===');
+    } else if (webTexto) {
+      system.push('');
+      system.push('=== 🌐 RESULTADOS DA BUSCA NA WEB ===');
+      system.push('Inicie sua resposta com: "🌐 Baseado em busca na web:"');
+      system.push('Não há documentos específicos para esta pergunta. Use os resultados abaixo:');
+      system.push(webTexto);
+      system.push('=== FIM ===');
     }
 
     const messages = [
@@ -82,7 +89,7 @@ async function chat(req, res, next) {
       messages,
     });
 
-    res.json({ resposta, fontes, total_contextos: contextos.length });
+    res.json({ resposta, fontes: modoFonte === 'rag' ? fontes : webFontes, total_contextos: contextos.length, modo_fonte: modoFonte, fontes_web: webFontes });
   } catch(e) {
     if (e.message?.includes('OPENAI_API_KEY') || e.message?.includes('GEMINI') || e.message?.includes('configurad')) {
       return res.status(503).json({ error: '⚙️ Chave de IA não configurada. Defina GEMINI_API_KEY ou OPENAI_API_KEY nas variáveis de ambiente.' });

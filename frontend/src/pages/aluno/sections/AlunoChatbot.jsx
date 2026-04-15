@@ -89,12 +89,31 @@ function MsgBubble({ msg, userFoto }) {
           </div>
         )}
 
-        {/* Meta */}
-        {!isUser && !msg.loading && msg.chunks_usados > 0 && (
-          <div style={{ marginTop:5, fontSize:10, color:'#94a3b8', display:'flex', gap:8 }}>
-            <span>🔍 {msg.chunks_usados} trechos</span>
-            {msg.usou_embeddings && <span>✨ semântico</span>}
-            {msg.modoArquivo && <span>📎 modo arquivo</span>}
+        {/* Indicador de fonte */}
+        {!isUser && !msg.loading && (msg.modo_fonte || msg.chunks_usados > 0 || msg.modoArquivo) && (
+          <div style={{ marginTop:6, paddingTop:6, borderTop:'1px solid #f1f5f9', display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+            {msg.modo_fonte === 'rag' && (
+              <span style={{ fontSize:10, padding:'2px 8px', borderRadius:99, background:'#ecfdf5', color:'#059669', fontWeight:600, border:'1px solid #a7f3d0' }}>
+                📚 Base interna
+              </span>
+            )}
+            {msg.modo_fonte === 'web' && (
+              <span style={{ fontSize:10, padding:'2px 8px', borderRadius:99, background:'#eff6ff', color:'#1d4ed8', fontWeight:600, border:'1px solid #bfdbfe' }}>
+                🌐 Busca na web
+              </span>
+            )}
+            {msg.modo_fonte === 'hibrido' && (
+              <span style={{ fontSize:10, padding:'2px 8px', borderRadius:99, background:'#f5f3ff', color:'#6d28d9', fontWeight:600, border:'1px solid #ddd6fe' }}>
+                🔀 RAG + Web
+              </span>
+            )}
+            {msg.modoArquivo && (
+              <span style={{ fontSize:10, padding:'2px 8px', borderRadius:99, background:'#fffbeb', color:'#92400e', fontWeight:600, border:'1px solid #fde68a' }}>
+                📎 Arquivo
+              </span>
+            )}
+            {msg.chunks_usados > 0 && <span style={{ fontSize:10, color:'#94a3b8' }}>🔍 {msg.chunks_usados} trechos</span>}
+            {msg.usou_embeddings && <span style={{ fontSize:10, color:'#94a3b8' }}>✨ semântico</span>}
           </div>
         )}
       </div>
@@ -228,10 +247,12 @@ export default function AlunoChatbot() {
       }
       setMsgs(p => p.slice(0,-1).concat([{
         id:Date.now()+2, role:'assistant',
-        content:    res.data.resposta,
-        fontes:     res.data.fontes || [],
-        chunks_usados: res.data.chunks_usados || 0,
+        content:         res.data.resposta,
+        fontes:          res.data.fontes || [],
+        fontes_web:      res.data.fontes_web || [],
+        chunks_usados:   res.data.chunks_usados || 0,
         usou_embeddings: res.data.usou_embeddings,
+        modo_fonte:      res.data.modo_fonte || (modoArquivo ? 'arquivo' : 'rag'),
         modoArquivo,
       }]));
     } catch(e) {
