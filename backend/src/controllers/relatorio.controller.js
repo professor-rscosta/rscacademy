@@ -265,6 +265,41 @@ async function relatorioAluno(req, res, next) {
         classificacao: desempenhoLabel(pct(d.acertos, d.total)),
       }));
 
+      // Detalhamento por questão
+      const questoes_detalhes = qs.map((q, qi) => {
+        // Pegar a resposta mais recente do aluno para esta questão
+        const respostasQ = rsAl.filter(r => r.questao_id === q.id)
+          .sort((a,b) => new Date(b.created_at)-new Date(a.created_at));
+        const resp = respostasQ[0];
+        return {
+          numero: qi + 1,
+          enunciado: q.enunciado,
+          tipo: q.tipo,
+          alternativas: q.alternativas || null,
+          gabarito: q.gabarito ?? null,
+          explicacao: q.explicacao || null,
+          resposta_aluno: resp?.resposta ?? null,
+          is_correct: resp?.is_correct ?? null,
+          score: resp ? round2(resp.score||0) : null,
+          feedback_ia: resp?.feedback_ia || null,
+          data: resp?.created_at?.split('T')[0] || null,
+          hora: resp?.created_at ? new Date(resp.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : null,
+          tentativas: respostasQ.length,
+          xp_ganho: resp?.xp_ganho || 0,
+        };
+      });
+
+      // Sessões/tentativas do aluno nesta trilha (agrupadas por dia)
+      const diasMap = {};
+      rsAl.forEach(r => {
+        const dia = r.created_at?.split('T')[0] || 'desconhecido';
+        if (!diasMap[dia]) diasMap[dia] = { data: dia, respostas: 0, acertos: 0 };
+        diasMap[dia].respostas++;
+        if (r.is_correct) diasMap[dia].acertos++;
+      });
+      const tentativas = Object.values(diasMap).sort((a,b) => a.data.localeCompare(b.data))
+        .map((d, i) => ({ numero: i+1, ...d, taxa: pct(d.acertos, d.respostas) }));
+
       return {
         trilha_id: tid, nome: trilha.nome, disciplina: disc?.nome,
         total_questoes: qs.length,
@@ -276,6 +311,9 @@ async function relatorioAluno(req, res, next) {
         tempo_total_min: round2(rsAl.reduce((s,r)=>s+(r.tempo_gasto_ms||0),0)/60000),
         evolucao,
         analise_por_tipo,
+        questoes_detalhes,
+        tentativas,
+        ultima_atividade: rsAl.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))[0]?.created_at || null,
         status: rsAl.length >= qs.length ? 'concluída' : rsAl.length > 0 ? 'em andamento' : 'não iniciada',
       };
     }).filter(Boolean);

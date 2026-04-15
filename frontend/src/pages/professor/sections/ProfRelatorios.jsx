@@ -288,7 +288,7 @@ function RelatorioAluno({ alunoId, onVoltar }) {
 
       {/* Abas */}
       <div style={{ display:'flex', gap:4, marginBottom:'1rem', borderBottom:'2px solid var(--slate-200)' }}>
-        {[['resumo','📋 Por Trilha'],['evolucao','📈 Evolução']].map(([v,l]) => (
+        {[['resumo','📋 Por Trilha'],['detalhado','📝 Relatório Detalhado'],['evolucao','📈 Evolução']].map(([v,l]) => (
           <button key={v} onClick={() => setAba(v)} style={{
             padding:'8px 16px', border:'none', background:'none', cursor:'pointer',
             fontWeight: aba===v?800:400, color: aba===v?'var(--emerald)':'var(--slate-500)',
@@ -331,6 +331,146 @@ function RelatorioAluno({ alunoId, onVoltar }) {
                 </div>
               )}
             </Card>
+          ))}
+        </div>
+      )}
+
+      {/* ── ABA RELATÓRIO DETALHADO ── */}
+      {aba === 'detalhado' && (
+        <div>
+          {por_trilha.length === 0 ? (
+            <div style={{ textAlign:'center', padding:'3rem', color:'var(--slate-400)' }}>
+              <div style={{ fontSize:36, marginBottom:8 }}>📝</div>
+              <div>Nenhuma atividade registrada</div>
+            </div>
+          ) : por_trilha.map(t => (
+            <div key={t.trilha_id} style={{ marginBottom:'1.5rem' }}>
+              {/* Header da trilha */}
+              <div style={{ background:'linear-gradient(135deg,var(--navy),#2d5a9e)', borderRadius:'10px 10px 0 0', padding:'12px 18px', color:'white', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8 }}>
+                <div>
+                  <div style={{ fontWeight:800, fontSize:15 }}>🗺️ {t.nome}</div>
+                  <div style={{ fontSize:11, opacity:.7, marginTop:2 }}>{t.disciplina} · {t.status}</div>
+                </div>
+                <div style={{ display:'flex', gap:12, fontSize:13, fontWeight:700 }}>
+                  <span style={{ color:'#34d399' }}>✅ {t.acertos} acertos</span>
+                  <span style={{ color:'#f87171' }}>❌ {t.erros} erros</span>
+                  <span style={{ color:'#fbbf24' }}>⚡ {t.xp_ganho} XP</span>
+                  <span style={{ background:'rgba(255,255,255,.15)', padding:'2px 10px', borderRadius:99 }}>{t.taxa_acerto}%</span>
+                </div>
+              </div>
+
+              {/* Meta */}
+              <div style={{ background:'white', border:'1px solid var(--slate-200)', borderTop:'none', padding:'10px 18px', display:'flex', flexWrap:'wrap', gap:'1rem', fontSize:12, color:'var(--slate-600)' }}>
+                <span>👤 {aluno.nome}</span>
+                <span>📅 {t.ultima_atividade ? t.ultima_atividade.split('T')[0] : '—'}</span>
+                <span>📊 {t.respondidas}/{t.total_questoes} questões</span>
+                {t.tentativas?.length > 0 && (
+                  <span>🔁 {t.tentativas.length} tentativa(s)</span>
+                )}
+                <span style={{ marginLeft:'auto', fontWeight:700, color: t.taxa_acerto>=80?'#10b981':t.taxa_acerto>=50?'#f59e0b':'#ef4444' }}>
+                  {t.taxa_acerto >= 80 ? '🎉 Excelente!' : t.taxa_acerto >= 50 ? '👍 Bom desempenho' : '📚 Precisa revisar'}
+                </span>
+              </div>
+
+              {/* Questões detalhadas */}
+              <div style={{ border:'1px solid var(--slate-200)', borderTop:'none', borderRadius:'0 0 10px 10px', overflow:'hidden' }}>
+                {(t.questoes_detalhes || []).map((q, qi) => (
+                  <div key={qi} style={{
+                    padding:'14px 18px',
+                    borderBottom: qi < (t.questoes_detalhes.length-1) ? '1px solid var(--slate-100)' : 'none',
+                    background: q.is_correct ? '#f0fdf4' : q.is_correct === false ? '#fff8f8' : 'white',
+                  }}>
+                    {/* Número + resultado */}
+                    <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+                      <div style={{
+                        width:28, height:28, borderRadius:'50%', flexShrink:0,
+                        background: q.is_correct ? '#10b981' : q.is_correct === false ? '#ef4444' : '#94a3b8',
+                        color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:13
+                      }}>
+                        {qi+1}
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:12, fontWeight:700, color: q.is_correct ? '#166534' : q.is_correct === false ? '#991b1b' : 'var(--slate-500)' }}>
+                          {q.is_correct ? '✅ Correto' : q.is_correct === false ? '❌ Incorreto' : '⏳ Não respondido'}
+                          {q.score !== null && <span style={{ fontWeight:400, marginLeft:8, opacity:.7 }}>({Math.round(q.score*100)}%)</span>}
+                        </div>
+                        <div style={{ fontSize:11, color:'var(--slate-400)' }}>
+                          {q.tipo} {q.data && <> · {q.data}</>} {q.hora && <>às {q.hora}</>}
+                          {q.xp_ganho > 0 && <> · ⚡+{q.xp_ganho} XP</>}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Enunciado */}
+                    <div style={{ fontSize:13, background:'var(--slate-50)', padding:'8px 12px', borderRadius:8, marginBottom:8, lineHeight:1.6, color:'var(--slate-700)' }}>
+                      <strong>Questão:</strong> {q.enunciado}
+                    </div>
+
+                    {/* Respostas */}
+                    {q.resposta_aluno !== null && (
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
+                        <div style={{ padding:'8px 12px', borderRadius:8, background: q.is_correct?'#dcfce7':'#fee2e2', border:'1px solid '+(q.is_correct?'#a7f3d0':'#fca5a5') }}>
+                          <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:.5, marginBottom:3, color: q.is_correct?'#166534':'#991b1b' }}>
+                            {q.is_correct ? '✅ Resposta do aluno (Correta)' : '❌ Resposta do aluno'}
+                          </div>
+                          <div style={{ fontSize:12, fontWeight:600, color: q.is_correct?'#166534':'#991b1b' }}>
+                            {(() => {
+                              const v = q.resposta_aluno;
+                              if (v === null || v === undefined) return '—';
+                              if (typeof v === 'boolean') return v ? 'Verdadeiro' : 'Falso';
+                              if (typeof v === 'number' && q.alternativas) return String.fromCharCode(65+v)+') '+q.alternativas[v];
+                              if (Array.isArray(v) && q.alternativas) return v.map(i => String.fromCharCode(65+i)+') '+q.alternativas[i]).join(', ');
+                              return String(v);
+                            })()}
+                          </div>
+                        </div>
+                        {!q.is_correct && q.gabarito !== null && q.gabarito !== undefined && (
+                          <div style={{ padding:'8px 12px', borderRadius:8, background:'#dcfce7', border:'1px solid #a7f3d0' }}>
+                            <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:.5, marginBottom:3, color:'#166534' }}>✅ Resposta Correta</div>
+                            <div style={{ fontSize:12, fontWeight:600, color:'#166534' }}>
+                              {(() => {
+                                const v = q.gabarito;
+                                if (v === null || v === undefined) return '—';
+                                if (typeof v === 'boolean') return v ? 'Verdadeiro' : 'Falso';
+                                if (typeof v === 'number' && q.alternativas) return String.fromCharCode(65+v)+') '+q.alternativas[v];
+                                if (Array.isArray(v) && q.alternativas) return v.map(i => String.fromCharCode(65+i)+') '+q.alternativas[i]).join(', ');
+                                return String(v);
+                              })()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Explicação */}
+                    {q.explicacao && (
+                      <div style={{ padding:'7px 12px', borderRadius:8, background:'#eff6ff', border:'1px solid #bfdbfe', fontSize:12, color:'#1d4ed8', marginBottom:6 }}>
+                        <strong>💡 Explicação:</strong> {q.explicacao}
+                      </div>
+                    )}
+                    {q.feedback_ia && (
+                      <div style={{ padding:'7px 12px', borderRadius:8, background:'#f5f3ff', border:'1px solid #ddd6fe', fontSize:12, color:'#5b21b6' }}>
+                        <strong>🤖 Feedback IA:</strong> {q.feedback_ia}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Histórico de tentativas */}
+              {t.tentativas?.length > 1 && (
+                <div style={{ marginTop:8, padding:'10px 14px', background:'#f8fafc', borderRadius:8, border:'1px solid var(--slate-200)', fontSize:12 }}>
+                  <div style={{ fontWeight:700, color:'var(--navy)', marginBottom:6 }}>🔁 Histórico de tentativas:</div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    {t.tentativas.map(tent => (
+                      <span key={tent.numero} style={{ padding:'4px 10px', borderRadius:99, background:tent.taxa>=70?'#dcfce7':tent.taxa>=50?'#fef3c7':'#fee2e2', color:tent.taxa>=70?'#166534':tent.taxa>=50?'#92400e':'#991b1b', fontWeight:600 }}>
+                        Tent. {tent.numero} ({tent.data}): {tent.taxa}%
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           ))}
         </div>
       )}

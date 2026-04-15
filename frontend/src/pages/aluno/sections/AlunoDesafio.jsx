@@ -187,7 +187,7 @@ export default function AlunoDesafio({ trilha_id, onConcluir }) {
     setTheta(r.theta?.depois || 0);
     setNivel(r.nivel || nivel);
     if (r.is_correct) setStreak(s => s + 1); else setStreak(0);
-    setHist(h => [...h, { questao_id: questaoAtual.id, is_correct: r.is_correct, score: r.score, xp: r.xp_ganho }]);
+    setHist(h => [...h, { questao_id: questaoAtual.id, is_correct: r.is_correct, score: r.score, xp: r.xp_ganho, resposta_aluno: resposta, feedback_ia: r.feedback_ia || null }]);
     setFase('resultado');
   };
 
@@ -265,34 +265,176 @@ export default function AlunoDesafio({ trilha_id, onConcluir }) {
     </div>
   );
 
-  // ── TELA FINAL ────────────────────────────────────────────────
+  // ── TELA FINAL — RELATÓRIO COMPLETO ─────────────────────────
   if (fase === 'concluido') {
     const corretas = historico.filter(h => h.is_correct).length;
-    const total = historico.length;
-    const taxa = total > 0 ? Math.round(corretas / total * 100) : 0;
+    const total    = historico.length;
+    const taxa     = total > 0 ? Math.round(corretas / total * 100) : 0;
+    const agora    = new Date();
+    const dataStr  = agora.toLocaleDateString('pt-BR');
+    const horaStr  = agora.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+    const feedback = taxa >= 80
+      ? { msg:'Excelente desempenho! 🎉', cor:'#10b981', bg:'#ecfdf5' }
+      : taxa >= 50
+      ? { msg:'Bom desempenho! 👍', cor:'#f59e0b', bg:'#fffbeb' }
+      : { msg:'Precisa revisar o conteúdo 📚', cor:'#ef4444', bg:'#fef2f2' };
+
     return (
-      <div style={{ maxWidth:520, margin:'0 auto', textAlign:'center' }}>
-        <div style={{ background:'linear-gradient(135deg,var(--navy),var(--navy-mid))', borderRadius:18, padding:'2.5rem 2rem', color:'white', marginBottom:'1.5rem', position:'relative', overflow:'hidden' }}>
+      <div style={{ maxWidth:680, margin:'0 auto' }}>
+
+        {/* ── CABEÇALHO HERO ── */}
+        <div style={{ background:'linear-gradient(135deg,var(--navy),var(--navy-mid))', borderRadius:18, padding:'2rem 2rem 1.5rem', color:'white', marginBottom:'1rem', position:'relative', overflow:'hidden' }}>
           <div style={{ position:'absolute', inset:0, opacity:.05, backgroundImage:'radial-gradient(circle,white 1px,transparent 1px)', backgroundSize:'24px 24px' }} />
-          <div style={{ fontSize:56, marginBottom:12, position:'relative', zIndex:1 }}>{nivel.emoji}</div>
-          <div style={{ fontFamily:'var(--font-head)', fontSize:28, fontWeight:700, marginBottom:4, position:'relative', zIndex:1 }}>Trilha Concluída! 🎉</div>
-          <div style={{ fontSize:14, opacity:.7, marginBottom:'1.5rem', position:'relative', zIndex:1 }}>{trilha?.nome}</div>
-          <div style={{ display:'flex', gap:12, justifyContent:'center', flexWrap:'wrap', position:'relative', zIndex:1, marginBottom:'1rem' }}>
-            {[
-              { l:'XP Ganho',  v:'+'+xpTotal+'⭐' },
-              { l:'Acertos',   v:corretas+'/'+total },
-              { l:'Taxa',      v:taxa+'%' },
-              { l:'Nível',     v:nivel.label },
-            ].map(s => (
-              <div key={s.l} style={{ background:'rgba(255,255,255,0.1)', borderRadius:10, padding:'10px 16px' }}>
-                <div style={{ fontSize:11, opacity:.6, marginBottom:4 }}>{s.l}</div>
-                <div style={{ fontFamily:'var(--font-head)', fontSize:18, fontWeight:700 }}>{s.v}</div>
-              </div>
-            ))}
+          <div style={{ position:'relative', zIndex:1, textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:8 }}>{nivel.emoji}</div>
+            <div style={{ fontFamily:'var(--font-head)', fontSize:26, fontWeight:700, marginBottom:4 }}>Trilha Concluída! 🎉</div>
+            <div style={{ fontSize:13, opacity:.7, marginBottom:'1.25rem' }}>{trilha?.nome}</div>
+            <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap', marginBottom:'1rem' }}>
+              {[
+                { l:'XP Ganho',  v:'+'+xpTotal+'⭐' },
+                { l:'Acertos',   v:corretas+'/'+total },
+                { l:'Taxa',      v:taxa+'%' },
+                { l:'Nível',     v:nivel.label },
+              ].map(s => (
+                <div key={s.l} style={{ background:'rgba(255,255,255,0.12)', borderRadius:10, padding:'10px 18px', minWidth:80 }}>
+                  <div style={{ fontSize:10, opacity:.6, marginBottom:3, textTransform:'uppercase', letterSpacing:.5 }}>{s.l}</div>
+                  <div style={{ fontFamily:'var(--font-head)', fontSize:18, fontWeight:700 }}>{s.v}</div>
+                </div>
+              ))}
+            </div>
+            <ThetaBar theta={theta} />
           </div>
-          <ThetaBar theta={theta} />
         </div>
-        <button onClick={onConcluir} style={{ width:'100%', padding:12, background:'var(--emerald)', color:'white', border:'none', borderRadius:8, fontWeight:600, fontSize:15, cursor:'pointer' }}>
+
+        {/* ── META DO RELATÓRIO ── */}
+        <div style={{ background:'white', border:'1px solid var(--slate-200)', borderRadius:12, padding:'14px 18px', marginBottom:'1rem', display:'flex', flexWrap:'wrap', gap:'1rem', justifyContent:'space-between', fontSize:13 }}>
+          <div><span style={{ color:'var(--slate-500)' }}>👤 Aluno: </span><strong>{user?.nome}</strong></div>
+          <div><span style={{ color:'var(--slate-500)' }}>📅 Data: </span><strong>{dataStr}</strong></div>
+          <div><span style={{ color:'var(--slate-500)' }}>🕐 Hora: </span><strong>{horaStr}</strong></div>
+          {trilha?.tentativas_maximas && (
+            <div><span style={{ color:'var(--slate-500)' }}>🔁 Tentativa: </span><strong>{tentativaAtual} de {trilha.tentativas_maximas}</strong></div>
+          )}
+        </div>
+
+        {/* ── FEEDBACK ── */}
+        <div style={{ background:feedback.bg, border:'1px solid '+feedback.cor+'40', borderRadius:12, padding:'14px 18px', marginBottom:'1rem', textAlign:'center' }}>
+          <div style={{ fontSize:16, fontWeight:800, color:feedback.cor }}>{feedback.msg}</div>
+          <div style={{ fontSize:13, color:'var(--slate-600)', marginTop:4 }}>
+            {corretas} acerto(s) e {total-corretas} erro(s) em {total} questão(ões)
+          </div>
+        </div>
+
+        {/* ── DETALHAMENTO POR QUESTÃO ── */}
+        <div style={{ background:'white', border:'1px solid var(--slate-200)', borderRadius:12, overflow:'hidden', marginBottom:'1rem' }}>
+          <div style={{ padding:'14px 18px', borderBottom:'1px solid var(--slate-100)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div style={{ fontWeight:700, fontSize:15, color:'var(--navy)' }}>📝 Detalhamento por Questão</div>
+            <div style={{ display:'flex', gap:12, fontSize:12, color:'var(--slate-500)' }}>
+              <span style={{ color:'#10b981', fontWeight:600 }}>✅ {corretas} acertos</span>
+              <span style={{ color:'#ef4444', fontWeight:600 }}>❌ {total-corretas} erros</span>
+            </div>
+          </div>
+
+          {questoes.map((q, i) => {
+            const h = historico[i];
+            if (!h) return null;
+            const acertou = h.is_correct;
+            const respostaAluno = h.resposta ?? resposta;
+
+            const renderResp = (val) => {
+              if (val === null || val === undefined) return <em style={{ opacity:.5 }}>—</em>;
+              if (typeof val === 'boolean') return val ? 'Verdadeiro ✓' : 'Falso ✗';
+              if (Array.isArray(val)) {
+                if (q.alternativas && Array.isArray(q.alternativas)) {
+                  return val.map(idx => {
+                    const letra = String.fromCharCode(65+idx);
+                    return letra+') '+q.alternativas[idx];
+                  }).join(', ');
+                }
+                return val.join(', ');
+              }
+              if (typeof val === 'number' && q.alternativas) {
+                const letra = String.fromCharCode(65+val);
+                return letra+') '+q.alternativas[val];
+              }
+              return String(val);
+            };
+
+            const renderGab = (val) => {
+              if (val === null || val === undefined) return null;
+              if (typeof val === 'boolean') return val ? 'Verdadeiro ✓' : 'Falso ✗';
+              if (Array.isArray(val)) {
+                if (q.alternativas) return val.map(idx => String.fromCharCode(65+idx)+') '+q.alternativas[idx]).join(', ');
+                return val.join(', ');
+              }
+              if (typeof val === 'number' && q.alternativas) {
+                return String.fromCharCode(65+val)+') '+q.alternativas[val];
+              }
+              return String(val);
+            };
+
+            return (
+              <div key={q.id} style={{
+                padding:'16px 18px',
+                borderBottom: i < questoes.length-1 ? '1px solid var(--slate-100)' : 'none',
+                background: acertou ? '#fafff8' : '#fffafa',
+              }}>
+                {/* Número + resultado */}
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                  <div style={{ width:28, height:28, borderRadius:'50%', background:acertou?'#10b981':'#ef4444', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700, flexShrink:0 }}>
+                    {i+1}
+                  </div>
+                  <span style={{ fontSize:13, fontWeight:700, color:acertou?'#166534':'#991b1b' }}>
+                    {acertou ? '✅ Correto' : '❌ Incorreto'} · {Math.round((h.score||0)*100)}%
+                  </span>
+                  <span style={{ marginLeft:'auto', fontSize:12, fontWeight:700, color:'#f59e0b' }}>⚡+{h.xp||0} XP</span>
+                </div>
+
+                {/* Enunciado */}
+                <div style={{ fontSize:13, color:'var(--slate-700)', lineHeight:1.6, marginBottom:10, background:'var(--slate-50)', padding:'8px 12px', borderRadius:8 }}>
+                  <strong>Enunciado:</strong> {q.enunciado}
+                </div>
+
+                {/* Respostas */}
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                  <div style={{ background:acertou?'#dcfce7':'#fee2e2', padding:'8px 12px', borderRadius:8, border:'1px solid '+(acertou?'#a7f3d0':'#fca5a5') }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:acertou?'#166534':'#991b1b', marginBottom:4, textTransform:'uppercase', letterSpacing:.5 }}>
+                      {acertou ? '✅ Sua resposta (Correta)' : '❌ Sua resposta'}
+                    </div>
+                    <div style={{ fontSize:12, color:acertou?'#166534':'#991b1b', fontWeight:600 }}>
+                      {renderResp(h.resposta_aluno ?? resposta)}
+                    </div>
+                  </div>
+                  {!acertou && q.gabarito !== null && q.gabarito !== undefined && (
+                    <div style={{ background:'#dcfce7', padding:'8px 12px', borderRadius:8, border:'1px solid #a7f3d0' }}>
+                      <div style={{ fontSize:10, fontWeight:700, color:'#166534', marginBottom:4, textTransform:'uppercase', letterSpacing:.5 }}>✅ Resposta Correta</div>
+                      <div style={{ fontSize:12, color:'#166534', fontWeight:600 }}>{renderGab(q.gabarito)}</div>
+                    </div>
+                  )}
+                  {acertou && <div style={{ background:'#f0fdf4', padding:'8px 12px', borderRadius:8, border:'1px solid #a7f3d0', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <span style={{ fontSize:24 }}>🏆</span>
+                  </div>}
+                </div>
+
+                {/* Explicação */}
+                {q.explicacao && (
+                  <div style={{ marginTop:8, background:'#eff6ff', padding:'8px 12px', borderRadius:8, border:'1px solid #bfdbfe', fontSize:12, color:'#1d4ed8' }}>
+                    <strong>💡 Explicação:</strong> {q.explicacao}
+                  </div>
+                )}
+
+                {/* Feedback IA */}
+                {h.feedback_ia && (
+                  <div style={{ marginTop:6, background:'#f5f3ff', padding:'8px 12px', borderRadius:8, border:'1px solid #ddd6fe', fontSize:12, color:'#5b21b6' }}>
+                    <strong>🤖 Feedback:</strong> {h.feedback_ia}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ── BOTÃO ── */}
+        <button onClick={onConcluir} style={{ width:'100%', padding:14, background:'var(--emerald)', color:'white', border:'none', borderRadius:10, fontWeight:700, fontSize:15, cursor:'pointer', boxShadow:'0 4px 12px rgba(16,185,129,.35)' }}>
           Voltar às Trilhas
         </button>
       </div>
