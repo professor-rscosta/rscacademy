@@ -1,232 +1,343 @@
 /**
- * AlunoChatbot — Assistente IA com RAG por disciplina
- * Respostas baseadas nos documentos oficiais que o professor cadastrou
+ * AlunoChatbot — Assistente Virtual Avançado com RAG + Embeddings
+ * Interface estilo ChatGPT integrada ao RSC Academy
  */
-import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../../../hooks/useApi';
+import { useAuth } from '../../../context/AuthContext';
 
-const initials = n => n.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+// ── Markdown simples ──────────────────────────────────────────
+function renderMd(text) {
+  if (!text) return '';
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code style="background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:0.9em">$1</code>')
+    .replace(/^#{1,3}\s+(.+)/gm, '<strong style="display:block;margin:8px 0 4px">$1</strong>')
+    .replace(/^[-•]\s+(.+)/gm, '<li style="margin:2px 0;list-style:disc;margin-left:16px">$1</li>')
+    .replace(/\n\n/g, '<br/><br/>')
+    .replace(/\n/g, '<br/>');
+}
 
+// ── Componente de mensagem ────────────────────────────────────
+function MensagemBubble({ msg }) {
+  const isUser = msg.role === 'user';
+  const isLoading = msg.loading;
+
+  return (
+    <div style={{
+      display: 'flex', gap: 10, padding: '4px 0',
+      flexDirection: isUser ? 'row-reverse' : 'row',
+      alignItems: 'flex-start',
+    }}>
+      {/* Avatar */}
+      <div style={{
+        width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+        background: isUser
+          ? 'linear-gradient(135deg,#3b82f6,#1d4ed8)'
+          : 'linear-gradient(135deg,#1e3a5f,#2d5a9e)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 16, color: 'white', fontWeight: 700,
+        boxShadow: '0 2px 8px rgba(0,0,0,.15)',
+      }}>
+        {isUser ? '👤' : '🤖'}
+      </div>
+
+      {/* Balão */}
+      <div style={{
+        maxWidth: '80%', padding: '12px 16px', borderRadius: isUser ? '18px 4px 18px 18px' : '4px 18px 18px 18px',
+        background: isUser ? 'linear-gradient(135deg,#3b82f6,#1d4ed8)' : 'white',
+        color: isUser ? 'white' : '#1e293b',
+        boxShadow: '0 2px 12px rgba(0,0,0,.08)',
+        border: isUser ? 'none' : '1px solid #e2e8f0',
+        fontSize: 14, lineHeight: 1.65,
+        wordBreak: 'break-word',
+      }}>
+        {isLoading ? (
+          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+            {[0,1,2].map(i => (
+              <div key={i} style={{
+                width: 8, height: 8, borderRadius: '50%', background: '#94a3b8',
+                animation: 'pulse 1.4s ease-in-out infinite',
+                animationDelay: i * 0.2 + 's',
+              }} />
+            ))}
+          </div>
+        ) : isUser ? (
+          <span>{msg.content}</span>
+        ) : (
+          <div dangerouslySetInnerHTML={{ __html: renderMd(msg.content) }} />
+        )}
+
+        {/* Fontes */}
+        {!isUser && !isLoading && msg.fontes?.length > 0 && (
+          <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #e2e8f0' }}>
+            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>
+              📚 Fontes consultadas:
+            </div>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {msg.fontes.map((f, i) => (
+                <span key={i} style={{
+                  fontSize: 11, padding: '2px 8px', borderRadius: 99,
+                  background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
+                }}>
+                  {f}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Meta info */}
+        {!isUser && !isLoading && msg.chunks_usados > 0 && (
+          <div style={{ marginTop: 6, fontSize: 10, color: '#94a3b8', display: 'flex', gap: 8 }}>
+            <span>🔍 {msg.chunks_usados} trechos analisados</span>
+            {msg.usou_embeddings && <span>✨ Busca semântica</span>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Componente Principal ──────────────────────────────────────
 export default function AlunoChatbot() {
   const { user } = useAuth();
-  const [msgs, setMsgs]           = useState([]);
-  const [input, setInput]         = useState('');
-  const [loading, setLoading]     = useState(false);
-  const [erro, setErro]           = useState(null);
-  const [disciplinas, setDiscs]   = useState([]);
-  const [discId, setDiscId]       = useState('');
-  const [discNome, setDiscNome]   = useState('');
-  const [loadingDiscs, setLdDiscs] = useState(true);
-  const [showRag, setShowRag]     = useState(false);
+  const [msgs, setMsgs]             = useState([]);
+  const [input, setInput]           = useState('');
+  const [loading, setLoading]       = useState(false);
+  const [disciplinas, setDiscs]     = useState([]);
+  const [discId, setDiscId]         = useState('');
+  const [discNome, setDiscNome]     = useState('');
+  const [loadingDiscs, setLdDiscs]  = useState(true);
+  const [indexando, setIndexando]   = useState(false);
+  const [sessaoInfo, setSessaoInfo] = useState(null);
   const bottomRef = useRef(null);
   const inputRef  = useRef(null);
 
-  // Nome sem títulos
-  const TITULOS = ['prof.','dr.','dra.','ms.'];
-  const partes  = user.nome.split(' ');
-  const firstName = partes.find(p => !TITULOS.includes(p.toLowerCase())) || partes[0];
+  // Scroll automático
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
 
+  // Carregar disciplinas
   useEffect(() => {
-    api.get('/chatbot/disciplinas')
+    api.get('/assistente/disciplinas')
       .then(r => {
         const d = r.data.disciplinas || [];
         setDiscs(d);
         if (d.length > 0) { setDiscId(String(d[0].id)); setDiscNome(d[0].nome); }
       })
-      .catch(() => {})
+      .catch(() => setDiscs([]))
       .finally(() => setLdDiscs(false));
   }, []);
 
+  // Mensagem de boas-vindas
   useEffect(() => {
-    const disc = discId ? disciplinas.find(d => String(d.id) === discId) : null;
-    const nome = disc?.nome || '';
-    setDiscNome(nome);
-    setMsgs([{
-      role: 'bot',
-      text: `Olá, ${firstName}! 👋 Sou o **Assistente de IA** da RSC Academy.\n\n` +
-        (nome
-          ? `📚 Estou pronto para responder sobre **${nome}** com base nos documentos oficiais cadastrados pelo seu professor.\n\nExemplos do que posso ajudar:\n• Explicar conceitos da disciplina\n• Tirar dúvidas de atividades\n• Preparar para avaliações\n• Citar legislações e diretrizes relevantes`
-          : `Para respostas mais precisas, **selecione uma disciplina** acima.\n\nPosso ajudar com dúvidas gerais sobre o conteúdo estudado.`
-        ),
-      fontes: [],
-    }]);
-  }, [discId]);
+    if (!loadingDiscs) {
+      setMsgs([{
+        id: 1, role: 'assistant',
+        content: disciplinas.length > 0
+          ? `Olá, **${user?.nome?.split(' ')[0]}**! 👋\n\nSou o Assistente Virtual da RSC Academy com busca semântica avançada.\n\nSelecione uma disciplina acima e faça sua pergunta. Vou buscar nos documentos do professor para dar a melhor resposta possível!`
+          : `Olá! 👋 Sou o Assistente Virtual da RSC Academy.\n\nAinda não há documentos indexados para suas disciplinas. Peça ao seu professor para adicionar materiais na **Base RAG (IA)**.`,
+      }]);
+    }
+  }, [loadingDiscs]);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:'smooth' }); }, [msgs]);
+  const enviar = useCallback(async () => {
+    const texto = input.trim();
+    if (!texto || loading) return;
+    setInput('');
 
-  const historico = msgs
-    .filter(m => m.role !== 'system')
-    .slice(-10)
-    .map(m => ({ role: m.role==='bot'?'assistant':'user', content: m.text }));
-
-  async function send(texto) {
-    const msg = (texto || input).trim();
-    if (!msg || loading) return;
-    setInput(''); setErro(null);
-    setMsgs(prev => [...prev, { role:'user', text:msg }]);
+    const userMsg = { id: Date.now(), role: 'user', content: texto };
+    const loadMsg = { id: Date.now() + 1, role: 'assistant', loading: true };
+    setMsgs(prev => [...prev, userMsg, loadMsg]);
     setLoading(true);
+
     try {
-      const res = await api.post('/chatbot/mensagem', {
-        mensagem:     msg,
-        historico:    historico.slice(-6),
+      const res = await api.post('/assistente/chat', {
+        mensagem: texto,
         disciplina_id: discId ? Number(discId) : undefined,
       });
-      setMsgs(prev => [...prev, {
-        role: 'bot',
-        text: res.data.resposta,
+      setMsgs(prev => prev.slice(0, -1).concat([{
+        id: Date.now() + 2,
+        role: 'assistant',
+        content: res.data.resposta,
         fontes: res.data.fontes || [],
-        total_contextos: res.data.total_contextos || 0,
-      }]);
+        chunks_usados: res.data.chunks_usados || 0,
+        usou_embeddings: res.data.usou_embeddings,
+      }]));
+      setSessaoInfo({ msgs: res.data.historico_tamanho });
     } catch(e) {
-      setErro(e.response?.data?.error || 'Erro ao conectar com a IA.');
-    }
-    setLoading(false);
-    setTimeout(() => inputRef.current?.focus(), 100);
-  }
+      const err = e.response?.data?.error || 'Erro ao conectar com o assistente.';
+      setMsgs(prev => prev.slice(0, -1).concat([{
+        id: Date.now() + 2, role: 'assistant',
+        content: `❌ ${err}`,
+      }]));
+    } finally { setLoading(false); inputRef.current?.focus(); }
+  }, [input, loading, discId]);
 
-  const SUGESTOES_BASE = [
-    'Quais são os principais conceitos desta disciplina?',
-    'Explique com um exemplo prático',
-    'Quais documentos oficiais embasam este conteúdo?',
-    'Como isso se aplica na prática profissional?',
-    'Resuma os pontos mais importantes',
-  ];
-
-  const renderText = (text) => {
-    if (!text) return null;
-    return text.split('\n').map((line, i) => {
-      const bold = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-      return <p key={i} style={{ margin:0, lineHeight:1.7, minHeight:line?'auto':'8px' }} dangerouslySetInnerHTML={{ __html:bold||'&nbsp;' }} />;
-    });
+  const limparChat = async () => {
+    await api.delete('/assistente/sessao').catch(() => {});
+    setMsgs([{
+      id: Date.now(), role: 'assistant',
+      content: '🔄 Sessão reiniciada! Como posso ajudar?',
+    }]);
+    setSessaoInfo(null);
   };
 
+  const indexarEmbeddings = async () => {
+    setIndexando(true);
+    try {
+      const r = await api.post(`/assistente/indexar?disciplina_id=${discId}`);
+      setMsgs(prev => [...prev, {
+        id: Date.now(), role: 'assistant',
+        content: `✅ ${r.data.message}\n\nAgora posso usar **busca semântica avançada** para suas perguntas!`,
+      }]);
+    } catch(e) {
+      alert(e.response?.data?.error || 'Erro ao indexar.');
+    } finally { setIndexando(false); }
+  };
+
+  const discAtual = disciplinas.find(d => String(d.id) === discId);
+
   return (
-    <div style={{ display:'flex',flexDirection:'column',height:'calc(100vh - 8rem)',background:'white',borderRadius:16,border:'1px solid var(--slate-200)',overflow:'hidden',boxShadow:'var(--shadow)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)', minHeight: 500 }}>
 
-      {/* Header com seletor de disciplina */}
-      <div style={{ padding:'1rem 1.25rem',borderBottom:'1px solid var(--slate-100)',background:'linear-gradient(135deg,var(--navy),var(--navy-mid))',color:'white' }}>
-        <div style={{ display:'flex',alignItems:'center',gap:12,flexWrap:'wrap' }}>
-          <div style={{ width:40,height:40,borderRadius:10,background:'rgba(255,255,255,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,flexShrink:0 }}>🤖</div>
-          <div style={{ flex:1,minWidth:0 }}>
-            <div style={{ fontFamily:'var(--font-head)',fontSize:15,fontWeight:700 }}>Assistente de IA</div>
-            <div style={{ fontSize:11,opacity:.6 }}>
-              {discNome ? `Baseado nos documentos de ${discNome}` : 'Selecione uma disciplina para respostas precisas'}
-            </div>
+      {/* ── Cabeçalho ── */}
+      <div style={{
+        background: 'linear-gradient(135deg,#1e3a5f,#2d5a9e)', color: 'white',
+        padding: '12px 16px', borderRadius: '12px 12px 0 0',
+        display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+      }}>
+        <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🤖</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 800, fontSize: 16 }}>Assistente Virtual RSC Academy</div>
+          <div style={{ fontSize: 11, opacity: .7, display: 'flex', gap: 8 }}>
+            <span>✨ RAG Avançado</span>
+            <span>•</span>
+            <span>🧠 Memória de sessão</span>
+            {sessaoInfo && <><span>•</span><span>💬 {sessaoInfo.msgs} msgs</span></>}
           </div>
-
-          {/* Seletor de disciplina */}
-          {!loadingDiscs && (
-            <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-              {disciplinas.length > 0 ? (
-                <select value={discId} onChange={e=>{setDiscId(e.target.value);}}
-                  style={{ padding:'6px 12px',borderRadius:8,border:'1px solid rgba(255,255,255,.2)',background:'rgba(255,255,255,.1)',color:'white',fontSize:12,outline:'none',cursor:'pointer',maxWidth:200 }}>
-                  <option value="" style={{ color:'var(--navy)' }}>Sem disciplina</option>
-                  {disciplinas.map(d=><option key={d.id} value={d.id} style={{ color:'var(--navy)' }}>{d.nome} ({d.total_contextos||d.total_docs||0} trechos)</option>)}
-                </select>
-              ) : (
-                <span style={{ fontSize:11,opacity:.6,fontStyle:'italic' }}>Nenhum documento RAG cadastrado</span>
-              )}
-              <button onClick={()=>setShowRag(s=>!s)} title="Sobre o RAG"
-                style={{ background:'rgba(255,255,255,.12)',border:'none',color:'white',borderRadius:7,padding:'5px 10px',cursor:'pointer',fontSize:11 }}>
-                {showRag?'▲':'ℹ️'} RAG
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* Painel RAG info */}
-        {showRag && (
-          <div style={{ marginTop:10,padding:'10px 12px',background:'rgba(255,255,255,.08)',borderRadius:8,border:'1px solid rgba(255,255,255,.1)',fontSize:11,lineHeight:1.6 }}>
-            <strong>O que é RAG?</strong> Retrieval-Augmented Generation — o sistema busca os trechos mais relevantes dos documentos oficiais cadastrados pelo professor e os injeta no contexto da IA antes de responder. Isso garante respostas baseadas em fontes reais e verificáveis, não apenas no conhecimento geral do modelo.
-          </div>
-        )}
+        {/* Seletor de disciplina */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {loadingDiscs ? (
+            <span style={{ fontSize: 12, opacity: .7 }}>Carregando...</span>
+          ) : disciplinas.length > 0 ? (
+            <select
+              value={discId}
+              onChange={e => {
+                const d = disciplinas.find(x => String(x.id) === e.target.value);
+                setDiscId(e.target.value);
+                setDiscNome(d?.nome || '');
+              }}
+              style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,.3)', background: 'rgba(255,255,255,.1)', color: 'white', fontSize: 13, cursor: 'pointer' }}
+            >
+              {disciplinas.map(d => (
+                <option key={d.id} value={d.id} style={{ color: '#1e293b', background: 'white' }}>
+                  📚 {d.nome} ({d.total_chunks} trechos{d.embeddings_prontos ? ' ✨' : ''})
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span style={{ fontSize: 12, opacity: .7 }}>Sem documentos indexados</span>
+          )}
+
+          {/* Botão indexar embeddings */}
+          {discAtual && !discAtual.embeddings_prontos && discAtual.total_chunks > 0 && (
+            <button onClick={indexarEmbeddings} disabled={indexando}
+              title="Ativar busca semântica para esta disciplina"
+              style={{ padding: '6px 12px', background: '#f59e0b', color: '#1e293b', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+              {indexando ? '⏳' : '✨ Ativar Busca Semântica'}
+            </button>
+          )}
+
+          <button onClick={limparChat} title="Nova conversa"
+            style={{ padding: '6px 10px', background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.2)', borderRadius: 8, color: 'white', fontSize: 12, cursor: 'pointer' }}>
+            🔄 Nova
+          </button>
+        </div>
       </div>
 
-      {/* Mensagens */}
-      <div style={{ flex:1,overflowY:'auto',padding:'1rem',display:'flex',flexDirection:'column',gap:12 }}>
-        {msgs.map((m, i) => (
-          <div key={i} style={{ display:'flex',gap:10,alignItems:'flex-start',flexDirection:m.role==='user'?'row-reverse':'row' }}>
-            {/* Avatar */}
-            <div style={{ width:34,height:34,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:m.role==='bot'?18:13,fontWeight:700,background:m.role==='bot'?'linear-gradient(135deg,var(--emerald),var(--emerald-dark))':'linear-gradient(135deg,var(--navy),var(--navy-mid))',color:'white' }}>
-              {m.role==='bot'?'🤖':initials(user.nome)}
-            </div>
-
-            <div style={{ maxWidth:'75%', display:'flex', flexDirection:'column', gap:4, alignItems:m.role==='user'?'flex-end':'flex-start' }}>
-              <div style={{ background:m.role==='user'?'linear-gradient(135deg,var(--navy),var(--navy-mid))':'var(--slate-50)', color:m.role==='user'?'white':'var(--slate-800)', borderRadius:m.role==='user'?'16px 4px 16px 16px':'4px 16px 16px 16px', padding:'10px 14px', fontSize:13.5, lineHeight:1.6, border:m.role==='bot'?'1px solid var(--slate-200)':'none', boxShadow:'0 2px 6px rgba(0,0,0,.07)' }}>
-                {renderText(m.text)}
-              </div>
-
-              {/* Fontes RAG */}
-              {m.role==='bot' && m.fontes?.length > 0 && (
-                <div style={{ display:'flex',gap:4,flexWrap:'wrap',marginTop:2 }}>
-                  <span style={{ fontSize:10,color:'var(--slate-400)' }}>Baseado em:</span>
-                  {m.fontes.map((f,j) => (
-                    <span key={j} style={{ fontSize:10,padding:'2px 8px',borderRadius:50,background:'rgba(16,185,129,.08)',color:'var(--emerald-dark)',border:'1px solid rgba(16,185,129,.2)',fontWeight:500 }}>
-                      📄 {f}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {m.role==='bot' && m.total_contextos === 0 && i > 0 && (
-                <span style={{ fontSize:10,color:'var(--slate-400)',fontStyle:'italic' }}>Resposta do conhecimento geral da IA (sem documentos locais)</span>
-              )}
-            </div>
-          </div>
-        ))}
-
-        {loading && (
-          <div style={{ display:'flex',gap:10,alignItems:'flex-start' }}>
-            <div style={{ width:34,height:34,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:'linear-gradient(135deg,var(--emerald),var(--emerald-dark))' }}>🤖</div>
-            <div style={{ background:'var(--slate-50)',border:'1px solid var(--slate-200)',borderRadius:'4px 16px 16px 16px',padding:'12px 16px',display:'flex',alignItems:'center',gap:8 }}>
-              <div className="spinner" style={{ width:16,height:16,borderWidth:2,margin:0 }} />
-              <span style={{ fontSize:13,color:'var(--slate-500)' }}>
-                {discNome ? `Consultando documentos de ${discNome}...` : 'Gerando resposta...'}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {erro && (
-          <div className="alert alert-error" style={{ margin:'0 1rem' }}>
-            ⚠️ {erro}
-            <button onClick={() => setErro(null)} style={{ marginLeft:8,background:'none',border:'none',cursor:'pointer',fontSize:12,color:'inherit' }}>✕</button>
-          </div>
-        )}
+      {/* ── Área de mensagens ── */}
+      <div style={{
+        flex: 1, overflowY: 'auto', padding: '16px 12px',
+        background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: 8,
+      }}>
+        {msgs.map(msg => <MensagemBubble key={msg.id} msg={msg} />)}
         <div ref={bottomRef} />
       </div>
 
-      {/* Sugestões (só quando poucas mensagens) */}
-      {msgs.length <= 1 && (
-        <div style={{ padding:'0 1rem 0.75rem',display:'flex',gap:6,flexWrap:'wrap' }}>
-          {SUGESTOES_BASE.map((s,i) => (
-            <button key={i} onClick={()=>send(s)} style={{ padding:'5px 12px',borderRadius:50,border:'1px solid var(--slate-200)',background:'white',cursor:'pointer',fontSize:12,color:'var(--slate-600)',transition:'all .15s' }}
-              onMouseEnter={e=>{e.target.style.borderColor='var(--emerald)';e.target.style.color='var(--emerald-dark)';}}
-              onMouseLeave={e=>{e.target.style.borderColor='var(--slate-200)';e.target.style.color='var(--slate-600)';}}>
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* ── Input ── */}
+      <div style={{
+        padding: '12px 16px', background: 'white',
+        borderTop: '1px solid #e2e8f0', borderRadius: '0 0 12px 12px',
+      }}>
+        {/* Sugestões rápidas */}
+        {msgs.length <= 2 && disciplinas.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+            {['Qual o resumo do documento?', 'Explique o conceito principal', 'Quais são os tópicos abordados?'].map(q => (
+              <button key={q} onClick={() => { setInput(q); inputRef.current?.focus(); }} style={{
+                padding: '5px 12px', border: '1px solid #e2e8f0', borderRadius: 99,
+                background: 'white', fontSize: 12, color: '#475569', cursor: 'pointer',
+                transition: 'all .15s',
+              }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = '#3b82f6'}
+                onMouseLeave={e => e.currentTarget.style.borderColor = '#e2e8f0'}
+              >{q}</button>
+            ))}
+          </div>
+        )}
 
-      {/* Input */}
-      <div style={{ padding:'0.875rem 1rem',borderTop:'1px solid var(--slate-100)',display:'flex',gap:10,alignItems:'flex-end',background:'white' }}>
-        <textarea
-          ref={inputRef}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); send(); }}}
-          placeholder={discNome ? `Pergunte sobre ${discNome}... (Enter para enviar)` : 'Digite sua dúvida... (Enter para enviar)'}
-          rows={1}
-          style={{ flex:1,resize:'none',padding:'10px 14px',border:'1.5px solid var(--slate-200)',borderRadius:12,fontFamily:'var(--font-body)',fontSize:14,outline:'none',lineHeight:1.5,maxHeight:120,overflow:'auto' }}
-          onFocus={e=>e.target.style.borderColor='var(--emerald)'}
-          onBlur={e=>e.target.style.borderColor='var(--slate-200)'}
-        />
-        <button onClick={()=>send()} disabled={!input.trim()||loading}
-          style={{ width:44,height:44,borderRadius:12,background:input.trim()&&!loading?'linear-gradient(135deg,var(--emerald),var(--emerald-dark))':'var(--slate-200)',color:input.trim()&&!loading?'white':'var(--slate-400)',border:'none',cursor:input.trim()&&!loading?'pointer':'not-allowed',fontSize:18,flexShrink:0,transition:'all .15s',boxShadow:input.trim()&&!loading?'0 3px 10px rgba(16,185,129,.3)':'none' }}>
-          ➤
-        </button>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); }
+            }}
+            placeholder={discId ? `Pergunte sobre ${discNome}... (Enter para enviar, Shift+Enter para nova linha)` : 'Selecione uma disciplina e faça sua pergunta...'}
+            disabled={loading}
+            rows={1}
+            style={{
+              flex: 1, padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: 10,
+              fontSize: 14, fontFamily: 'var(--font-body)', resize: 'none', outline: 'none',
+              lineHeight: 1.5, maxHeight: 120, overflow: 'auto',
+              transition: 'border-color .2s',
+            }}
+            onFocus={e => e.target.style.borderColor = '#3b82f6'}
+            onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+          />
+          <button
+            onClick={enviar}
+            disabled={!input.trim() || loading}
+            style={{
+              width: 44, height: 44, border: 'none', borderRadius: 10,
+              background: !input.trim() || loading ? '#e2e8f0' : 'linear-gradient(135deg,#3b82f6,#1d4ed8)',
+              color: !input.trim() || loading ? '#94a3b8' : 'white',
+              cursor: !input.trim() || loading ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 18, transition: 'all .2s', flexShrink: 0,
+              boxShadow: !input.trim() || loading ? 'none' : '0 2px 10px rgba(59,130,246,.4)',
+            }}>
+            {loading ? '⏳' : '➤'}
+          </button>
+        </div>
+        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6, textAlign: 'center' }}>
+          {discAtual?.embeddings_prontos
+            ? '✨ Busca semântica ativa — respostas baseadas nos documentos oficiais'
+            : '🔍 Busca por palavras-chave ativa'}
+        </div>
       </div>
+
+      {/* CSS para animação de loading */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 0.3; transform: scale(0.8); }
+          50% { opacity: 1; transform: scale(1.2); }
+        }
+      `}</style>
     </div>
   );
 }

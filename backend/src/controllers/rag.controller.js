@@ -4,6 +4,7 @@
 const ragRepo  = require('../repositories/rag_document.repository');
 const discRepo = require('../repositories/disciplina.repository');
 const ragSvc   = require('../services/rag.service');
+const assistenteSvc = require('../services/assistente.service');
 const { dbFindAll, dbDeleteWhere } = require('../database/init');
 
 async function list(req, res, next) {
@@ -86,6 +87,11 @@ async function upload(req, res, next) {
     });
 
     const totalChunks = await ragSvc.indexDocument(doc, disciplina_id);
+
+    // Gerar embeddings em background (não bloqueia a resposta)
+    assistenteSvc.indexarPendentes(Number(disciplina_id)).catch(e =>
+      console.log('[RAG] Embeddings em background:', e.message)
+    );
 
     res.status(201).json({
       documento:          { ...doc, base64: undefined, texto_extraido: undefined },
