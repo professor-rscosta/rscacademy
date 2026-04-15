@@ -374,23 +374,46 @@ export default function AlunoModuloDisciplina({ disciplinaId, onVoltar, onNaviga
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {trilhas.map(t => {
                 const cor = t.progresso >= 80 ? '#10b981' : t.progresso >= 40 ? '#3b82f6' : t.progresso > 0 ? '#f59e0b' : '#94a3b8';
+                const btnLabel = t.progresso === 100 ? '🔄 Refazer Trilha' : t.progresso > 0 ? '▶️ Continuar Trilha' : '🚀 Iniciar Trilha';
+                const btnCor   = t.progresso === 100 ? '#6366f1' : t.progresso > 0 ? '#f59e0b' : '#10b981';
                 return (
-                  <Card key={t.id}>
-                    <div style={{ display:'flex', alignItems:'center', gap:14 }}>
-                      <ProgressRing value={t.progresso} size={60} stroke={6} />
-                      <div style={{ flex:1 }}>
-                        <div style={{ fontWeight:700, fontSize:15, color:'var(--navy)', marginBottom:2 }}>{t.nome}</div>
-                        {t.descricao && <div style={{ fontSize:12, color:'var(--slate-500)', marginBottom:6 }}>{t.descricao}</div>}
+                  <Card key={t.id} style={{ transition:'box-shadow .2s' }}
+                    onMouseEnter={e => e.currentTarget.style.boxShadow='0 4px 16px rgba(0,0,0,.1)'}
+                    onMouseLeave={e => e.currentTarget.style.boxShadow='0 1px 4px rgba(0,0,0,.06)'}>
+                    <div style={{ display:'flex', alignItems:'center', gap:14, flexWrap:'wrap' }}>
+                      <ProgressRing value={t.progresso} size={64} stroke={6} />
+                      <div style={{ flex:1, minWidth:160 }}>
+                        <div style={{ fontWeight:700, fontSize:15, color:'var(--navy)', marginBottom:4 }}>{t.nome}</div>
+                        {t.descricao && <div style={{ fontSize:12, color:'var(--slate-500)', marginBottom:8, lineHeight:1.5 }}>{t.descricao}</div>}
+                        {/* Barra de progresso animada */}
+                        <div style={{ height:6, background:'var(--slate-100)', borderRadius:99, marginBottom:8, overflow:'hidden' }}>
+                          <div style={{ height:'100%', width:t.progresso+'%', background:cor, borderRadius:99, transition:'width .8s ease' }} />
+                        </div>
                         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                           <span style={{ fontSize:11, padding:'2px 10px', borderRadius:99, background:cor+'15', color:cor, fontWeight:600 }}>
                             {t.progresso === 100 ? '✅ Concluída' : t.progresso > 0 ? '▶ Em andamento' : '⏳ Não iniciada'}
                           </span>
                           <span style={{ fontSize:11, padding:'2px 10px', borderRadius:99, background:'var(--slate-100)', color:'var(--slate-600)' }}>
-                            {t.total_questoes} questões
+                            ❓ {t.total_questoes} questões
                           </span>
-                          {t.nivel && <span style={{ fontSize:11, padding:'2px 10px', borderRadius:99, background:'#fef3c7', color:'#92400e' }}>{t.nivel}</span>}
+                          {t.nivel && <span style={{ fontSize:11, padding:'2px 10px', borderRadius:99, background:'#fef3c7', color:'#92400e' }}>⚡ {t.nivel}</span>}
                         </div>
                       </div>
+                      {/* BOTÃO DE AÇÃO */}
+                      <button
+                        onClick={() => onNavigate?.('trilhas', { trilhaId: t.id })}
+                        style={{
+                          padding:'11px 22px', background:btnCor, color:'white',
+                          border:'none', borderRadius:9, fontWeight:700, fontSize:13,
+                          cursor:'pointer', whiteSpace:'nowrap',
+                          boxShadow:'0 2px 10px '+btnCor+'50',
+                          transition:'opacity .15s',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.opacity='.85'}
+                        onMouseLeave={e => e.currentTarget.style.opacity='1'}
+                      >
+                        {btnLabel}
+                      </button>
                     </div>
                   </Card>
                 );

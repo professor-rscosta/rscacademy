@@ -108,7 +108,7 @@ export default function AlunoMinhasDisciplinas({ onNavigate }) {
                             <button
                               onClick={() => setModulo({ discId: d.id, discNome: d.nome })}
                               style={{ width:'100%', padding:'8px 0', background:'var(--navy)', color:'white', border:'none', borderRadius:8, fontWeight:700, fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
-                              📖 Acessar Módulo
+                              📖 Acessar Disciplina
                             </button>
                           </div>
                         </div>

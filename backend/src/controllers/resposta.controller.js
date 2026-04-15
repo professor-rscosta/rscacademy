@@ -110,7 +110,21 @@ async function submitResposta(req, res, next) {
 async function listByAluno(req, res, next) {
   try {
     const respostas = respostaRepo.findByAluno(req.user.id);
-    res.json({ respostas, total: respostas.length });
+    // Enriquecer com dados da questão e trilha
+    const enriched = respostas.map(r => {
+      const q = questaoRepo.findById(r.questao_id);
+      const trilha = q ? require('../repositories/trilha.repository').findById(q.trilha_id) : null;
+      return {
+        ...r,
+        questao_enunciado: q?.enunciado || null,
+        questao_tipo:      q?.tipo || null,
+        questao_gabarito:  q?.gabarito ?? null,
+        questao_explicacao: q?.explicacao || null,
+        trilha_nome:       trilha?.nome || null,
+        trilha_id:         q?.trilha_id || null,
+      };
+    });
+    res.json({ respostas: enriched, total: enriched.length });
   } catch (err) { next(err); }
 }
 
