@@ -259,15 +259,13 @@ export default function AlunoChatbot() {
       const status = e.response?.status;
       const err = e.response?.data?.error || e.message || 'Erro ao conectar com o assistente.';
       let msg;
-      if (status === 429 || err.includes('429') || err.includes('quota') || err.includes('limite') || err.includes('Limite')) {
-        msg = '⏳ Limite da IA atingido (free tier: 15 req/min). Aguarde **30 segundos** e tente novamente.';
-      } else if (status === 503 || err.includes('API') || err.includes('chave') || err.includes('configurad')) {
-        msg = '⚙️ Assistente IA não configurado. Verifique GEMINI_API_KEY ou OPENAI_API_KEY nas variáveis de ambiente.';
-      } else if (status === 500) {
-        msg = '❌ Erro no servidor: ' + err;
-      } else {
-        msg = '❌ ' + err;
-      }
+      if (status === 401)  msg = '🔑 Chave de API inválida. Contate o administrador.';
+      else if (status === 402)  msg = '💳 Créditos da IA esgotados. Contate o administrador.';
+      else if (status === 429)  msg = '⏳ Limite de requisições atingido. Aguarde alguns segundos e tente novamente.';
+      else if (status === 503)  msg = '⚙️ IA não configurada. Verifique as variáveis de ambiente (OPENAI_API_KEY ou GEMINI_API_KEY).';
+      else if (status === 504)  msg = '⏱️ A IA demorou demais para responder. Tente novamente.';
+      else if (status >= 500)   msg = '❌ Erro no servidor: ' + err;
+      else                      msg = '❌ ' + err;
       setMsgs(p => p.slice(0,-1).concat([{ id:Date.now()+2, role:'assistant', content:msg }]));
     } finally { setLoading(false); inputRef.current?.focus(); }
   }, [input, loading, discId, modoArquivo, arquivoKey]);
