@@ -89,11 +89,12 @@ async function indexarPendentes(disciplinaId = null) {
   if (disciplinaId) contextos = contextos.filter(c => c.disciplina_id === Number(disciplinaId));
   const pendentes = contextos.filter(c => !c.embedding);
   let count = 0;
-  for (const c of pendentes) {
-    await indexarChunkComEmbedding(c.id, c.conteudo);
+  // Processar sequencialmente com delay para respeitar limite free tier (15 RPM = 1 req/4s)
+  for (const ctx of pendentes) {
+    await indexarChunkComEmbedding(ctx.id, ctx.conteudo);
     count++;
-    // Pequena pausa para não estourar rate limit
-    if (count % 10 === 0) await new Promise(r => setTimeout(r, 500));
+    // 4 segundos entre embeddings garante <15 RPM (free tier Gemini)
+    if (pendentes.length > 1) await new Promise(r => setTimeout(r, 4000));
   }
   return count;
 }

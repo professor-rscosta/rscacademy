@@ -238,8 +238,8 @@ export default function AlunoChatbot() {
       const status = e.response?.status;
       const err = e.response?.data?.error || e.message || 'Erro ao conectar com o assistente.';
       let msg;
-      if (status === 429 || err.includes('429') || err.includes('quota') || err.includes('limite')) {
-        msg = '⏳ Limite de requisições atingido. Aguarde alguns segundos e tente novamente.';
+      if (status === 429 || err.includes('429') || err.includes('quota') || err.includes('limite') || err.includes('Limite')) {
+        msg = '⏳ Limite da IA atingido (free tier: 15 req/min). Aguarde **30 segundos** e tente novamente.';
       } else if (status === 503 || err.includes('API') || err.includes('chave') || err.includes('configurad')) {
         msg = '⚙️ Assistente IA não configurado. Verifique GEMINI_API_KEY ou OPENAI_API_KEY nas variáveis de ambiente.';
       } else if (status === 500) {

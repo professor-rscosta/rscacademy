@@ -166,8 +166,7 @@ async function uploadChatFile(req, res, next) {
       });
     }
 
-    // Gerar embedding em background
-    assistenteSvc.indexarPendentes(disciplina_id ? Number(disciplina_id) : null).catch(() => {});
+    // Embeddings não gerados automaticamente para evitar rate limit
 
     const qualidade = ragSvc.textQuality(textoLimpo);
     res.json({

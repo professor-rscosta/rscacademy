@@ -37,7 +37,7 @@ function getApiKey(provider) {
 }
 
 // ── Retry com backoff ─────────────────────────────────────────
-async function withRetry(fn, maxAttempts = 3, baseDelay = 2000) {
+async function withRetry(fn, maxAttempts = 2, baseDelay = 10000) {
   for (let i = 0; i < maxAttempts; i++) {
     try {
       return await fn();
@@ -45,7 +45,7 @@ async function withRetry(fn, maxAttempts = 3, baseDelay = 2000) {
       const is429 = e.message?.includes('429') || e.message?.includes('quota') || e.message?.includes('rate') || e.message?.includes('limite');
       if (is429 && i < maxAttempts - 1) {
         const delay = baseDelay * Math.pow(2, i);
-        console.log('[LLM] Rate limit. Tentativa ' + (i+2) + '/' + maxAttempts + ' em ' + delay + 'ms...');
+        console.log('[LLM] Rate limit (429). Aguardando ' + (delay/1000) + 's antes da tentativa ' + (i+2) + '/' + maxAttempts + '...');
         await new Promise(r => setTimeout(r, delay));
         continue;
       }

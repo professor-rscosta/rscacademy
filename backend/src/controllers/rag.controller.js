@@ -88,10 +88,7 @@ async function upload(req, res, next) {
 
     const totalChunks = await ragSvc.indexDocument(doc, disciplina_id);
 
-    // Gerar embeddings em background (não bloqueia a resposta)
-    assistenteSvc.indexarPendentes(Number(disciplina_id)).catch(e =>
-      console.log('[RAG] Embeddings em background:', e.message)
-    );
+    // Embeddings gerados manualmente pelo professor via botão 'Ativar Busca Semântica'
 
     res.status(201).json({
       documento:          { ...doc, base64: undefined, texto_extraido: undefined },
