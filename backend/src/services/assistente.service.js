@@ -179,24 +179,13 @@ function formatarContexto(chunks) {
 
 // ── Gerar resumo do documento ──────────────────────────────────
 async function gerarResumoDocumento(docId, textoExtraido) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return '';
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        max_tokens: 300,
-        messages: [
-          { role: 'system', content: 'Você faz resumos concisos de documentos acadêmicos. Máximo 5 frases.' },
-          { role: 'user', content: 'Resuma este documento:\n\n' + textoExtraido.slice(0, 4000) },
-        ],
-      }),
+    const llm = require('./llm.service');
+    return await llm.chat({
+      system: 'Você faz resumos concisos de documentos acadêmicos. Máximo 5 frases.',
+      messages: [{ role:'user', content:'Resuma este documento:\n\n' + textoExtraido.slice(0, 4000) }],
+      maxTokens: 300,
     });
-    if (!res.ok) return '';
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content || '';
   } catch(e) { return ''; }
 }
 

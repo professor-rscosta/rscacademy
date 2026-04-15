@@ -196,9 +196,7 @@ async function chatComArquivo(req, res, next) {
       contextos = ragSvc.retrieveContext(mensagem, [], 8, Number(disciplina_id));
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) return res.status(503).json({ error: 'OPENAI_API_KEY não configurada.' });
-
+    const llmSvc = require('../services/llm.service');
     const contextText = ragSvc.formatContextForPrompt(contextos.slice(0,8));
     const system = [
       'Você é um assistente especializado em análise de documentos.',
@@ -206,18 +204,8 @@ async function chatComArquivo(req, res, next) {
       'Responda com base exclusivamente no conteúdo acima. Se não encontrar, informe claramente.',
     ].join('\n\n');
 
-    const res2 = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini', max_tokens: 1200, temperature: 0.3,
-        messages: [{ role: 'system', content: system }, { role: 'user', content: mensagem }],
-      }),
-    });
-    const data = await res2.json();
-    const resposta = data.choices?.[0]?.message?.content || 'Sem resposta.';
-
-    res.json({ resposta, chunks_usados: Math.min(8, contextos.length), fontes: [sessionKey?.replace(`temp_chat_${req.user.id}`, '') || 'arquivo'] });
+    const resposta = await llmSvc.chat({ system, messages:[{ role:'user', content:mensagem }], maxTokens:1200 });
+    res.json({ resposta, chunks_usados: Math.min(8, contextos.length), fontes: ['arquivo'] });
   } catch(e) { next(e); }
 }
 
