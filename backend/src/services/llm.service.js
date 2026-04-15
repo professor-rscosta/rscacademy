@@ -179,20 +179,47 @@ async function getEmbedding(text) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// MAIN CHAT FUNCTION
+// MAIN CHAT FUNCTION — com fallback automático entre providers
 // ─────────────────────────────────────────────────────────────
 async function chat({ system, messages, maxTokens = 1500, jsonMode = false }) {
-  const provider = getProvider();
-  console.log('[LLM] Provider:', provider, '| maxTokens:', maxTokens);
+  const primary = getProvider();
+  console.log('[LLM] Provider:', primary, '| maxTokens:', maxTokens);
 
+  // Tentar provider primário
   try {
-    if (provider === 'gemini') return await callGemini({ system, messages, maxTokens });
+    if (primary === 'gemini') return await callGemini({ system, messages, maxTokens });
     return await callOpenAI({ system, messages, maxTokens, jsonMode });
-  } catch(e) {
-    // Enriquecer o erro com informações de diagnóstico
-    console.error('[LLM] ❌ Erro:', e.message);
-    if (!e.statusCode) e.statusCode = 500;
-    throw e;
+  } catch(primaryErr) {
+    const is429 = primaryErr.statusCode === 429 || primaryErr.message?.includes('429')
+               || primaryErr.message?.includes('limite') || primaryErr.message?.includes('quota');
+    const isNoKey = primaryErr.code === 'NO_API_KEY';
+
+    console.error('[LLM] ❌ ' + primary + ' falhou:', primaryErr.message);
+
+    // Fallback automático: se 429 ou sem chave, tentar o outro provider
+    const fallback = primary === 'gemini' ? 'openai' : 'gemini';
+    const hasFallback = fallback === 'openai'
+      ? (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'sua_chave_aqui')
+      : (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'sua_chave_aqui');
+
+    if ((is429 || isNoKey) && hasFallback) {
+      console.log('[LLM] 🔄 Fallback automático para', fallback);
+      try {
+        const resp = fallback === 'gemini'
+          ? await callGemini({ system, messages, maxTokens })
+          : await callOpenAI({ system, messages, maxTokens, jsonMode });
+        console.log('[LLM] ✅ Fallback', fallback, 'funcionou');
+        return resp;
+      } catch(fallbackErr) {
+        console.error('[LLM] ❌', fallback, 'fallback também falhou:', fallbackErr.message);
+        // Retornar erro do fallback se for mais específico, senão erro original
+        if (!fallbackErr.statusCode) fallbackErr.statusCode = 500;
+        throw fallbackErr;
+      }
+    }
+
+    if (!primaryErr.statusCode) primaryErr.statusCode = 500;
+    throw primaryErr;
   }
 }
 

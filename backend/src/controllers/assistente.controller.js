@@ -23,10 +23,21 @@ async function chat(req, res, next) {
 
     res.json(resultado);
   } catch(e) {
-    if (e.message?.includes('OPENAI_API_KEY')) {
-      return res.status(503).json({ error: '⚠️ Configure OPENAI_API_KEY ou GEMINI_API_KEY nas variáveis de ambiente.' });
-    }
-    next(e);
+    console.error('[Assistente] chat error:', e.message, '| statusCode:', e.statusCode);
+
+    const s = e.statusCode || 500;
+    if (s === 503 || e.message?.includes('configurad') || e.message?.includes('API_KEY'))
+      return res.status(503).json({ error: '⚙️ Chave de IA não configurada. Defina OPENAI_API_KEY ou GEMINI_API_KEY nas variáveis de ambiente.' });
+    if (s === 401)
+      return res.status(401).json({ error: '🔑 Chave de API inválida. Verifique OPENAI_API_KEY no painel OpenAI.' });
+    if (s === 402)
+      return res.status(402).json({ error: '💳 Créditos OpenAI esgotados. Adicione créditos em platform.openai.com.' });
+    if (s === 429 || e.message?.includes('429') || e.message?.includes('limite') || e.message?.includes('quota'))
+      return res.status(429).json({ error: '⏳ Limite de requisições da IA atingido. Aguarde alguns instantes e tente novamente.' });
+    if (e.name === 'AbortError' || e.message?.includes('timeout'))
+      return res.status(504).json({ error: '⏱️ A IA demorou demais para responder. Tente novamente.' });
+
+    return res.status(s >= 400 ? s : 500).json({ error: '❌ Erro ao chamar a IA: ' + e.message });
   }
 }
 
