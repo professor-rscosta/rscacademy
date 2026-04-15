@@ -83,8 +83,52 @@ for (const [nome, arquivo] of rotas) {
   app.use(`/${nome}`,     router); // Hostinger: remove /api no proxy
 }
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
+app.get('/api/health', (req, res) => {
+  const provider = process.env.AI_PROVIDER || 'auto';
+  const hasGemini = !!(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'sua_chave_aqui');
+  const hasOpenAI = !!(process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'sua_chave_aqui');
+  const model = provider === 'gemini' ? (process.env.GEMINI_MODEL || 'gemini-2.0-flash')
+              : provider === 'openai' ? (process.env.OPENAI_MODEL || 'gpt-4o-mini')
+              : hasOpenAI ? (process.env.OPENAI_MODEL || 'gpt-4o-mini') : (process.env.GEMINI_MODEL || 'gemini-2.0-flash');
+  res.json({
+    status: 'ok',
+    time: new Date(),
+    ai: { provider, model, hasGemini, hasOpenAI },
+    version: '2.0',
+  });
+});
 app.get('/health',     (req, res) => res.json({ status: 'ok', time: new Date() }));
+
+// Teste rápido da API de IA (sem autenticação - só para diagnóstico)
+app.get('/api/ai/test', async (req, res) => {
+  const provider  = process.env.AI_PROVIDER || 'auto';
+  const hasOpenAI = !!(process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'sua_chave_aqui');
+  const hasGemini = !!(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'sua_chave_aqui');
+  const model     = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+
+  if (!hasOpenAI && !hasGemini) {
+    return res.status(503).json({ ok: false, error: 'Nenhuma chave de IA configurada.' });
+  }
+
+  try {
+    const llm = require('./src/services/llm.service');
+    const start = Date.now();
+    const resp = await llm.chat({
+      system: 'Responda apenas: OK',
+      messages: [{ role: 'user', content: 'teste' }],
+      maxTokens: 5,
+    });
+    res.json({
+      ok: true,
+      provider: llm.getProvider(),
+      model,
+      resposta: resp,
+      latencia_ms: Date.now() - start,
+    });
+  } catch(e) {
+    res.status(500).json({ ok: false, provider, error: e.message, statusCode: e.statusCode });
+  }
+});
 
 // ── Frontend React (produção) ─────────────────────────────────
 const frontendDist = path.join(__dirname, '../public'); // nodejs/public/ no Hostinger
