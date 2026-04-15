@@ -1,62 +1,18 @@
 /**
- * RSC Academy — AI Service (OpenAI / ChatGPT)
- * Substitui a integração com Claude pela API da OpenAI.
- * Todas as funções têm a mesma assinatura — nenhum outro arquivo precisa mudar.
+ * RSC Academy — AI Service (Multi-provider: OpenAI + Gemini)
+ * Usa llm.service.js para suporte transparente a ambos os providers.
+ * Configurar AI_PROVIDER=gemini ou AI_PROVIDER=openai no .env
  */
 const { retrieveContext, formatContextForPrompt, markUsed } = require('./rag.service');
+const llm = require('./llm.service');
 
-const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
-const MODEL = 'gpt-4o-mini'; // troque por 'gpt-4o' para respostas mais elaboradas
-
-// ── Helper: chamada à API OpenAI ──────────────────────────────
+// callGPT agora delega para llm.service (mantém compatibilidade)
 async function callGPT({ system, messages, maxTokens = 2000, jsonMode = false }) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey || apiKey === 'sua_chave_aqui') {
-    throw new Error('OPENAI_API_KEY não configurada no .env');
-  }
-
-  const body = {
-    model: MODEL,
-    max_tokens: maxTokens,
-    messages: [
-      { role: 'system', content: system },
-      ...messages,
-    ],
-  };
-
-  if (jsonMode) {
-    body.response_format = { type: 'json_object' };
-  }
-
-  const res = await fetch(OPENAI_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + apiKey,
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error('OpenAI API error ' + res.status + ': ' + (err.error?.message || res.statusText));
-  }
-
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content || '';
+  return llm.chat({ system, messages, maxTokens, jsonMode });
 }
 
-// ── Parse JSON seguro ─────────────────────────────────────────
-function parseJSON(text) {
-  try {
-    const clean = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean);
-  } catch {
-    const match = text.match(/\{[\s\S]*\}/);
-    if (match) { try { return JSON.parse(match[0]); } catch { return null; } }
-    return null;
-  }
-}
+// parseJSON via llm.service
+const parseJSON = llm.parseJSON;
 
 // ── Configuração por tipo de questão ─────────────────────────
 const TIPO_CONFIG = {

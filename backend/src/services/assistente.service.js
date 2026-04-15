@@ -31,22 +31,10 @@ function clearSession(userId) {
   sessoes.delete(userId);
 }
 
-// ── Embeddings OpenAI ──────────────────────────────────────────
+// ── Embeddings via llm.service (OpenAI ou Gemini) ─────────────
+const llm = require('./llm.service');
 async function getEmbedding(text) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey || apiKey === 'sua_chave_aqui') throw new Error('OPENAI_API_KEY não configurada.');
-
-  const res = await fetch('https://api.openai.com/v1/embeddings', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-    body: JSON.stringify({ model: 'text-embedding-3-small', input: text.slice(0, 8000) }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error('Embedding error: ' + (err.error?.message || res.statusText));
-  }
-  const data = await res.json();
-  return data.data[0].embedding;
+  return llm.getEmbedding(text);
 }
 
 // ── Cosine Similarity (pure JS) ────────────────────────────────
@@ -214,9 +202,6 @@ async function gerarResumoDocumento(docId, textoExtraido) {
 
 // ── Chat principal com RAG avançado ────────────────────────────
 async function chat({ userId, mensagem, disciplinaId, modoFileSear = false }) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey || apiKey === 'sua_chave_aqui') throw new Error('OPENAI_API_KEY não configurada.');
-
   const sessao = getSession(userId);
   addToSession(userId, 'user', mensagem);
 
@@ -268,28 +253,12 @@ async function chat({ userId, mensagem, disciplinaId, modoFileSear = false }) {
     usouEmbeddings ? '- [Sistema: usando busca semântica avançada]' : '- [Sistema: usando busca por palavras-chave]',
   ].filter(Boolean).join('\n');
 
-  // Chamar GPT
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      max_tokens: 1500,
-      temperature: 0.3,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: mensagem },
-      ],
-    }),
+  // Chamar LLM (OpenAI ou Gemini conforme AI_PROVIDER)
+  const resposta = await llm.chat({
+    system,
+    messages: [{ role: 'user', content: mensagem }],
+    maxTokens: 1500,
   });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error('OpenAI error: ' + (err.error?.message || res.statusText));
-  }
-
-  const data = await res.json();
-  const resposta = data.choices?.[0]?.message?.content || 'Sem resposta.';
 
   addToSession(userId, 'assistant', resposta);
 

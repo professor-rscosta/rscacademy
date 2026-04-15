@@ -24,7 +24,7 @@ async function chat(req, res, next) {
     res.json(resultado);
   } catch(e) {
     if (e.message?.includes('OPENAI_API_KEY')) {
-      return res.status(503).json({ error: '⚠️ Configure OPENAI_API_KEY nas variáveis de ambiente.' });
+      return res.status(503).json({ error: '⚠️ Configure OPENAI_API_KEY ou GEMINI_API_KEY nas variáveis de ambiente.' });
     }
     next(e);
   }
