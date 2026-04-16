@@ -19,7 +19,7 @@ function ChatAvatar({ isUser, foto }) {
       fontSize: foto ? 0 : 18, color:'white', fontWeight:700,
       boxShadow:'0 2px 8px rgba(0,0,0,.15)',
     }}>
-      {!foto && (isUser ? '👤' : '🤖')}
+      {!foto && (isUser ? 'U' : 'AI')}
     </div>
   );
 }
@@ -54,7 +54,7 @@ function MsgBubble({ msg, userFoto }) {
           </div>
         ) : msg.isFile ? (
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <span style={{ fontSize:22 }}>📎</span>
+            <span style={{ fontSize:22 }}>[ ]</span>
             <div>
               <div style={{ fontWeight:700, fontSize:13 }}>{msg.fileName}</div>
               <div style={{ fontSize:11, opacity:.7 }}>{msg.info}</div>
@@ -66,44 +66,44 @@ function MsgBubble({ msg, userFoto }) {
           <div dangerouslySetInnerHTML={{ __html: renderMd(msg.content) }} />
         )}
 
-        {/* Rodapé da mensagem: fonte + documentos */}
+        {/* Rodape da mensagem: fonte + documentos */}
         {!isUser && !msg.loading && (msg.modo_fonte || msg.chunks_usados > 0 || msg.modoArquivo || msg.fontes?.length > 0) && (
           <div style={{ marginTop:10, paddingTop:8, borderTop:'1px solid #f1f5f9' }}>
 
-            {/* Badge de origem — correto por modo_fonte */}
+            {/* Badge de origem - correto por modo_fonte */}
             <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', marginBottom: msg.fontes?.length > 0 ? 6 : 0 }}>
               {msg.modo_fonte === 'rag' && (
                 <span style={{ fontSize:10, padding:'3px 10px', borderRadius:99, background:'#ecfdf5', color:'#059669', fontWeight:700, border:'1px solid #a7f3d0', display:'flex', alignItems:'center', gap:4 }}>
-                  📚 Fonte: Base interna (RAG)
+                  [RAG] Fonte: Base interna
                 </span>
               )}
               {msg.modo_fonte === 'web' && (
                 <span style={{ fontSize:10, padding:'3px 10px', borderRadius:99, background:'#eff6ff', color:'#1d4ed8', fontWeight:700, border:'1px solid #bfdbfe', display:'flex', alignItems:'center', gap:4 }}>
-                  🌐 Fonte: Busca na web
+                  [Web] Fonte: Busca na web
                 </span>
               )}
               {msg.modo_fonte === 'hibrido' && (
                 <span style={{ fontSize:10, padding:'3px 10px', borderRadius:99, background:'#f5f3ff', color:'#6d28d9', fontWeight:700, border:'1px solid #ddd6fe', display:'flex', alignItems:'center', gap:4 }}>
-                  🔀 Fonte: RAG + Web
+                  [Hibrido] Fonte: RAG + Web
                 </span>
               )}
               {msg.modoArquivo && (
                 <span style={{ fontSize:10, padding:'3px 10px', borderRadius:99, background:'#fffbeb', color:'#92400e', fontWeight:700, border:'1px solid #fde68a' }}>
-                  📎 Fonte: Arquivo enviado
+                  [PDF] Fonte: Arquivo
                 </span>
               )}
               {msg.chunks_usados > 0 && (
-                <span style={{ fontSize:10, color:'#94a3b8' }}>🔍 {msg.chunks_usados} trecho{msg.chunks_usados>1?'s':''}</span>
+                <span style={{ fontSize:10, color:'#94a3b8' }}>{msg.chunks_usados} trecho{msg.chunks_usados>1?'s':''}</span>
               )}
               {msg.usou_embeddings && (
-                <span style={{ fontSize:10, color:'#94a3b8' }}>✨ semântico</span>
+                <span style={{ fontSize:10, color:'#94a3b8' }}> semantico</span>
               )}
             </div>
 
             {/* Documentos usados (apenas RAG) */}
             {(msg.modo_fonte === 'rag' || msg.modo_fonte === 'hibrido') && msg.fontes?.length > 0 && (
               <div>
-                <div style={{ fontSize:10, color:'#94a3b8', marginBottom:3 }}>📄 Documentos:</div>
+                <div style={{ fontSize:10, color:'#94a3b8', marginBottom:3 }}>Documentos:</div>
                 <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
                   {msg.fontes.map((f,i) => (
                     <span key={i} style={{ fontSize:10, padding:'2px 8px', borderRadius:99, background:'#eff6ff', color:'#1d4ed8', border:'1px solid #bfdbfe' }}>{f}</span>
@@ -114,14 +114,14 @@ function MsgBubble({ msg, userFoto }) {
             {/* Fontes web */}
             {msg.modo_fonte === 'web' && msg.fontes_web?.length > 0 && (
               <div>
-                <div style={{ fontSize:10, color:'#94a3b8', marginBottom:3 }}>🌐 Sites consultados:</div>
+                <div style={{ fontSize:10, color:'#94a3b8', marginBottom:3 }}>Sites consultados:</div>
                 <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
                   {msg.fontes_web.slice(0,4).map((f,i) => (
                     <span key={i} style={{ fontSize:10, padding:'2px 8px', borderRadius:99, background:'#f0f9ff', color:'#0369a1', border:'1px solid #bae6fd' }}>{f}</span>
                   ))}
                 </div>
               </div>
-
+            )}
           </div>
         )}
       </div>
@@ -170,8 +170,8 @@ export default function AlunoChatbot() {
     if (!loadingDiscs) {
       setMsgs([{ id:1, role:'assistant',
         content: disciplinas.length > 0
-          ? `Olá, **${user?.nome?.split(' ')[0]}**! 👋\n\nSou o Assistente Virtual da RSC Academy.\n\nSelecione uma disciplina para perguntas sobre o material, ou use o botão **📎** para enviar um arquivo e conversarmos sobre ele (modo ChatPDF).`
-          : `Olá! 👋 Sou o Assistente Virtual da RSC Academy.\n\nUse o botão **📎** abaixo para enviar um PDF, DOCX ou TXT e eu responderei perguntas sobre o conteúdo!`,
+          ? `Ola, **${user?.nome?.split(' ')[0]}**!\n\nSou o Assistente Virtual da RSC Academy.\n\nSelecione uma disciplina para perguntas sobre o material, ou use o botao **[F]** para enviar um arquivo e conversarmos sobre ele (modo ChatPDF).`
+          : `Ola! Sou o Assistente Virtual da RSC Academy.\n\nUse o botao **[F]** abaixo para enviar um PDF, DOCX ou TXT e eu responderei perguntas sobre o conteudo!`,
       }]);
     }
   }, [loadingDiscs]);
@@ -183,7 +183,7 @@ export default function AlunoChatbot() {
     e.target.value = '';
 
     if (file.size > 10 * 1024 * 1024) {
-      setMsgs(p => [...p, { id:Date.now(), role:'assistant', content:'❌ Arquivo muito grande. Máximo 10MB.' }]);
+      setMsgs(p => [...p, { id:Date.now(), role:'assistant', content:'Erro: Arquivo muito grande. Maximo 10MB.' }]);
       return;
     }
 
@@ -211,20 +211,20 @@ export default function AlunoChatbot() {
 
       setMsgs(p => {
         const arr = p.filter(m => !m.loading);
-        arr[arr.length - arr.filter(m=>m.isFile).length] = { ...uploadMsg, info:`${r.data.chunks} trechos · ${r.data.qualidade}% qualidade` };
+        arr[arr.length - arr.filter(m=>m.isFile).length] = { ...uploadMsg, info:`${r.data.chunks} trechos ? ${r.data.qualidade}% qualidade` };
         return [...arr, {
           id:Date.now()+2, role:'assistant',
-          content:`✅ **${file.name}** processado!\n\n${r.data.message}\n\nAgora me pergunte qualquer coisa sobre o conteúdo deste arquivo!`,
+          content:`OK: **${file.name}** processado!\n\n${r.data.message}\n\nAgora me pergunte qualquer coisa sobre o conteudo deste arquivo!`,
           fontes:[file.name], chunks_usados: r.data.chunks, modoArquivo:true,
         }];
       });
     } catch(e) {
       const status = e.response?.status;
       const err = e.response?.data?.error || e.message || 'Erro ao processar arquivo.';
-      let msg = '❌ ' + err;
-      if (status === 413 || err.includes('large')) msg = '❌ Arquivo muito grande. Tente um arquivo menor (máx 5MB).';
-      if (status === 422) msg = '❌ Não foi possível ler o arquivo. Use PDF com texto selecionável, DOCX ou TXT.';
-      if (status === 503 || err.includes('API') || err.includes('chave')) msg = '❌ Assistente de IA não configurado. Verifique as variáveis de ambiente.';
+      let msg = 'Erro: ' + err;
+      if (status === 413 || err.includes('large')) msg = 'Arquivo muito grande. Tente um arquivo menor (max 5MB).';
+      if (status === 422) msg = '[X] Nao foi possivel ler o arquivo. Use PDF com texto selecionavel, DOCX ou TXT.';
+      if (status === 503 || err.includes('API') || err.includes('chave')) msg = '[X] Assistente de IA nao configurado. Verifique as variaveis de ambiente.';
       setMsgs(p => p.slice(0,-1).concat([{ id:Date.now()+2, role:'assistant', content:msg }]));
     } finally { setUpFile(false); }
   };
@@ -267,13 +267,13 @@ export default function AlunoChatbot() {
       const status = e.response?.status;
       const err = e.response?.data?.error || e.message || 'Erro ao conectar com o assistente.';
       let msg;
-      if (status === 401)  msg = '🔑 Chave de API inválida. Contate o administrador.';
-      else if (status === 402)  msg = '💳 Créditos da IA esgotados. Contate o administrador.';
-      else if (status === 429)  msg = '⏳ Limite de requisições atingido. Aguarde alguns segundos e tente novamente.';
-      else if (status === 503)  msg = '⚙️ IA não configurada. Verifique as variáveis de ambiente (OPENAI_API_KEY ou GEMINI_API_KEY).';
-      else if (status === 504)  msg = '⏱️ A IA demorou demais para responder. Tente novamente.';
-      else if (status >= 500)   msg = '❌ Erro no servidor: ' + err;
-      else                      msg = '❌ ' + err;
+      if (status === 401)  msg = '[401] Chave de API invalida. Contate o administrador.';
+      else if (status === 402)  msg = '[402] Creditos da IA esgotados. Contate o administrador.';
+      else if (status === 429)  msg = '[429] Limite de requisicoes atingido. Aguarde alguns segundos e tente novamente.';
+      else if (status === 503)  msg = '[503] IA nao configurada. Verifique as variaveis de ambiente (OPENAI_API_KEY ou GEMINI_API_KEY).';
+      else if (status === 504)  msg = '[504] A IA demorou demais para responder. Tente novamente.';
+      else if (status >= 500)   msg = 'Erro no servidor: ' + err;
+      else                      msg = 'Erro: ' + err;
       setMsgs(p => p.slice(0,-1).concat([{ id:Date.now()+2, role:'assistant', content:msg }]));
     } finally { setLoading(false); inputRef.current?.focus(); }
   }, [input, loading, discId, modoArquivo, arquivoKey]);
@@ -281,14 +281,14 @@ export default function AlunoChatbot() {
   const limpar = async () => {
     await api.delete('/assistente/sessao').catch(() => {});
     setModoArquivo(false); setArquivoKey(null); setArqNome('');
-    setMsgs([{ id:Date.now(), role:'assistant', content:'🔄 Sessão reiniciada! Como posso ajudar?' }]);
+    setMsgs([{ id:Date.now(), role:'assistant', content:'Sessao reiniciada! Como posso ajudar?' }]);
   };
 
   const indexar = async () => {
     setIndexando(true);
     try {
       const r = await api.post(`/assistente/indexar?disciplina_id=${discId}`);
-      setMsgs(p => [...p, { id:Date.now(), role:'assistant', content:`✅ ${r.data.message}\n\nAgora uso **busca semântica avançada**! ✨` }]);
+      setMsgs(p => [...p, { id:Date.now(), role:'assistant', content:`[OK] ${r.data.message}\n\nAgora uso **busca semantica avancada**! [*]` }]);
     } catch(e) { alert(e.response?.data?.error || 'Erro.'); }
     finally { setIndexando(false); }
   };
@@ -298,21 +298,21 @@ export default function AlunoChatbot() {
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'calc(100vh - 120px)', minHeight:500 }}>
 
-      {/* ── Cabeçalho ── */}
+      {/* -- Cabecalho -- */}
       <div style={{ background:'linear-gradient(135deg,#1e3a5f,#2d5a9e)', color:'white', padding:'12px 16px', borderRadius:'12px 12px 0 0' }}>
 
-        {/* Linha 1: titulo + ações */}
+        {/* Linha 1: titulo + ac?es */}
         <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom: (disciplinas.length > 0 || modoArquivo) ? 10 : 0 }}>
-          <div style={{ width:36, height:36, borderRadius:'50%', background:'rgba(255,255,255,.15)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18 }}>🤖</div>
+          <div style={{ width:36, height:36, borderRadius:'50%', background:'rgba(255,255,255,.15)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18 }}>[AI]</div>
           <div style={{ flex:1 }}>
             <div style={{ fontWeight:800, fontSize:15 }}>Assistente Virtual RSC Academy</div>
             <div style={{ fontSize:11, opacity:.6, display:'flex', gap:8 }}>
-              <span>✨ RAG Avançado</span><span>•</span><span>🧠 Memória</span>
-              {modoArquivo && <><span>•</span><span style={{ color:'#fbbf24' }}>📎 {arquivoNome}</span></>}
+              <span>RAG Avancado</span><span>-</span><span>Memoria</span>
+              {modoArquivo && <><span>-</span><span style={{ color:'#fbbf24' }}>[F] {arquivoNome}</span></>}
             </div>
           </div>
           <button onClick={limpar} style={{ padding:'5px 10px', background:'rgba(255,255,255,.12)', border:'1px solid rgba(255,255,255,.2)', borderRadius:8, color:'white', fontSize:11, cursor:'pointer' }}>
-            🔄 Nova
+            Nova
           </button>
         </div>
 
@@ -325,13 +325,13 @@ export default function AlunoChatbot() {
             }} style={{ flex:1, padding:'6px 10px', borderRadius:8, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.1)', color:'white', fontSize:12, cursor:'pointer' }}>
               {disciplinas.map(d => (
                 <option key={d.id} value={d.id} style={{ color:'#1e293b', background:'white' }}>
-                  📚 {d.nome} ({d.total_chunks||0} trechos{d.embeddings_prontos?' ✨':''})
+                  [L] {d.nome} ({d.total_chunks||0} trechos{d.embeddings_prontos?' [*]':''})
                 </option>
               ))}
             </select>
             {discAtual && !discAtual.embeddings_prontos && (discAtual.total_chunks||0) > 0 && (
               <button onClick={indexar} disabled={indexando} style={{ padding:'6px 12px', background:'#f59e0b', color:'#1e293b', border:'none', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer' }}>
-                {indexando ? '⏳' : '✨ Semântica'}
+                {indexando ? '...' : 'Semantica'}
               </button>
             )}
           </div>
@@ -340,25 +340,25 @@ export default function AlunoChatbot() {
         {/* Modo arquivo ativo */}
         {modoArquivo && (
           <div style={{ display:'flex', alignItems:'center', gap:8, background:'rgba(245,158,11,.15)', borderRadius:8, padding:'6px 12px', border:'1px solid rgba(245,158,11,.3)' }}>
-            <span style={{ fontSize:14 }}>📎</span>
+            <span>[Arq]</span>
             <span style={{ fontSize:12, color:'#fbbf24', fontWeight:600 }}>Modo ChatPDF: {arquivoNome}</span>
-            <button onClick={() => { setModoArquivo(false); setArquivoKey(null); setArqNome(''); }} style={{ marginLeft:'auto', padding:'2px 8px', background:'rgba(255,255,255,.15)', border:'none', borderRadius:6, color:'white', fontSize:11, cursor:'pointer' }}>✕ Sair</button>
+            <button onClick={() => { setModoArquivo(false); setArquivoKey(null); setArqNome(''); }} style={{ marginLeft:'auto', padding:'2px 8px', background:'rgba(255,255,255,.15)', border:'none', borderRadius:6, color:'white', fontSize:11, cursor:'pointer' }}>? Sair</button>
           </div>
         )}
       </div>
 
-      {/* ── Mensagens ── */}
+      {/* -- Mensagens -- */}
       <div style={{ flex:1, overflowY:'auto', padding:'14px 12px', background:'#f8fafc', display:'flex', flexDirection:'column', gap:8 }}>
         {msgs.map(msg => <MsgBubble key={msg.id} msg={msg} userFoto={user?.foto} />)}
         <div ref={bottomRef} />
       </div>
 
-      {/* ── Input area ── */}
+      {/* -- Input area -- */}
       <div style={{ padding:'12px 14px', background:'white', borderTop:'1px solid #e2e8f0', borderRadius:'0 0 12px 12px' }}>
-        {/* Sugestões */}
+        {/* Sugest?es */}
         {msgs.length <= 2 && !modoArquivo && disciplinas.length > 0 && (
           <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:8 }}>
-            {['Qual o tema principal?','Resuma o conteúdo','Quais os conceitos-chave?'].map(q => (
+            {['Qual o tema principal?','Resuma o conteudo','Quais os conceitos-chave?'].map(q => (
               <button key={q} onClick={() => { setInput(q); inputRef.current?.focus(); }}
                 style={{ padding:'4px 12px', border:'1px solid #e2e8f0', borderRadius:99, background:'white', fontSize:11, color:'#475569', cursor:'pointer' }}
                 onMouseEnter={e=>e.currentTarget.style.borderColor='#3b82f6'}
@@ -369,11 +369,11 @@ export default function AlunoChatbot() {
         )}
 
         <div style={{ display:'flex', gap:8, alignItems:'flex-end' }}>
-          {/* Botão upload arquivo */}
+          {/* Botao upload arquivo */}
           <button
             onClick={() => fileRef.current?.click()}
             disabled={uploadingFile}
-            title="Enviar arquivo (PDF, DOCX, TXT) para análise"
+            title="Enviar arquivo (PDF, DOCX, TXT) para analise"
             style={{
               width:40, height:40, border:'1px solid #e2e8f0', borderRadius:10, background:'white',
               cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
@@ -384,7 +384,7 @@ export default function AlunoChatbot() {
             onMouseEnter={e => { e.currentTarget.style.borderColor='#3b82f6'; e.currentTarget.style.color='#3b82f6'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor=modoArquivo?'#f59e0b':'#e2e8f0'; e.currentTarget.style.color=modoArquivo?'#f59e0b':'#475569'; }}
           >
-            {uploadingFile ? '⏳' : '📎'}
+            {uploadingFile ? '...' : '[+]'}
           </button>
           <input ref={fileRef} type="file" accept=".pdf,.docx,.doc,.txt,.md,.html" style={{ display:'none' }} onChange={handleFileUpload} />
 
@@ -393,7 +393,7 @@ export default function AlunoChatbot() {
             ref={inputRef} value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } }}
-            placeholder={modoArquivo ? `Pergunte sobre "${arquivoNome}"...` : discId ? `Pergunte sobre ${discNome}...` : 'Envie um arquivo 📎 ou selecione uma disciplina...'}
+            placeholder={modoArquivo ? `Pergunte sobre "${arquivoNome}"...` : discId ? `Pergunte sobre ${discNome}...` : 'Envie um arquivo [F] ou selecione uma disciplina...'}
             disabled={loading}
             rows={1}
             style={{
@@ -405,7 +405,7 @@ export default function AlunoChatbot() {
             onBlur={e=>e.target.style.borderColor='#e2e8f0'}
           />
 
-          {/* Botão enviar */}
+          {/* Botao enviar */}
           <button onClick={enviar} disabled={!input.trim()||loading} style={{
             width:40, height:40, border:'none', borderRadius:10, flexShrink:0,
             background: !input.trim()||loading ? '#e2e8f0' : 'linear-gradient(135deg,#3b82f6,#1d4ed8)',
@@ -414,14 +414,14 @@ export default function AlunoChatbot() {
             display:'flex', alignItems:'center', justifyContent:'center', fontSize:18,
             boxShadow: !input.trim()||loading ? 'none' : '0 2px 10px rgba(59,130,246,.4)',
           }}>
-            {loading ? '⏳' : '➤'}
+            {loading ? '...' : '>'}
           </button>
         </div>
 
         <div style={{ fontSize:11, color:'#94a3b8', marginTop:5, textAlign:'center' }}>
-          {modoArquivo ? '📎 Modo ChatPDF ativo — perguntas sobre o arquivo' :
-           discAtual?.embeddings_prontos ? '✨ Busca semântica ativa' : '🔍 Busca por palavras-chave'}
-          {' · 📎 Envie um arquivo para análise individual'}
+          {modoArquivo ? '[PDF] Modo ChatPDF ativo - perguntas sobre o arquivo' :
+           discAtual?.embeddings_prontos ? 'Busca semantica ativa' : 'Busca por palavras-chave'}
+          {' - Envie um arquivo para analise individual'}
         </div>
       </div>
 
