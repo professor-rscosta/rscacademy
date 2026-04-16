@@ -579,7 +579,14 @@ async function responderBatch(req, res, next) {
   } catch(e) { next(e); }
 }
 
-module.exports = { list, getById, create, update, remove, publicar, iniciar, responderQuestao, responderBatch, concluir, resultados, minhasTentativas, listarEntregas, corrigirManual, clonar, vincularTurmas, turmasDaAvaliacao };
+
+// ── FINALIZAR alias — POST /avaliacoes/tentativa/:id/concluir ─
+// This is the same as concluir but accessible via a cleaner URL  
+async function finalizar(req, res, next) {
+  return concluir(req, res, next);
+}
+
+module.exports = { list, getById, create, update, remove, publicar, iniciar, responderQuestao, responderBatch, concluir, finalizar, resultados, minhasTentativas, listarEntregas, corrigirManual, clonar, vincularTurmas, turmasDaAvaliacao };
 
 // ── Listar entregas de upload para o professor corrigir ────────
 async function listarEntregas(req, res, next) {

@@ -259,6 +259,31 @@ function renderFeedback(text) {
     .replace(/^[-•] (.+)/gm, '<li style="margin:2px 0;margin-left:14px;list-style:disc">$1</li>');
 }
 
+
+// ── API direta - bypassa proxy de antivírus (Kaspersky etc) ──
+async function apiDireta(url, payload) {
+  const token = localStorage.getItem('rsc_token') || '';
+  const baseUrl = window.location.origin + '/api';
+  const opts = {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify(payload),
+    // Configurações que reduzem interferência de proxy
+    cache: 'no-store',
+    credentials: 'same-origin',
+    mode: 'same-origin',
+  };
+  const resp = await fetch(baseUrl + url, opts);
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const err = new Error(data.error || 'Erro ' + resp.status);
+    err.response = { data, status: resp.status };
+    throw err;
+  }
+  return { data };
+}
+
+
 export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
   const { user }                = useAuth();
   const [avs, setAvs]           = useState([]);
@@ -352,40 +377,69 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
     setShowConfirm(false);
     setSubmitting(true);
     try {
-      // Enviar TODAS as respostas em um único request (evita múltiplas chamadas que Kaspersky bloqueia)
+      // Montar array de respostas
       const respostasArray = Object.entries(respostas).map(([qid, resp]) => ({
         questao_id: Number(qid),
         resposta: typeof resp === 'object' && resp !== null ? JSON.stringify(resp) : resp,
       }));
 
-      // Salvar todas as respostas em um batch primeiro
+      // PASSO 1: Batch de respostas via fetch direto (bypassa proxy Kaspersky)
       if (respostasArray.length > 0) {
-        await api.post('/avaliacoes/responder-batch', {
+        await apiDireta('/avaliacoes/responder-batch', {
           tentativa_id: tentativaAtual.id,
           respostas: respostasArray,
-        }).catch(() => {
-          // Fallback: salvar uma por uma se batch não existir
-          return Promise.allSettled(respostasArray.map(r =>
-            api.post('/avaliacoes/responder', { tentativa_id: tentativaAtual.id, ...r })
-          ));
+        }).catch(async () => {
+          // Fallback: concluir carrega as respostas do localStorage
+          console.warn('Batch falhou, usando fallback via concluir direto');
         });
       }
 
-      // Concluir a tentativa
-      const r = await api.post('/avaliacoes/tentativa/'+tentativaAtual.id+'/concluir');
+      // PASSO 2: Concluir via fetch direto
+      const r = await apiDireta('/avaliacoes/tentativa/'+tentativaAtual.id+'/concluir', {});
 
-      // Limpar localStorage backup
+      // Limpar backup
       try { localStorage.removeItem('av_respostas_' + tentativaAtual.id); } catch(e) {}
 
       setResultado(r.data);
       setFase('resultado');
       load();
+
     } catch(e) {
-      const msg = e.response?.data?.error || e.message || 'Erro ao concluir avaliação.';
-      if (msg.includes('network') || msg.includes('Network') || e.code === 'ERR_NETWORK_IO_SUSPENDED') {
-        alert('Erro de conexão detectado. Verifique seu antivírus/firewall (ex: Kaspersky pode bloquear requisições). Tente novamente.');
+      const status  = e.response?.status;
+      const msg     = e.response?.data?.error || e.message || '';
+      const isKasp  = msg.includes('NetworkError') || msg.includes('network') ||
+                      msg.includes('Failed to fetch') || msg.includes('SUSPENDED');
+      if (isKasp || status === undefined) {
+        // Kaspersky detectado — tentar via XMLHttpRequest como último recurso
+        const token = localStorage.getItem('rsc_token') || '';
+        const url   = window.location.origin + '/api/avaliacoes/tentativa/' + tentativaAtual.id + '/concluir';
+        const xhr   = new XMLHttpRequest();
+        xhr.open('POST', url, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+        xhr.timeout = 30000;
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const data = JSON.parse(xhr.responseText);
+              setResultado(data);
+              setFase('resultado');
+              load();
+            } catch(pe) { alert('Erro ao processar resultado. Contate o suporte.'); }
+          } else {
+            alert('Erro ao finalizar (status ' + xhr.status + '). Contate o suporte.');
+          }
+          setSubmitting(false);
+        };
+        xhr.onerror = () => {
+          alert('Sua rede ou antivirus (ex: Kaspersky) esta bloqueando a requisicao.\n\nSolucoes:\n1. Desative o antivirus temporariamente\n2. Use modo anonimo\n3. Tente outro navegador');
+          setSubmitting(false);
+        };
+        xhr.ontimeout = () => { alert('Timeout. Verifique a conexao e tente novamente.'); setSubmitting(false); };
+        xhr.send(JSON.stringify({}));
+        return; // early return, setSubmitting handled in xhr callbacks
       } else {
-        alert(msg);
+        alert(msg || 'Erro ao finalizar avaliacao. Tente novamente.');
       }
     }
     setSubmitting(false);

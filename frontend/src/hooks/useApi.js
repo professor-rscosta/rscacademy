@@ -6,6 +6,18 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// Request interceptor - attach token
+api.interceptors.request.use(
+  config => {
+    const token = localStorage.getItem('rsc_token');
+    if (token && !config.headers['Authorization']) {
+      config.headers['Authorization'] = 'Bearer ' + token;
+    }
+    return config;
+  },
+  err => Promise.reject(err)
+);
+
 // Response interceptor – handle global errors
 api.interceptors.response.use(
   res => res,
