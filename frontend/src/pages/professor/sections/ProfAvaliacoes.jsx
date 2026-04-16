@@ -27,6 +27,25 @@ const STATUS_CFG = {
 // ----------------------------------------------------------------
 // MODAL CRIAR - wizard 3 passos
 // ----------------------------------------------------------------
+
+function showToast(msg, tipo) {
+  var div = document.createElement('div');
+  var isOk = tipo !== 'error';
+  div.style.cssText = 'position:fixed;top:22px;right:22px;z-index:99999;padding:12px 20px;border-radius:12px;font-size:14px;font-weight:600;color:white;background:'+(isOk?'linear-gradient(135deg,#10b981,#059669)':'linear-gradient(135deg,#ef4444,#dc2626)')+';box-shadow:0 4px 20px rgba(0,0,0,.25);animation:toastIn .3s ease;max-width:320px;display:flex;align-items:center;gap:8px;';
+  div.innerHTML = (isOk?'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>')+'<span>'+msg+'</span>';
+  var s = document.createElement('style'); s.textContent='@keyframes toastIn{from{transform:translateX(120%);opacity:0}to{transform:none;opacity:1}}'; document.head.appendChild(s);
+  document.body.appendChild(div);
+  setTimeout(function(){ div.style.transition='opacity .3s'; div.style.opacity='0'; setTimeout(function(){ div.remove(); s.remove(); },350); }, 2800);
+}
+function confirmAlert(titulo, msg, onOk) {
+  var o = document.createElement('div');
+  o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99998;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(2px)';
+  o.innerHTML='<div style="background:white;border-radius:20px;max-width:400px;width:100%;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,.3);animation:swAlert .25s cubic-bezier(.34,1.56,.64,1)"><div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:1.25rem;text-align:center"><div style="font-size:42px;margin-bottom:6px">⚠️</div><div style="font-weight:800;font-size:17px;color:white">'+titulo+'</div></div><div style="padding:1.25rem;text-align:center"><p style="color:#475569;font-size:14px;margin:0 0 1.25rem;line-height:1.6">'+msg+'</p><div style="display:flex;gap:10px"><button id="cc" style="flex:1;padding:11px;border:2px solid #e2e8f0;border-radius:10px;background:white;cursor:pointer;font-size:13px;font-weight:600;color:#64748b">❌ Cancelar</button><button id="co" style="flex:2;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,#ef4444,#dc2626);color:white;cursor:pointer;font-size:13px;font-weight:700;box-shadow:0 4px 12px rgba(239,68,68,.4)">🗑️ Sim, excluir</button></div></div></div><style>@keyframes swAlert{from{transform:scale(.85) translateY(20px);opacity:0}to{transform:none;opacity:1}}</style>';
+  document.body.appendChild(o);
+  o.querySelector('#cc').onclick=function(){ o.remove(); };
+  o.querySelector('#co').onclick=function(){ o.remove(); onOk(); };
+  o.onclick=function(e){ if(e.target===o) o.remove(); };
+}
 function ModalCriar({ turmas, questoesDisp, onClose, onSalvar }) {
   const [step, setStep]   = useState(1);
   const [error, setError] = useState('');
@@ -628,10 +647,14 @@ export default function ProfAvaliacoes({ autoCreate } = {}) {
     catch(e){ alert(e.response?.data?.error||'Erro.'); }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Excluir avaliação?')) return;
-    await api.delete('/avaliacoes/'+id);
-    setAvs(p=>p.filter(a=>a.id!==id));
+  const handleDelete = (id) => {
+    confirmAlert('Excluir Avaliacao', 'Esta acao nao pode ser desfeita. Deseja excluir esta avaliacao?', async () => {
+      try {
+        await api.delete('/avaliacoes/'+id);
+        setAvs(p=>p.filter(a=>a.id!==id));
+        showToast('Avaliacao excluida com sucesso!', 'success');
+      } catch(e) { showToast('Erro ao excluir avaliacao.', 'error'); }
+    });
   };
 
   const handleUpdateAv = (updated) => {

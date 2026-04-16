@@ -210,38 +210,41 @@ function Cronometro({ segundos, onExpire }) {
 }
 
 
-// ── SweetAlert-style Confirm Modal ───────────────────────────
-function ConfirmModal({ onConfirm, onCancel, titulo, mensagem, confirmLabel='✅ Confirmar', cancelLabel='❌ Cancelar', tipo='warning' }) {
-  const cores = {
-    warning: { bg:'#fffbeb', borda:'#f59e0b', icone:'⚠️', btn:'#f59e0b', btnText:'#1e293b' },
-    success: { bg:'#f0fdf4', borda:'#10b981', icone:'✅', btn:'#10b981', btnText:'white' },
-    danger:  { bg:'#fef2f2', borda:'#ef4444', icone:'🚨', btn:'#ef4444', btnText:'white' },
-  }[tipo] || cores?.warning;
-
+// ── SweetAlert-style Modal ───────────────────────────────────
+function ConfirmModal({ onConfirm, onCancel, titulo, mensagem, submensagem, confirmLabel, cancelLabel }) {
   return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.55)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem', backdropFilter:'blur(2px)' }}>
-      <div style={{ background:'white', borderRadius:20, width:'100%', maxWidth:420, boxShadow:'0 25px 60px rgba(0,0,0,.3)', overflow:'hidden', animation:'slideUp .2s ease' }}>
-        <div style={{ padding:'2rem', textAlign:'center' }}>
-          <div style={{ fontSize:56, marginBottom:12 }}>⚠️</div>
-          <div style={{ fontFamily:'var(--font-head)', fontSize:20, fontWeight:800, color:'var(--navy)', marginBottom:8 }}>{titulo}</div>
-          <div style={{ fontSize:14, color:'var(--slate-600)', lineHeight:1.6, marginBottom:'1.5rem' }}>{mensagem}</div>
-          <div style={{ display:'flex', gap:10 }}>
-            <button onClick={onCancel} style={{ flex:1, padding:'12px 0', border:'2px solid var(--slate-200)', borderRadius:10, background:'white', cursor:'pointer', fontSize:14, fontWeight:600, color:'var(--slate-600)', transition:'all .15s' }}
-              onMouseEnter={e=>{e.currentTarget.style.background='var(--slate-50)'}}
-              onMouseLeave={e=>{e.currentTarget.style.background='white'}}
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.6)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem', backdropFilter:'blur(3px)' }}>
+      <div style={{ background:'white', borderRadius:20, width:'100%', maxWidth:440, boxShadow:'0 25px 60px rgba(0,0,0,.35)', overflow:'hidden', animation:'swAlert .25s cubic-bezier(.34,1.56,.64,1)' }}>
+        {/* Header colorido */}
+        <div style={{ background:'linear-gradient(135deg,#f59e0b,#d97706)', padding:'1.5rem', textAlign:'center' }}>
+          <div style={{ fontSize:52, marginBottom:6 }}>🚀</div>
+          <div style={{ fontFamily:'var(--font-head)', fontSize:20, fontWeight:800, color:'white', marginBottom:2 }}>{titulo}</div>
+        </div>
+        {/* Body */}
+        <div style={{ padding:'1.5rem', textAlign:'center' }}>
+          <div style={{ fontSize:15, color:'var(--slate-700)', lineHeight:1.7, marginBottom:8 }}>{mensagem}</div>
+          {submensagem && (
+            <div style={{ fontSize:13, color:'var(--slate-500)', background:'#fffbeb', border:'1px solid #fde68a', borderRadius:8, padding:'8px 14px', marginBottom:'1rem', lineHeight:1.6 }}>
+              {submensagem}
+            </div>
+          )}
+          <div style={{ display:'flex', gap:10, marginTop:'1.25rem' }}>
+            <button onClick={onCancel} style={{ flex:1, padding:'12px 0', border:'2px solid var(--slate-200)', borderRadius:10, background:'white', cursor:'pointer', fontSize:13, fontWeight:600, color:'var(--slate-600)', transition:'all .15s' }}
+              onMouseEnter={e=>e.currentTarget.style.background='var(--slate-50)'}
+              onMouseLeave={e=>e.currentTarget.style.background='white'}
             >
-              ↩️ Cancelar
+              {cancelLabel || '❌ Cancelar'}
             </button>
             <button onClick={onConfirm} style={{ flex:2, padding:'12px 0', border:'none', borderRadius:10, background:'linear-gradient(135deg,#f59e0b,#d97706)', color:'white', cursor:'pointer', fontSize:14, fontWeight:700, boxShadow:'0 4px 14px rgba(245,158,11,.4)', transition:'all .15s' }}
-              onMouseEnter={e=>{e.currentTarget.style.opacity='.9'}}
-              onMouseLeave={e=>{e.currentTarget.style.opacity='1'}}
+              onMouseEnter={e=>e.currentTarget.style.opacity='.88'}
+              onMouseLeave={e=>e.currentTarget.style.opacity='1'}
             >
-              ✅ Confirmar Envio
+              {confirmLabel || '✅ Sim, finalizar'}
             </button>
           </div>
         </div>
       </div>
-      <style>{`@keyframes slideUp { from { transform:translateY(20px); opacity:0; } to { transform:none; opacity:1; } }`}</style>
+      <style>{'@keyframes swAlert { from { transform:scale(.85) translateY(20px); opacity:0; } to { transform:none; opacity:1; } }'}</style>
     </div>
   );
 }
@@ -311,7 +314,18 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
       // tipo entrega → tela de upload dedicada (estilo Atividades)
       const tipoFinal = av.tipo || r.data.avaliacao?.tipo;
       setFase(tipoFinal === 'entrega' ? 'upload' : 'fazendo');
-    } catch(e){ alert(e.response?.data?.error || 'Erro ao iniciar avaliação.'); }
+    } catch(e) {
+      const data = e.response?.data || {};
+      const msg  = data.error || 'Erro ao iniciar avaliacao.';
+      if (data.codigo === 'ANTES_ABERTURA') {
+        const dt = data.abertura ? new Date(data.abertura).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+        alert('\u23F3 Esta avaliacao ainda nao foi liberada.\n\nDisponivel a partir de: ' + dt);
+      } else if (data.codigo === 'APOS_ENCERRAMENTO') {
+        alert('\uD83D\uDEAB O prazo desta avaliacao foi encerrado.');
+      } else {
+        alert(msg);
+      }
+    }
   };
 
   // Salvar resposta LOCALMENTE (sem API por questão - evita bloqueio Kaspersky)
@@ -745,36 +759,79 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
                   )}
                   <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
                   {discAvs.map(av => {
-            const encerrada = av.encerra_em && new Date(av.encerra_em) < new Date();
-            const esgotada  = (av.tentativas_feitas||0) >= (av.tentativas_permitidas||1);
-            const numQ      = av.total_questoes ?? (Array.isArray(av.questoes) ? av.questoes.length : 0);
-            const isEntrega = av.tipo === 'entrega';
+            const agora      = new Date();
+            const abertura   = av.disponivel_em ? new Date(av.disponivel_em) : null;
+            const encerramento = av.encerra_em  ? new Date(av.encerra_em)   : null;
+            const bloqueada  = abertura && agora < abertura;
+            const encerrada  = encerramento && agora > encerramento;
+            const disponivel = !bloqueada && !encerrada;
+            const esgotada   = (av.tentativas_feitas||0) >= (av.tentativas_permitidas||1);
+            const numQ       = av.total_questoes ?? (Array.isArray(av.questoes) ? av.questoes.length : 0);
+            const isEntrega  = av.tipo === 'entrega';
+
+            // Status visual
+            const statusCfg = bloqueada
+              ? { cor:'#94a3b8', bg:'#f1f5f9', borda:'#cbd5e1', icon:'🔒', label:'Bloqueada', detalhe:'Disponivel em: '+abertura.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) }
+              : encerrada
+              ? { cor:'#dc2626', bg:'#fef2f2', borda:'#fca5a5', icon:'🔴', label:'Encerrada',  detalhe:'Encerrou em: '+encerramento.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) }
+              : { cor:'#059669', bg:'#ecfdf5', borda:'#6ee7b7', icon:'🟢', label:'Disponivel', detalhe:encerramento?('Encerra: '+encerramento.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})):null };
+
+            const notaBorder = av.minha_nota!=null ? (av.minha_nota>=av.nota_minima?'var(--emerald)':'#f59e0b') : statusCfg.borda;
+
             return (
-              <div key={av.id} className="card" style={{ borderLeft:'4px solid '+(av.minha_nota!=null?(av.minha_nota>=av.nota_minima?'var(--emerald)':'#f59e0b'):isEntrega?'var(--sky)':'var(--sky)'), margin:0 }}>
+              <div key={av.id} className="card" style={{ borderLeft:'4px solid '+notaBorder, margin:0, opacity: bloqueada ? .75 : 1 }}>
                 <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
                   <div style={{ fontSize:26, paddingTop:2 }}>{isEntrega?'📤':'📝'}</div>
-                  <div style={{ flex:1 }}>
-                    <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:4, flexWrap:'wrap' }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    {/* Titulo + status badge */}
+                    <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:5, flexWrap:'wrap' }}>
                       <span style={{ fontFamily:'var(--font-head)', fontSize:15, fontWeight:600, color:'var(--navy)' }}>{av.titulo}</span>
-                      {isEntrega && <span style={{ padding:'2px 9px', borderRadius:50, background:'#f0f9ff', color:'#0284c7', fontSize:11, fontWeight:600, border:'1px solid #bae6fd' }}>📤 Envio de Arquivo</span>}
+                      <span style={{ padding:'2px 9px', borderRadius:50, background:statusCfg.bg, color:statusCfg.cor, fontSize:11, fontWeight:700, border:'1px solid '+statusCfg.borda, whiteSpace:'nowrap' }}>
+                        {statusCfg.icon} {statusCfg.label}
+                      </span>
+                      {isEntrega && <span style={{ padding:'2px 9px', borderRadius:50, background:'#f0f9ff', color:'#0284c7', fontSize:11, fontWeight:600, border:'1px solid #bae6fd' }}>📤 Arquivo</span>}
                     </div>
-                    {av.descricao && <div style={{ fontSize:12, color:'var(--slate-500)', marginBottom:6 }}>{av.descricao}</div>}
-                    <div style={{ display:'flex', gap:10, fontSize:11, color:'var(--slate-400)', flexWrap:'wrap' }}>
-                      {isEntrega ? <span>📎 Upload de arquivo para correção manual</span> : <span>❓ {numQ} questão(ões)</span>}
-                      {!isEntrega && <span>⏱ {av.tempo_limite} min</span>}
+
+                    {av.descricao && <div style={{ fontSize:12, color:'var(--slate-500)', marginBottom:5 }}>{av.descricao}</div>}
+
+                    {/* Info row */}
+                    <div style={{ display:'flex', gap:10, fontSize:11, color:'var(--slate-400)', flexWrap:'wrap', marginBottom: (bloqueada||encerrada) ? 6 : 0 }}>
+                      {isEntrega ? <span>📎 Upload para correcao</span> : <span>❓ {numQ} questao(oes)</span>}
+                      {!isEntrega && <span>⏱ {av.tempo_limite}min</span>}
                       <span>🔁 {av.tentativas_feitas||0}/{av.tentativas_permitidas} tentativa(s)</span>
-                      {av.encerra_em && <span>📅 Encerra: {new Date(av.encerra_em).toLocaleDateString('pt-BR')}</span>}
                       {av.minha_nota != null && <span style={{ fontWeight:700, color:av.minha_nota>=av.nota_minima?'var(--emerald-dark)':'var(--coral)' }}>Nota: {av.minha_nota.toFixed(1)}</span>}
                     </div>
+
+                    {/* Data detalhe */}
+                    {statusCfg.detalhe && (
+                      <div style={{ fontSize:11, fontWeight:600, color:statusCfg.cor, marginTop:3 }}>
+                        {bloqueada ? '⏳' : encerrada ? '🚫' : '📅'} {statusCfg.detalhe}
+                      </div>
+                    )}
+                    {abertura && disponivel && (
+                      <div style={{ fontSize:10, color:'var(--slate-400)', marginTop:2 }}>
+                        📅 Aberta desde: {abertura.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+                      </div>
+                    )}
                   </div>
+
+                  {/* Action button */}
                   <div style={{ flexShrink:0 }}>
-                    {encerrada ? (
-                      <span style={{ padding:'6px 14px', borderRadius:8, background:'#fef2f2', color:'#b91c1c', fontSize:12, fontWeight:600 }}>Encerrada</span>
+                    {bloqueada ? (
+                      <span style={{ padding:'7px 14px', borderRadius:8, background:'#f1f5f9', color:'#94a3b8', fontSize:12, fontWeight:600, border:'1px solid #e2e8f0', whiteSpace:'nowrap' }}>
+                        🔒 Bloqueada
+                      </span>
+                    ) : encerrada ? (
+                      <span style={{ padding:'7px 14px', borderRadius:8, background:'#fef2f2', color:'#b91c1c', fontSize:12, fontWeight:600, border:'1px solid #fca5a5', whiteSpace:'nowrap' }}>
+                        🔴 Encerrada
+                      </span>
                     ) : esgotada ? (
-                      <span style={{ padding:'6px 14px', borderRadius:8, background:'var(--slate-100)', color:'var(--slate-500)', fontSize:12, fontWeight:600 }}>Esgotada</span>
+                      <span style={{ padding:'7px 14px', borderRadius:8, background:'var(--slate-100)', color:'var(--slate-500)', fontSize:12, fontWeight:600, whiteSpace:'nowrap' }}>
+                        Esgotada
+                      </span>
                     ) : (
-                      <button onClick={() => iniciar(av)} style={{ padding:'9px 18px', background:isEntrega?'var(--sky)':'var(--emerald)', color:'white', border:'none', borderRadius:8, fontWeight:600, fontSize:13, cursor:'pointer', boxShadow:'0 2px 8px rgba(16,185,129,.3)' }}>
-                        {isEntrega ? ((av.tentativas_feitas||0)>0?'🔁 Reenviar':'📤 Enviar Arquivo') : ((av.tentativas_feitas||0)>0?'🔁 Nova Tentativa':'🚀 Iniciar')}
+                      <button onClick={() => iniciar(av)} style={{ padding:'9px 18px', background:isEntrega?'var(--sky)':'var(--emerald)', color:'white', border:'none', borderRadius:8, fontWeight:600, fontSize:13, cursor:'pointer', boxShadow:'0 2px 8px rgba(16,185,129,.3)', whiteSpace:'nowrap' }}>
+                        {isEntrega ? ((av.tentativas_feitas||0)>0?'Reenviar':'Enviar Arquivo') : ((av.tentativas_feitas||0)>0?'Nova Tentativa':'Iniciar')}
                       </button>
                     )}
                   </div>
@@ -793,8 +850,11 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
       {/* ── Modal de confirmação de envio (SweetAlert-style) ── */}
       {showConfirm && (
         <ConfirmModal
-          titulo="Enviar Avaliação?"
-          mensagem="Tem certeza que deseja enviar sua avaliação? Após o envio, não será possível alterar suas respostas."
+          titulo="Finalizar Avaliação"
+          mensagem="Tem certeza que deseja enviar suas respostas?"
+          submensagem="⚠️ Após o envio, não será possível alterar."
+          confirmLabel="✅ Sim, finalizar"
+          cancelLabel="❌ Cancelar"
           onConfirm={concluir}
           onCancel={() => setShowConfirm(false)}
         />

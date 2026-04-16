@@ -172,9 +172,25 @@ async function iniciar(req, res, next) {
         return res.status(403).json({ error: 'Esta avaliação não pertence à sua turma.' });
     }
 
+    // Verificar janela de tempo
+    const agora = new Date();
+    if (av.disponivel_em) {
+      const abertura = new Date(av.disponivel_em);
+      if (agora < abertura) {
+        const dtStr = abertura.toLocaleString('pt-BR', { timeZone:'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+        return res.status(403).json({ error: 'Esta avaliacao ainda nao foi liberada. Disponivel a partir de: ' + dtStr, codigo: 'ANTES_ABERTURA', abertura: av.disponivel_em });
+      }
+    }
+    if (av.encerra_em) {
+      const encerramento = new Date(av.encerra_em);
+      if (agora > encerramento) {
+        return res.status(403).json({ error: 'O prazo desta avaliacao foi encerrado.', codigo: 'APOS_ENCERRAMENTO', encerramento: av.encerra_em });
+      }
+    }
+
     const tentativas = avaliacaoRepo.findTentativaAlunoAvalia(req.user.id, av.id);
     if (tentativas.length >= (av.tentativas_permitidas || 1))
-      return res.status(403).json({ error: 'Número máximo de tentativas atingido.' });
+      return res.status(403).json({ error: 'Numero maximo de tentativas atingido.' });
 
     const tentativaAberta = tentativas.find(t => t.status === 'em_andamento');
 

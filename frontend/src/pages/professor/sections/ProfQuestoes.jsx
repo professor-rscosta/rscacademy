@@ -160,6 +160,32 @@ function Secao({ titulo, cor, icone, questoes, total, collapsed, onToggle, child
 // ══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ══════════════════════════════════════════════════════════════
+
+// ── Toast notification (sem dependencias externas) ──────────
+function showToast(msg, tipo) {
+  var div = document.createElement('div');
+  var isOk = tipo !== 'error';
+  div.style.cssText = 'position:fixed;top:22px;right:22px;z-index:99999;padding:12px 20px;border-radius:12px;font-size:14px;font-weight:600;color:white;background:'+(isOk?'linear-gradient(135deg,#10b981,#059669)':'linear-gradient(135deg,#ef4444,#dc2626)')+';box-shadow:0 4px 20px rgba(0,0,0,.25);animation:toastIn .3s ease;max-width:320px;display:flex;align-items:center;gap:8px;';
+  div.innerHTML = (isOk ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>') + '<span>' + msg + '</span>';
+  var style = document.createElement('style');
+  style.textContent = '@keyframes toastIn{from{transform:translateX(120%);opacity:0}to{transform:none;opacity:1}}';
+  document.head.appendChild(style);
+  document.body.appendChild(div);
+  setTimeout(function(){ div.style.transition='opacity .3s'; div.style.opacity='0'; setTimeout(function(){ div.remove(); style.remove(); }, 350); }, 2800);
+}
+
+// ── SweetAlert confirm ───────────────────────────────────────
+function confirmAlert(titulo, msg, onOk) {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99998;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(2px)';
+  overlay.innerHTML = '<div style="background:white;border-radius:20px;max-width:400px;width:100%;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,.3);animation:swAlert .25s cubic-bezier(.34,1.56,.64,1)"><div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:1.25rem;text-align:center"><div style="font-size:42px;margin-bottom:6px">⚠️</div><div style="font-weight:800;font-size:17px;color:white">'+titulo+'</div></div><div style="padding:1.25rem;text-align:center"><p style="color:#475569;font-size:14px;margin:0 0 1.25rem;line-height:1.6">'+msg+'</p><div style="display:flex;gap:10px"><button id="ca-cancel" style="flex:1;padding:11px;border:2px solid #e2e8f0;border-radius:10px;background:white;cursor:pointer;font-size:13px;font-weight:600;color:#64748b">❌ Cancelar</button><button id="ca-ok" style="flex:2;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,#ef4444,#dc2626);color:white;cursor:pointer;font-size:13px;font-weight:700;box-shadow:0 4px 12px rgba(239,68,68,.4)">🗑️ Sim, excluir</button></div></div></div><style>@keyframes swAlert{from{transform:scale(.85) translateY(20px);opacity:0}to{transform:none;opacity:1}}</style>';
+  document.body.appendChild(overlay);
+  overlay.querySelector('#ca-cancel').onclick = function(){ overlay.remove(); };
+  overlay.querySelector('#ca-ok').onclick = function(){ overlay.remove(); onOk(); };
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+}
+
+
 export default function ProfQuestoes({ autoCreate } = {}) {
   const { user } = useAuth();
   const [questoes, setQuestoes]   = useState([]);
@@ -174,7 +200,6 @@ export default function ProfQuestoes({ autoCreate } = {}) {
   const [editQuestao, setEditQ]   = useState(null);
   const [curvaQ, setCurvaQ]       = useState(null);
   const [collapsed, setCollapsed] = useState({});
-  const [alert, setAlert]         = useState(null);
 
   const load = async () => {
     try {
@@ -238,6 +263,7 @@ export default function ProfQuestoes({ autoCreate } = {}) {
       return exists ? prev.map(x => x.id===q.id ? q : x) : [q, ...prev];
     });
     setShowModal(false); setEditQ(null);
+    showToast(q.id ? 'Questao salva com sucesso!' : 'Questao criada com sucesso!', 'success');
   };
 
   const handleDuplicar = async (q) => {
@@ -258,15 +284,15 @@ export default function ProfQuestoes({ autoCreate } = {}) {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Excluir esta questão permanentemente?')) return;
+    confirmAlert('Excluir Questão', 'Esta ação não pode ser desfeita. Deseja realmente excluir esta questão?', async () => {
     try {
       await api.delete(`/questoes/${id}`);
       setQuestoes(prev => prev.filter(q => q.id !== id));
-      setAlert({ type:'success', msg:'Questão excluída.' });
-      setTimeout(() => setAlert(null), 2500);
+      showToast('Questão excluída com sucesso!', 'success');
     } catch(e) {
-      setAlert({ type:'error', msg: 'Erro: '+(e.response?.data?.error||e.message) });
+      showToast('Erro ao excluir: '+(e.response?.data?.error||e.message), 'error');
     }
+    }); // fim confirmAlert
   };
 
   const cardProps = (q) => ({
@@ -304,7 +330,6 @@ export default function ProfQuestoes({ autoCreate } = {}) {
         ))}
       </div>
 
-      {alert && <div className={'alert alert-'+alert.type} style={{ marginBottom:'1rem' }}>{alert.msg}</div>}
 
       {/* ── Toolbar ── */}
       <div style={{ background:'white', border:'1px solid var(--slate-200)', borderRadius:12, padding:'12px 16px', marginBottom:'1rem' }}>
