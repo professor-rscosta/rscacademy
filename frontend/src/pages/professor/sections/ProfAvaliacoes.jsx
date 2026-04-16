@@ -332,7 +332,12 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
   const pesoTotal = questoes.reduce((s, q) => s + (q.peso || 1), 0);
 
   // Banco: quest-es dispon-veis com filtros avan-ados
-  const banco = questoesDisp.filter(q => {
+  // Banco mostra apenas questoes de avaliacao ou ambos (nao trilha exclusivo)
+  const bancoBase = questoesDisp.filter(q => {
+    const uso = q.tipo_uso || 'trilha';
+    return uso === 'avaliacao' || uso === 'ambos' || uso === 'banco';
+  });
+  const banco = bancoBase.filter(q => {
     if (questoes.find(qc => qc.questao_id === q.id)) return false;
     if (busca && !q.enunciado?.toLowerCase().includes(busca.toLowerCase()) &&
         !(q.tags||[]).some(t => t.toLowerCase().includes(busca.toLowerCase()))) return false;
@@ -343,9 +348,9 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
   });
 
   // Op--es -nicas para os filtros
-  const tiposDisp  = [...new Set(questoesDisp.map(q => q.tipo).filter(Boolean))];
-  const niveisDisp = [...new Set(questoesDisp.map(q => q.nivel).filter(Boolean))];
-  const discsDisp  = [...new Set(questoesDisp.map(q => q.disciplina_id).filter(Boolean))];
+  const tiposDisp  = [...new Set(bancoBase.map(q => q.tipo).filter(Boolean))];
+  const niveisDisp = [...new Set(bancoBase.map(q => q.nivel).filter(Boolean))];
+  const discsDisp  = [...new Set(bancoBase.map(q => q.disciplina_id).filter(Boolean))];
 
   const addFromBanco = (q) => {
     setQuestoes(qs => [...qs, { questao_id: q.id, peso: 1, _meta: q }]);
@@ -607,6 +612,7 @@ export default function ProfAvaliacoes({ autoCreate } = {}) {
   const [avs, setAvs]           = useState([]);
   const [turmas, setTurmas]     = useState([]);
   const [questoesDisp, setQs]   = useState([]);
+  const [disciplinas, setDiscs]  = useState([]);
   const [trilhas, setTrilhas]   = useState([]);
   const [loading, setLoading]   = useState(true);
   const [showCriar, setShowCriar] = useState(false);
@@ -615,12 +621,14 @@ export default function ProfAvaliacoes({ autoCreate } = {}) {
 
   const load = async () => {
     try {
-      const [avRes, tRes, qRes, trRes] = await Promise.all([
+      const [avRes, tRes, qRes, trRes, dRes] = await Promise.all([
         api.get('/avaliacoes?professor_id='+user.id),
         api.get('/turmas?professor_id='+user.id),
         api.get('/questoes?professor_id='+user.id),
         api.get('/trilhas?professor_id='+user.id),
+        api.get('/disciplinas'),
       ]);
+      setDiscs(dRes.data.disciplinas || []);
       setAvs(avRes.data.avaliacoes || []);
       setTurmas(tRes.data.turmas || []);
       const trilhasMap = {};
@@ -652,7 +660,7 @@ export default function ProfAvaliacoes({ autoCreate } = {}) {
   };
 
   if (viewResultados) return <ResultadosView av={viewResultados} onBack={()=>setViewRes(null)} />;
-  if (editQuestoes)   return <GerenciarQuestoes av={editQuestoes} questoesDisp={questoesDisp} trilhas={trilhas} onBack={()=>setEditQ(null)} onUpdate={up=>{ handleUpdateAv(up); setEditQ(up); }} />;
+  if (editQuestoes)   return <GerenciarQuestoes av={editQuestoes} questoesDisp={questoesDisp} trilhas={trilhas} disciplinas={disciplinas} onBack={()=>setEditQ(null)} onUpdate={up=>{ handleUpdateAv(up); setEditQ(up); }} />;
 
   return (
     <>
