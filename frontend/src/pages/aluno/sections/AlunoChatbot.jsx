@@ -6,17 +6,58 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../../../hooks/useApi';
 import { useAuth } from '../../../context/AuthContext';
 
-// ── Markdown renderer ─────────────────────────────────────────
+// ── Markdown renderer avançado ────────────────────────────────
 function renderMd(text) {
   if (!text) return '';
-  return text
+  let html = text
+    // Cabeçalhos
+    .replace(/^### (.+)$/gm, '<h4 style="margin:14px 0 6px;font-size:13px;font-weight:800;color:#1e3a5f;padding-bottom:4px;border-bottom:1px solid #e2e8f0">$1</h4>')
+    .replace(/^## (.+)$/gm,  '<h3 style="margin:16px 0 8px;font-size:14px;font-weight:800;color:#1e3a5f;padding-bottom:5px;border-bottom:2px solid #3b82f6">$1</h3>')
+    .replace(/^# (.+)$/gm,   '<h2 style="margin:16px 0 8px;font-size:16px;font-weight:800;color:#1e3a5f">$1</h2>')
+    // Bold/itálico/código
+    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:.88em;font-family:monospace">$1</code>')
-    .replace(/^#{1,3}\s+(.+)/gm, '<div style="font-weight:800;margin:10px 0 4px;font-size:1.05em">$1</div>')
-    .replace(/^[-•]\s+(.+)/gm, '<li style="margin:3px 0;margin-left:16px;list-style:disc">$1</li>')
-    .replace(/\n\n/g, '<br/><br/>')
-    .replace(/\n/g, '<br/>');
+    .replace(/\*(.+?)\*/g, '<em style="color:#475569">$1</em>')
+    .replace(/`([^`]+)`/g, '<code style="background:#f1f5f9;padding:2px 7px;border-radius:5px;font-size:12px;font-family:monospace;color:#1d4ed8;border:1px solid #e2e8f0">$1</code>')
+    // Emojis de início de linha destacados
+    .replace(/^([🎯📚🌐🔒💡✅❌⚠️🚀📊🤖🔍🎓])\s+(.+)$/gm, '<div style="display:flex;gap:8px;margin:6px 0;align-items:flex-start"><span style="font-size:16px;flex-shrink:0">$1</span><span>$2</span></div>');
+
+  // Processar listas
+  html = html.replace(/^(\s*[-*•]\s+.+
+?)+/gm, (block) => {
+    const items = block.trim().split('\n').filter(Boolean).map(l => {
+      const text = l.replace(/^\s*[-*•]\s+/, '');
+      return '<li style="margin:4px 0;line-height:1.6">' + text + '</li>';
+    });
+    return '<ul style="margin:8px 0;padding-left:18px;list-style:disc">' + items.join('') + '</ul>';
+  });
+
+  // Listas numeradas
+  html = html.replace(/^(\s*\d+\.\s+.+\n?)+/gm, (block) => {
+    const items = block.trim().split('\n').filter(Boolean).map(l => {
+      const text = l.replace(/^\s*\d+\.\s+/, '');
+      return '<li style="margin:4px 0;line-height:1.6">' + text + '</li>';
+    });
+    return '<ol style="margin:8px 0;padding-left:20px">' + items.join('') + '</ol>';
+  });
+
+  // Separadores
+  html = html.replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid #e2e8f0;margin:12px 0"/>');
+
+  // Blocos de código
+  html = html.replace(/```([\s\S]+?)```/g, (_, code) =>
+    '<pre style="background:#1e293b;color:#e2e8f0;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:12px;line-height:1.6;margin:8px 0"><code>' +
+    code.trim().replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</code></pre>'
+  );
+
+  // Citações
+  html = html.replace(/^>\s+(.+)$/gm, '<blockquote style="border-left:4px solid #3b82f6;padding:6px 12px;margin:8px 0;background:#f8fafc;border-radius:0 6px 6px 0;font-style:italic;color:#475569">$1</blockquote>');
+
+  // Parágrafos — quebras duplas viram parágrafo
+  html = html.replace(/\n\n+/g, '</p><p style="margin:8px 0;line-height:1.7">');
+  html = html.replace(/\n/g, '<br/>');
+
+  return '<div style="line-height:1.7">' + html + '</div>';
 }
 
 // ── Avatar ────────────────────────────────────────────────────
@@ -77,43 +118,62 @@ function MsgBubble({ msg, userFoto }) {
           <div dangerouslySetInnerHTML={{ __html: renderMd(msg.content) }} />
         )}
 
-        {/* Fontes */}
-        {!isUser && !msg.loading && msg.fontes?.length > 0 && (
-          <div style={{ marginTop:10, paddingTop:8, borderTop:'1px solid #e2e8f0' }}>
-            <div style={{ fontSize:11, color:'#64748b', marginBottom:4, fontWeight:600 }}>📚 Fontes:</div>
-            <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
-              {msg.fontes.map((f,i) => (
-                <span key={i} style={{ fontSize:11, padding:'2px 8px', borderRadius:99, background:'#eff6ff', color:'#1d4ed8', border:'1px solid #bfdbfe' }}>{f}</span>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Rodapé da mensagem: fonte + documentos */}
+        {!isUser && !msg.loading && (msg.modo_fonte || msg.chunks_usados > 0 || msg.modoArquivo || msg.fontes?.length > 0) && (
+          <div style={{ marginTop:10, paddingTop:8, borderTop:'1px solid #f1f5f9' }}>
 
-        {/* Indicador de fonte */}
-        {!isUser && !msg.loading && (msg.modo_fonte || msg.chunks_usados > 0 || msg.modoArquivo) && (
-          <div style={{ marginTop:6, paddingTop:6, borderTop:'1px solid #f1f5f9', display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
-            {msg.modo_fonte === 'rag' && (
-              <span style={{ fontSize:10, padding:'2px 8px', borderRadius:99, background:'#ecfdf5', color:'#059669', fontWeight:600, border:'1px solid #a7f3d0' }}>
-                📚 Base interna
-              </span>
+            {/* Badge de origem — correto por modo_fonte */}
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', marginBottom: msg.fontes?.length > 0 ? 6 : 0 }}>
+              {msg.modo_fonte === 'rag' && (
+                <span style={{ fontSize:10, padding:'3px 10px', borderRadius:99, background:'#ecfdf5', color:'#059669', fontWeight:700, border:'1px solid #a7f3d0', display:'flex', alignItems:'center', gap:4 }}>
+                  📚 Fonte: Base interna (RAG)
+                </span>
+              )}
+              {msg.modo_fonte === 'web' && (
+                <span style={{ fontSize:10, padding:'3px 10px', borderRadius:99, background:'#eff6ff', color:'#1d4ed8', fontWeight:700, border:'1px solid #bfdbfe', display:'flex', alignItems:'center', gap:4 }}>
+                  🌐 Fonte: Busca na web
+                </span>
+              )}
+              {msg.modo_fonte === 'hibrido' && (
+                <span style={{ fontSize:10, padding:'3px 10px', borderRadius:99, background:'#f5f3ff', color:'#6d28d9', fontWeight:700, border:'1px solid #ddd6fe', display:'flex', alignItems:'center', gap:4 }}>
+                  🔀 Fonte: RAG + Web
+                </span>
+              )}
+              {msg.modoArquivo && (
+                <span style={{ fontSize:10, padding:'3px 10px', borderRadius:99, background:'#fffbeb', color:'#92400e', fontWeight:700, border:'1px solid #fde68a' }}>
+                  📎 Fonte: Arquivo enviado
+                </span>
+              )}
+              {msg.chunks_usados > 0 && (
+                <span style={{ fontSize:10, color:'#94a3b8' }}>🔍 {msg.chunks_usados} trecho{msg.chunks_usados>1?'s':''}</span>
+              )}
+              {msg.usou_embeddings && (
+                <span style={{ fontSize:10, color:'#94a3b8' }}>✨ semântico</span>
+              )}
+            </div>
+
+            {/* Documentos usados (apenas RAG) */}
+            {(msg.modo_fonte === 'rag' || msg.modo_fonte === 'hibrido') && msg.fontes?.length > 0 && (
+              <div>
+                <div style={{ fontSize:10, color:'#94a3b8', marginBottom:3 }}>📄 Documentos:</div>
+                <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+                  {msg.fontes.map((f,i) => (
+                    <span key={i} style={{ fontSize:10, padding:'2px 8px', borderRadius:99, background:'#eff6ff', color:'#1d4ed8', border:'1px solid #bfdbfe' }}>{f}</span>
+                  ))}
+                </div>
+              </div>
             )}
-            {msg.modo_fonte === 'web' && (
-              <span style={{ fontSize:10, padding:'2px 8px', borderRadius:99, background:'#eff6ff', color:'#1d4ed8', fontWeight:600, border:'1px solid #bfdbfe' }}>
-                🌐 Busca na web
-              </span>
-            )}
-            {msg.modo_fonte === 'hibrido' && (
-              <span style={{ fontSize:10, padding:'2px 8px', borderRadius:99, background:'#f5f3ff', color:'#6d28d9', fontWeight:600, border:'1px solid #ddd6fe' }}>
-                🔀 RAG + Web
-              </span>
-            )}
-            {msg.modoArquivo && (
-              <span style={{ fontSize:10, padding:'2px 8px', borderRadius:99, background:'#fffbeb', color:'#92400e', fontWeight:600, border:'1px solid #fde68a' }}>
-                📎 Arquivo
-              </span>
-            )}
-            {msg.chunks_usados > 0 && <span style={{ fontSize:10, color:'#94a3b8' }}>🔍 {msg.chunks_usados} trechos</span>}
-            {msg.usou_embeddings && <span style={{ fontSize:10, color:'#94a3b8' }}>✨ semântico</span>}
+            {/* Fontes web */}
+            {msg.modo_fonte === 'web' && msg.fontes_web?.length > 0 && (
+              <div>
+                <div style={{ fontSize:10, color:'#94a3b8', marginBottom:3 }}>🌐 Sites consultados:</div>
+                <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+                  {msg.fontes_web.slice(0,4).map((f,i) => (
+                    <span key={i} style={{ fontSize:10, padding:'2px 8px', borderRadius:99, background:'#f0f9ff', color:'#0369a1', border:'1px solid #bae6fd' }}>{f}</span>
+                  ))}
+                </div>
+              </div>
+
           </div>
         )}
       </div>
@@ -252,7 +312,7 @@ export default function AlunoChatbot() {
         fontes_web:      res.data.fontes_web || [],
         chunks_usados:   res.data.chunks_usados || 0,
         usou_embeddings: res.data.usou_embeddings,
-        modo_fonte:      res.data.modo_fonte || (modoArquivo ? 'arquivo' : 'rag'),
+        modo_fonte:      res.data.modo_fonte || (modoArquivo ? 'arquivo' : (res.data.chunks_usados > 0 ? 'rag' : (res.data.fontes_web?.length > 0 ? 'web' : 'rag'))),
         modoArquivo,
       }]));
     } catch(e) {

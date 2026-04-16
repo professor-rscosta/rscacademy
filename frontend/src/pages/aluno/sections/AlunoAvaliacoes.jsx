@@ -314,7 +314,14 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
     } catch(e){ console.error(e); }
   };
 
-  const pedirConfirmar = () => setShowConfirm(true);
+  const pedirConfirmar = () => {
+    const respondidas = Object.keys(respostas).length;
+    if (respondidas < questoes.length) {
+      const faltam = questoes.length - respondidas;
+      if (!window.confirm(`Atenção: ${faltam} questão(ões) sem resposta. Deseja enviar mesmo assim?`)) return;
+    }
+    setShowConfirm(true);
+  };
   const concluir = async () => {
     setShowConfirm(false);
     setSubmitting(true);
@@ -718,7 +725,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
         <ConfirmModal
           titulo="Enviar Avaliação?"
           mensagem="Tem certeza que deseja enviar sua avaliação? Após o envio, não será possível alterar suas respostas."
-          onConfirm={concluirAvaliacao}
+          onConfirm={concluir}
           onCancel={() => setShowConfirm(false)}
         />
       )}
