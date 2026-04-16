@@ -12,13 +12,14 @@ const { dbFindAll } = require('../database/init');
 // ── Chat principal ─────────────────────────────────────────────
 async function chat(req, res, next) {
   try {
-    const { mensagem, disciplina_id } = req.body;
+    const { mensagem, disciplina_id, modo } = req.body;
     if (!mensagem?.trim()) return res.status(400).json({ error: 'Mensagem é obrigatória.' });
 
     const resultado = await assistenteSvc.chat({
       userId:       req.user.id,
       mensagem:     mensagem.trim(),
       disciplinaId: disciplina_id ? Number(disciplina_id) : null,
+      modoForcar:   modo === 'web' ? 'web' : modo === 'rag' ? 'rag' : null, // null = auto
     });
 
     res.json(resultado);

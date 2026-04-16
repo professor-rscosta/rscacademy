@@ -233,7 +233,7 @@ function avaliarRelevanciaRAG(chunks, usouEmbeddings) {
 }
 
 // ── Chat principal com RAG avançado ────────────────────────────
-async function chat({ userId, mensagem, disciplinaId, modoFileSear = false }) {
+async function chat({ userId, mensagem, disciplinaId, modoFileSear = false, modoForcar = null }) {
   const sessao = getSession(userId);
   addToSession(userId, 'user', mensagem);
 
@@ -268,11 +268,20 @@ async function chat({ userId, mensagem, disciplinaId, modoFileSear = false }) {
   let webResultados = null;
   let webTexto = '';
 
-  // Usar web se RAG nao esta confiante OU se disciplina nao tem documentos
+  // Decidir se usa web baseado no modo forçado ou no auto-detect
   const semDocsNaDisciplina = !temDocsNaDisciplina;
-  const usarWeb = (!relevancia.confiante || semDocsNaDisciplina) && webSearch.estaDisponivel();
+  const usarWebAuto = (!relevancia.confiante || semDocsNaDisciplina) && webSearch.estaDisponivel();
+  const usarWeb = modoForcar === 'web' ? webSearch.estaDisponivel()   // FORÇAR web
+               : modoForcar === 'rag'  ? false                         // FORÇAR RAG, nunca web
+               : usarWebAuto;                                          // Auto
 
-  if (usarWeb) {
+  // Se modo forçado web, ignorar RAG completamente
+  if (modoForcar === 'web') {
+    console.log('[Assistente] Modo Web forcado pelo usuario.');
+    modoFonte = 'web';
+  }
+
+  if (usarWeb || modoForcar === 'web') {
     try {
       console.log('[Assistente] RAG insuficiente, buscando na web...');
       const wsResult = await webSearch.search(mensagem);
