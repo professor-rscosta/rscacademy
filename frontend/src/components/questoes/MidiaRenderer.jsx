@@ -1,22 +1,9 @@
 /**
- * MidiaRenderer — renderiza mídia enriquecida de uma questão
- * Suporta: imagem (URL), YouTube embed, texto extra, múltiplos itens
+ * MidiaRenderer - renders rich media for questions/materials
+ * Supports: image, YouTube embed (all URL formats), extra text
  */
+import { extractYouTubeId } from '../../utils/youtube.js';
 
-function extractYouTubeId(url) {
-  if (!url) return null;
-  const patterns = [
-    /youtu\.be\/([^?&\s]+)/,
-    /youtube\.com\/watch\?v=([^?&\s]+)/,
-    /youtube\.com\/embed\/([^?&\s]+)/,
-    /youtube\.com\/shorts\/([^?&\s]+)/,
-  ];
-  for (const p of patterns) {
-    const m = url.match(p);
-    if (m) return m[1];
-  }
-  return null;
-}
 
 function ImageItem({ url, legenda, base64 }) {
   const src = base64 || url;
@@ -58,10 +45,11 @@ function YouTubeItem({ url, legenda }) {
     <div style={{ marginBottom: 12 }}>
       <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--slate-200)' }}>
         <iframe
-          src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
-          title={legenda || 'Vídeo da questão'}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          src={'https://www.youtube.com/embed/' + videoId + '?rel=0&modestbranding=1&origin=' + window.location.origin}
+          title={legenda || 'Video da questao'}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
           style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
         />
       </div>

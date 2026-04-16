@@ -20,10 +20,10 @@ const fmtSize = (b) => !b ? '' : b < 1048576 ? Math.round(b/1024)+'KB' : (b/1048
 // ── Renderizador para visualizar o material no card ───────────
 function MaterialPreview({ m }) {
   if (m.tipo === 'youtube' && m.url) {
-    const ytId = m.url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/)?.[1];
+    const ytId = extractYouTubeId(m.url);
     if (ytId) return (
       <div style={{ borderRadius:8, overflow:'hidden', aspectRatio:'16/9', marginBottom:8 }}>
-        <iframe src={'https://www.youtube.com/embed/'+ytId} title={m.titulo} frameBorder="0" allowFullScreen
+        <iframe src={'https://www.youtube.com/embed/' + ytId + '?rel=0&origin=' + window.location.origin} title={m.titulo} frameBorder="0" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
           style={{ width:'100%', height:'100%' }} />
       </div>
     );
@@ -162,10 +162,10 @@ function ModalMaterial({ editItem, discs, onClose, onSalvar }) {
         <div className="field"><label>▶️ URL do YouTube <span style={{color:'var(--coral)'}}>*</span></label>
           <input value={form.url} onChange={set('url')} placeholder="https://youtube.com/watch?v=..." />
           {form.url && (() => {
-            const id = form.url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/)?.[1];
+            const id = extractYouTubeId(form.url);
             return id ? (
               <div style={{ marginTop:8, borderRadius:8, overflow:'hidden', aspectRatio:'16/9' }}>
-                <iframe src={'https://www.youtube.com/embed/'+id} title="preview" frameBorder="0" allowFullScreen style={{ width:'100%', height:'100%' }} />
+                <iframe src={'https://www.youtube.com/embed/' + id + '?rel=0&origin=' + window.location.origin} title="preview" frameBorder="0" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" style={{ width:'100%', height:'100%' }} />
               </div>
             ) : null;
           })()}

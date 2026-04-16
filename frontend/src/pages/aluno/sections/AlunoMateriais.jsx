@@ -2,6 +2,7 @@
  * AlunoMateriais — exibe materiais com preview/download de arquivos
  */
 import { useState, useEffect } from 'react';
+import { extractYouTubeId } from '../../../utils/youtube.js';
 import api from '../../../hooks/useApi';
 import { EmptyState } from '../../../components/ui';
 
@@ -16,7 +17,7 @@ const fmtSize = (b) => !b ? '' : b < 1048576 ? Math.round(b/1024)+'KB' : (b/1048
 function MaterialCard({ m }) {
   const [expandido, setExpandido] = useState(false);
 
-  const ytId = (url) => url?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/)?.[1];
+  const ytId = (url) => extractYouTubeId(url);
   const cor = TIPO_COR[m.tipo] || 'var(--navy)';
   const bg  = TIPO_BG[m.tipo]  || 'var(--slate-50)';
 
@@ -35,7 +36,7 @@ function MaterialCard({ m }) {
       {/* Preview de conteúdo */}
       {m.tipo === 'youtube' && ytId(m.url) && (
         <div style={{ aspectRatio:'16/9', position:'relative', overflow:'hidden', background:'#000' }}>
-          <iframe src={'https://www.youtube.com/embed/'+ytId(m.url)} title={m.titulo}
+          <iframe src={'https://www.youtube.com/embed/' + ytId(m.url) + '?rel=0&origin=' + window.location.origin} title={m.titulo} referrerPolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             frameBorder="0" allowFullScreen
             style={{ position:'absolute', inset:0, width:'100%', height:'100%' }} />
         </div>

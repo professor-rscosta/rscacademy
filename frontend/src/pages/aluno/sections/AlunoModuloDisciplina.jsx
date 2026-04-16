@@ -3,12 +3,13 @@
  * Banner · Professor · Biblioteca · Videoaulas · Atividades · Trilhas
  */
 import { useState, useEffect } from 'react';
+import { extractYouTubeId } from '../../../utils/youtube.js';
 import api from '../../../hooks/useApi';
 import { EmptyState } from '../../../components/ui';
 
 // ── Helpers ──────────────────────────────────────────────────
 function getYouTubeId(url) {
-  const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([^?&\n]{11})/);
+  const m = { 1: extractYouTubeId(url) }; // fixed: uses shared utility
   return m ? m[1] : null;
 }
 
@@ -323,7 +324,7 @@ export default function AlunoModuloDisciplina({ disciplinaId, onVoltar, onNaviga
                       <div>
                         <div style={{ position:'relative', paddingBottom:'56.25%', borderRadius:10, overflow:'hidden', marginBottom:'1rem' }}>
                           <iframe
-                            src={`https://www.youtube.com/embed/${ytId}?autoplay=1`}
+                            src={'https://www.youtube.com/embed/' + ytId + '?autoplay=1&origin=' + window.location.origin}
                             style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', border:'none' }}
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowFullScreen title={v.titulo}
@@ -338,7 +339,7 @@ export default function AlunoModuloDisciplina({ disciplinaId, onVoltar, onNaviga
                         {/* Thumbnail */}
                         <div onClick={() => setVideoAtivo(v.id)} style={{
                           width:140, height:80, borderRadius:8, overflow:'hidden', flexShrink:0, cursor:'pointer', position:'relative',
-                          background: ytId ? `url(https://img.youtube.com/vi/${ytId}/mqdefault.jpg) center/cover` : '#1e3a5f',
+                          background: ytId ? ('url(https://img.youtube.com/vi/' + ytId + '/mqdefault.jpg) center/cover') : '#1e3a5f',
                         }}>
                           <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,.3)', display:'flex', alignItems:'center', justifyContent:'center' }}>
                             <div style={{ width:36, height:36, borderRadius:'50%', background:'rgba(255,0,0,.85)', display:'flex', alignItems:'center', justifyContent:'center' }}>
