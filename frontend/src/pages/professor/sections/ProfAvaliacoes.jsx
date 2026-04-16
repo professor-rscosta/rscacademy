@@ -218,18 +218,31 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, onBack, onUpdate }) {
   const [alert, setAlert]       = useState(null);
   const [abaAtiva, setAba]      = useState('banco');
   const [busca, setBusca]       = useState('');
+  const [filtroTipo, setFTipo]  = useState('');
+  const [filtroNivel, setFNivel]= useState('');
+  const [filtroDisc, setFDisc]  = useState('');
 
   // Modal CriarQuestaoModal state
   const [showModal, setShowModal]   = useState(false);
-  const [editandoQ, setEditandoQ]   = useState(null); // questao a editar (ou null = criar)
+  const [editandoQ, setEditandoQ]   = useState(null);
 
   const pesoTotal = questoes.reduce((s, q) => s + (q.peso || 1), 0);
 
-  // Banco: questões não inseridas na avaliação, filtradas pela busca
-  const banco = questoesDisp.filter(q =>
-    !questoes.find(qc => qc.questao_id === q.id) &&
-    (!busca || q.enunciado.toLowerCase().includes(busca.toLowerCase()))
-  );
+  // Banco: questões disponíveis com filtros avançados
+  const banco = questoesDisp.filter(q => {
+    if (questoes.find(qc => qc.questao_id === q.id)) return false;
+    if (busca && !q.enunciado?.toLowerCase().includes(busca.toLowerCase()) &&
+        !(q.tags||[]).some(t => t.toLowerCase().includes(busca.toLowerCase()))) return false;
+    if (filtroTipo  && q.tipo !== filtroTipo)   return false;
+    if (filtroNivel && q.nivel !== filtroNivel) return false;
+    if (filtroDisc  && String(q.disciplina_id) !== String(filtroDisc)) return false;
+    return true;
+  });
+
+  // Opções únicas para os filtros
+  const tiposDisp  = [...new Set(questoesDisp.map(q => q.tipo).filter(Boolean))];
+  const niveisDisp = [...new Set(questoesDisp.map(q => q.nivel).filter(Boolean))];
+  const discsDisp  = [...new Set(questoesDisp.map(q => q.disciplina_id).filter(Boolean))];
 
   const addFromBanco = (q) => {
     setQuestoes(qs => [...qs, { questao_id: q.id, peso: 1, _meta: q }]);
@@ -379,14 +392,35 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, onBack, onUpdate }) {
           <div style={{ padding:'0.75rem', maxHeight:540, overflowY:'auto' }}>
             {abaAtiva === 'banco' && (
               <>
-                <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="🔍 Buscar no banco..."
-                  style={{ width:'100%', padding:'7px 12px', border:'1.5px solid var(--slate-200)', borderRadius:7, fontFamily:'var(--font-body)', fontSize:12, outline:'none', marginBottom:8, boxSizing:'border-box' }}
-                  onFocus={e => e.target.style.borderColor='var(--emerald)'} onBlur={e => e.target.style.borderColor='var(--slate-200)'} />
+                {/* ── Filtros avançados ── */}
+                <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:8 }}>
+                  <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="🔍 Buscar..."
+                    style={{ flex:1, minWidth:120, padding:'6px 10px', border:'1.5px solid var(--slate-200)', borderRadius:7, fontSize:12, outline:'none' }}
+                    onFocus={e=>e.target.style.borderColor='var(--emerald)'} onBlur={e=>e.target.style.borderColor='var(--slate-200)'} />
+                  <select value={filtroTipo} onChange={e => setFTipo(e.target.value)}
+                    style={{ padding:'6px 8px', border:'1.5px solid var(--slate-200)', borderRadius:7, fontSize:11, outline:'none', maxWidth:120 }}>
+                    <option value="">Todos os tipos</option>
+                    {tiposDisp.map(t => <option key={t} value={t}>{t.replace('_',' ')}</option>)}
+                  </select>
+                  <select value={filtroNivel} onChange={e => setFNivel(e.target.value)}
+                    style={{ padding:'6px 8px', border:'1.5px solid var(--slate-200)', borderRadius:7, fontSize:11, outline:'none', maxWidth:100 }}>
+                    <option value="">Todos níveis</option>
+                    {niveisDisp.map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                  {(busca || filtroTipo || filtroNivel) && (
+                    <button onClick={() => { setBusca(''); setFTipo(''); setFNivel(''); }}
+                      style={{ padding:'6px 10px', border:'1px solid #fecaca', borderRadius:7, background:'#fef2f2', color:'#dc2626', fontSize:11, cursor:'pointer' }}>✕ Limpar</button>
+                  )}
+                </div>
+                <div style={{ fontSize:11, color:'var(--slate-400)', marginBottom:6 }}>
+                  {banco.length} questão(ões) disponível(is)
+                  {(busca||filtroTipo||filtroNivel) && ' (filtradas)'}
+                </div>
                 {banco.length === 0 ? (
                   <div style={{ textAlign:'center', padding:'1.5rem', color:'var(--slate-400)', fontSize:13 }}>
                     {questoesDisp.length === 0
                       ? 'Banco vazio. Clique em "✨ Nova Questão" para criar.'
-                      : 'Todas as questões já foram adicionadas.'}
+                      : (busca||filtroTipo||filtroNivel) ? 'Nenhuma questão corresponde aos filtros.' : 'Todas as questões já foram adicionadas.'}
                   </div>
                 ) : (
                   <div style={{ display:'flex', flexDirection:'column', gap:5 }}>

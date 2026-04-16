@@ -301,10 +301,21 @@ async function concluir(req, res, next) {
       };
     });
 
+    // Dados complementares para o relatório
+    const alunoInfo    = userRepo.findById(req.user.id);
+    const turma        = av.turma_id ? turmaRepo.findById(av.turma_id) : null;
+    const disc         = av.disciplina_id ? require('../repositories/disciplina.repository').findById(av.disciplina_id) : null;
+    const numTentativa = avaliacaoRepo.findTentativasByAvalia(av.id).filter(t => t.aluno_id === req.user.id && t.status === 'concluida').length;
+
     res.json({
       nota, aprovado, xp_ganho: xpGanho,
-      nota_minima: av.nota_minima,
-      avaliacao_titulo: av.titulo,
+      nota_minima:       av.nota_minima,
+      avaliacao_titulo:  av.titulo,
+      avaliacao_descricao: av.descricao || '',
+      aluno_nome:        alunoInfo?.nome || '',
+      turma_nome:        turma?.nome || '',
+      disciplina_nome:   disc?.nome || '',
+      tentativa_numero:  numTentativa,
       concluida_em: new Date().toISOString(),
       respostas: respostasCompletas,
       feedback_geral: feedbackGeral,

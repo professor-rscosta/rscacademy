@@ -245,6 +245,16 @@ function ConfirmModal({ onConfirm, onCancel, titulo, mensagem, confirmLabel='✅
   );
 }
 
+
+// ── Markdown simples para feedback IA ────────────────────────
+function renderFeedback(text) {
+  if (!text) return '';
+  return text
+    .replace(/## (.+)/g, '<div style="font-weight:800;font-size:14px;color:#1e3a5f;margin:12px 0 4px">$1</div>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^[-•] (.+)/gm, '<li style="margin:2px 0;margin-left:14px;list-style:disc">$1</li>');
+}
+
 export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
   const [avs, setAvs]           = useState([]);
   const [loading, setLoading]   = useState(true);
@@ -316,98 +326,204 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
 
   // ── RESULTADO ─────────────────────────────────────────────────
   if (fase === 'resultado' && resultado) {
-    const { nota, aprovado, xp_ganho, nota_minima, estatisticas, feedback_geral, novas_medalhas, respostas: resCorr } = resultado;
-    const corretas = estatisticas?.corretas || 0;
-    const totalQ   = estatisticas?.total_questoes || questoes.length;
-    const taxa     = estatisticas?.taxa_acerto || 0;
-    return (
-      <div style={{ maxWidth:600, margin:'0 auto' }}>
-        <div className="page-header">
-          <div className="page-title">Resultado da Avaliação</div>
-          <div className="page-sub">{avAtual?.titulo}</div>
-        </div>
+    const { nota, aprovado, xp_ganho, nota_minima, estatisticas, feedback_geral, novas_medalhas, respostas: resCorr, avaliacao_titulo, concluida_em } = resultado;
+    const corretas  = estatisticas?.corretas || 0;
+    const totalQ    = estatisticas?.total_questoes || (resCorr||[]).length;
+    const erros     = estatisticas?.erros ?? (totalQ - corretas);
+    const taxa      = estatisticas?.taxa_acerto || 0;
+    const dataHora  = concluida_em ? new Date(concluida_em) : new Date();
+    const dataStr   = dataHora.toLocaleDateString('pt-BR');
+    const horaStr   = dataHora.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+    const feedbackEmoji = taxa >= 80 ? '🎉' : taxa >= 50 ? '👍' : '📚';
+    const feedbackMsg   = taxa >= 80 ? 'Excelente desempenho!' : taxa >= 50 ? 'Bom desempenho!' : 'Precisa revisar o conteúdo.';
 
-        {/* Nota */}
-        <div className="card" style={{ textAlign:'center', marginBottom:'1.5rem' }}>
-          <div style={{ display:'inline-flex', flexDirection:'column', alignItems:'center', padding:'16px 24px', borderRadius:14,
-            background: aprovado ? '#f0fdf4' : '#fef2f2',
-            border: '2px solid '+(aprovado ? '#86efac' : '#fca5a5'),
-            marginBottom:16,
-          }}>
-            <span style={{ fontFamily:'var(--font-head)', fontSize:48, fontWeight:700, color: aprovado ? 'var(--emerald-dark)' : 'var(--coral)' }}>
-              {(nota||0).toFixed(1)}
-            </span>
-            <span style={{ fontSize:13, fontWeight:600, color: aprovado ? 'var(--emerald-dark)' : 'var(--coral)' }}>
-              {aprovado ? '✅ Aprovado' : '❌ Reprovado'} · Mínimo: {nota_minima||6}
-            </span>
+    const renderResposta = (val, tipo, alternativas) => {
+      if (val === null || val === undefined) return <em style={{ opacity:.5 }}>Sem resposta</em>;
+      if (typeof val === 'boolean') return val ? 'Verdadeiro ✓' : 'Falso ✗';
+      if (typeof val === 'number' && alternativas) {
+        const letra = String.fromCharCode(65 + val);
+        return letra + ') ' + alternativas[val];
+      }
+      if (Array.isArray(val) && alternativas) return val.map(i => String.fromCharCode(65+i)+') '+alternativas[i]).join(', ');
+      return String(val);
+    };
+
+    return (
+      <div style={{ maxWidth:680, margin:'0 auto' }}>
+
+        {/* ── HERO ── */}
+        <div style={{ background:'linear-gradient(135deg,var(--navy),#2d5a9e)', borderRadius:16, padding:'1.75rem 2rem', color:'white', marginBottom:'1rem', textAlign:'center', position:'relative', overflow:'hidden' }}>
+          <div style={{ position:'absolute', inset:0, opacity:.04, backgroundImage:'radial-gradient(circle,white 1px,transparent 1px)', backgroundSize:'20px 20px' }} />
+          <div style={{ fontSize:48, marginBottom:6 }}>{feedbackEmoji}</div>
+          <div style={{ fontFamily:'var(--font-head)', fontSize:24, fontWeight:800, marginBottom:4 }}>
+            {aprovado ? 'Avaliação Concluída! 🎉' : 'Avaliação Concluída'}
           </div>
-          <div style={{ display:'flex', gap:16, justifyContent:'center', flexWrap:'wrap' }}>
+          <div style={{ fontSize:13, opacity:.7, marginBottom:'1.25rem' }}>{avaliacao_titulo || avAtual?.titulo}</div>
+          <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap', marginBottom:'1rem' }}>
             {[
-              { l:'Questões',   v: corretas+'/'+totalQ },
-              { l:'Taxa Acerto', v: taxa+'%' },
-              { l:'XP Ganho',   v: '+'+(xp_ganho||0)+'⭐' },
+              { l:'Nota',        v: (nota||0).toFixed(1)+'/10' },
+              { l:'Acertos',     v: corretas+'/'+totalQ },
+              { l:'Taxa',        v: taxa+'%' },
+              { l:'XP Ganho',    v: '+'+(xp_ganho||0)+'⭐' },
             ].map(s => (
-              <div key={s.l} style={{ background:'var(--slate-50)', borderRadius:8, padding:'8px 16px', textAlign:'center', border:'1px solid var(--slate-200)' }}>
-                <div style={{ fontSize:11, color:'var(--slate-400)', marginBottom:2 }}>{s.l}</div>
-                <div style={{ fontWeight:700, color:'var(--navy)', fontSize:16 }}>{s.v}</div>
+              <div key={s.l} style={{ background:'rgba(255,255,255,.12)', borderRadius:10, padding:'10px 18px', minWidth:70, textAlign:'center' }}>
+                <div style={{ fontSize:10, opacity:.6, marginBottom:2, textTransform:'uppercase', letterSpacing:.5 }}>{s.l}</div>
+                <div style={{ fontFamily:'var(--font-head)', fontSize:18, fontWeight:700 }}>{s.v}</div>
               </div>
             ))}
           </div>
+          <div style={{ padding:'8px 20px', borderRadius:99, display:'inline-block', fontWeight:700, fontSize:14,
+            background: aprovado ? 'rgba(16,185,129,.25)' : 'rgba(239,68,68,.25)',
+            border: '1px solid '+(aprovado ? '#34d399' : '#f87171'),
+          }}>
+            {aprovado ? '✅ Aprovado' : '❌ Reprovado'} · Mínimo: {nota_minima||6}
+          </div>
         </div>
 
-        {/* Medalhas */}
+        {/* ── INFORMAÇÕES GERAIS ── */}
+        <div style={{ background:'white', border:'1px solid var(--slate-200)', borderRadius:12, padding:'14px 18px', marginBottom:'1rem', display:'flex', flexWrap:'wrap', gap:'0.75rem', fontSize:13 }}>
+          <span>👤 <strong>{user?.nome}</strong></span>
+          <span style={{ color:'var(--slate-300)' }}>|</span>
+          <span>📅 {dataStr}</span>
+          <span style={{ color:'var(--slate-300)' }}>|</span>
+          <span>🕐 {horaStr}</span>
+          <span style={{ marginLeft:'auto', fontWeight:700, color: taxa>=80?'#10b981':taxa>=50?'#f59e0b':'#ef4444' }}>
+            {feedbackMsg}
+          </span>
+        </div>
+
+        {/* ── FEEDBACK IA ── */}
+        {feedback_geral && (
+          <div style={{ background:'white', border:'1px solid #ddd6fe', borderRadius:12, padding:'16px 18px', marginBottom:'1rem' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+              <span style={{ fontSize:20 }}>🤖</span>
+              <div style={{ fontWeight:700, color:'#6d28d9', fontSize:14 }}>Feedback Pedagógico (IA)</div>
+              <span style={{ fontSize:11, padding:'2px 8px', borderRadius:99, background:'#f5f3ff', color:'#6d28d9', border:'1px solid #ddd6fe' }}>BNCC · TRI</span>
+            </div>
+            <div style={{ fontSize:13.5, color:'var(--slate-700)', lineHeight:1.8 }}
+              dangerouslySetInnerHTML={{ __html: renderFeedback(feedback_geral) }}
+            />
+          </div>
+        )}
+
+        {/* ── MEDALHAS ── */}
         {novas_medalhas?.length > 0 && (
-          <div className="card" style={{ marginBottom:'1.5rem', background:'linear-gradient(135deg,#fffbeb,#fef3c7)', border:'2px solid #fcd34d' }}>
-            <div style={{ fontWeight:700, color:'#92400e', marginBottom:8 }}>🏆 Nova(s) Medalha(s)!</div>
+          <div style={{ background:'linear-gradient(135deg,#fffbeb,#fef3c7)', border:'2px solid #fcd34d', borderRadius:12, padding:'14px 18px', marginBottom:'1rem' }}>
+            <div style={{ fontWeight:700, color:'#92400e', marginBottom:8 }}>🏆 Nova(s) Medalha(s) Desbloqueada(s)!</div>
             <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
               {novas_medalhas.map(m => (
-                <div key={m.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px', background:'white', borderRadius:8, border:'1px solid #fcd34d' }}>
+                <div key={m.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 14px', background:'white', borderRadius:9, border:'1px solid #fcd34d' }}>
                   <span style={{ fontSize:22 }}>{m.icone}</span>
-                  <div><div style={{ fontWeight:600, fontSize:13 }}>{m.nome}</div><div style={{ fontSize:11, color:'var(--slate-500)' }}>+{m.xp_bonus} XP</div></div>
+                  <div>
+                    <div style={{ fontWeight:700, fontSize:13 }}>{m.nome}</div>
+                    <div style={{ fontSize:11, color:'var(--slate-500)' }}>+{m.xp_bonus} XP</div>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Feedback IA */}
-        {feedback_geral && (
-          <div className="card" style={{ marginBottom:'1.5rem' }}>
-            <div style={{ fontSize:11, fontWeight:600, color:'var(--slate-500)', marginBottom:8, textTransform:'uppercase', letterSpacing:.5 }}>🤖 Feedback da IA</div>
-            <div style={{ fontSize:13.5, color:'var(--slate-700)', lineHeight:1.7 }}>{feedback_geral}</div>
-          </div>
-        )}
-
-        {/* Revisão */}
+        {/* ── DETALHAMENTO POR QUESTÃO ── */}
         {(resCorr||[]).length > 0 && (
-          <div className="card" style={{ marginBottom:'1.5rem' }}>
-            <div className="section-title" style={{ marginBottom:'1rem' }}>Revisão das Respostas</div>
+          <div style={{ background:'white', border:'1px solid var(--slate-200)', borderRadius:12, overflow:'hidden', marginBottom:'1rem' }}>
+            <div style={{ padding:'14px 18px', borderBottom:'1px solid var(--slate-100)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <div style={{ fontWeight:700, fontSize:15, color:'var(--navy)' }}>📝 Detalhamento por Questão</div>
+              <div style={{ display:'flex', gap:12, fontSize:12 }}>
+                <span style={{ color:'#10b981', fontWeight:700 }}>✅ {corretas} acertos</span>
+                <span style={{ color:'#ef4444', fontWeight:700 }}>❌ {erros} erros</span>
+              </div>
+            </div>
+
             {resCorr.map((r, i) => {
-              const q = questoes.find(q => q.id === r.questao_id);
-              const score = r.score || 0;
-              const isUpload = q?.tipo === 'upload_arquivo';
+              const qMeta  = questoes.find(q => q.id === r.questao_id);
+              const enunc  = r.questao_enunciado || qMeta?.enunciado || 'Questão ' + (i+1);
+              const tipo   = r.questao_tipo     || qMeta?.tipo;
+              const gab    = r.questao_gabarito ?? qMeta?.gabarito;
+              const alts   = r.questao_alternativas || qMeta?.alternativas;
+              const explic = r.questao_explicacao   || qMeta?.explicacao;
+              const score  = r.score || 0;
+              const acertou = r.is_correct || score >= 0.8;
+              const isUpload = tipo === 'upload_arquivo';
               const pendente = isUpload && !r.corrigido_manualmente;
+
               return (
-                <div key={r.questao_id} style={{ padding:'12px', borderRadius:8, marginBottom:8,
-                  background: pendente ? '#fffbeb' : score>=0.8 ? '#f0fdf4' : score>0 ? '#fffbeb' : '#fef2f2',
-                  border: '1px solid '+(pendente ? '#fcd34d' : score>=0.8 ? '#86efac' : score>0 ? '#fcd34d' : '#fca5a5'),
+                <div key={r.questao_id || i} style={{
+                  padding:'16px 18px',
+                  borderBottom: i < resCorr.length-1 ? '1px solid var(--slate-100)' : 'none',
+                  background: pendente ? '#fffbeb' : acertou ? '#fafff8' : '#fffafa',
                 }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-                    <span style={{ fontSize:12, fontWeight:600, color:'var(--slate-600)' }}>
-                      {isUpload ? '📤 ' : ''}Questão {i+1}
-                    </span>
-                    <span style={{ fontSize:12, fontWeight:700, color: pendente?'#92400e':score>=0.8?'#15803d':score>0?'#92400e':'#b91c1c' }}>
-                      {pendente ? '⏳ Aguardando correção' : Math.round(score*100)+'%'}
-                    </span>
-                  </div>
-                  {q && <div style={{ fontSize:13, color:'var(--slate-700)', marginBottom:4 }}>{q.enunciado?.slice(0,120)}{q.enunciado?.length>120?'...':''}</div>}
-                  {pendente && (
-                    <div style={{ fontSize:11, color:'#92400e' }}>O professor irá corrigir sua entrega em breve.</div>
-                  )}
-                  {r.feedback_prof && (
-                    <div style={{ fontSize:12, color:'#15803d', background:'#f0fdf4', padding:'6px 10px', borderRadius:6, marginTop:4, border:'1px solid #86efac' }}>
-                      💬 Professor: {r.feedback_prof}
+                  {/* Número + resultado */}
+                  <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
+                    <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
+                      background: pendente ? '#f59e0b' : acertou ? '#10b981' : '#ef4444',
+                      color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:13 }}>
+                      {i+1}
                     </div>
+                    <div style={{ flex:1 }}>
+                      <span style={{ fontSize:12, fontWeight:700,
+                        color: pendente ? '#92400e' : acertou ? '#166534' : '#991b1b' }}>
+                        {pendente ? '⏳ Aguardando correção' : acertou ? '✅ Correto' : '❌ Incorreto'}
+                        {!pendente && <span style={{ fontWeight:400, opacity:.7, marginLeft:8 }}>({Math.round(score*100)}%)</span>}
+                      </span>
+                      {tipo && <span style={{ fontSize:10, marginLeft:10, padding:'1px 7px', borderRadius:99, background:'var(--slate-100)', color:'var(--slate-500)' }}>{tipo}</span>}
+                    </div>
+                    {r.xp_ganho > 0 && <span style={{ fontSize:12, fontWeight:700, color:'#f59e0b' }}>⚡+{r.xp_ganho}</span>}
+                  </div>
+
+                  {/* Enunciado */}
+                  <div style={{ fontSize:13, color:'var(--slate-700)', lineHeight:1.6, background:'var(--slate-50)', padding:'8px 12px', borderRadius:8, marginBottom:8 }}>
+                    <strong>Questão:</strong> {enunc}
+                  </div>
+
+                  {/* Resposta aluno vs gabarito */}
+                  {!pendente && r.resposta_aluno !== null && r.resposta_aluno !== undefined && (
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
+                      <div style={{ padding:'8px 12px', borderRadius:8,
+                        background: acertou ? '#dcfce7' : '#fee2e2',
+                        border: '1px solid '+(acertou ? '#a7f3d0' : '#fca5a5') }}>
+                        <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:.5, marginBottom:3,
+                          color: acertou ? '#166534' : '#991b1b' }}>
+                          {acertou ? '✅ Sua resposta (Correta)' : '❌ Sua resposta'}
+                        </div>
+                        <div style={{ fontSize:12, fontWeight:600, color: acertou ? '#166534' : '#991b1b' }}>
+                          {renderResposta(r.resposta_aluno, tipo, alts)}
+                        </div>
+                      </div>
+                      {!acertou && gab !== null && gab !== undefined && (
+                        <div style={{ padding:'8px 12px', borderRadius:8, background:'#dcfce7', border:'1px solid #a7f3d0' }}>
+                          <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:.5, marginBottom:3, color:'#166534' }}>✅ Resposta Correta</div>
+                          <div style={{ fontSize:12, fontWeight:600, color:'#166534' }}>
+                            {renderResposta(gab, tipo, alts)}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Explicação */}
+                  {explic && (
+                    <div style={{ padding:'7px 12px', borderRadius:8, background:'#eff6ff', border:'1px solid #bfdbfe', fontSize:12, color:'#1d4ed8', marginBottom:6 }}>
+                      <strong>💡 Explicação:</strong> {explic}
+                    </div>
+                  )}
+
+                  {/* Feedback IA por questão */}
+                  {r.feedback_ia && (
+                    <div style={{ padding:'7px 12px', borderRadius:8, background:'#f5f3ff', border:'1px solid #ddd6fe', fontSize:12, color:'#5b21b6' }}>
+                      <strong>🤖 Feedback:</strong> {r.feedback_ia}
+                    </div>
+                  )}
+
+                  {/* Feedback do professor */}
+                  {r.feedback_prof && (
+                    <div style={{ padding:'7px 12px', borderRadius:8, background:'#f0fdf4', border:'1px solid #a7f3d0', fontSize:12, color:'#166534', marginTop:4 }}>
+                      <strong>💬 Professor:</strong> {r.feedback_prof}
+                    </div>
+                  )}
+
+                  {pendente && (
+                    <div style={{ fontSize:11, color:'#92400e', fontStyle:'italic' }}>O professor irá corrigir sua entrega em breve.</div>
                   )}
                 </div>
               );
@@ -416,7 +532,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
         )}
 
         <button onClick={() => { setFase('lista'); setResultado(null); }}
-          style={{ width:'100%', padding:12, background:'var(--navy)', color:'white', border:'none', borderRadius:8, fontWeight:600, fontSize:14, cursor:'pointer' }}>
+          style={{ width:'100%', padding:14, background:'var(--emerald)', color:'white', border:'none', borderRadius:10, fontWeight:700, fontSize:14, cursor:'pointer', boxShadow:'0 4px 12px rgba(16,185,129,.35)' }}>
           Voltar às Avaliações
         </button>
       </div>
