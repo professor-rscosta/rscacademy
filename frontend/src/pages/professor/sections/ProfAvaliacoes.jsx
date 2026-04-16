@@ -32,12 +32,38 @@ function ModalCriar({ turmas, questoesDisp, onClose, onSalvar }) {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [form, setForm]   = useState({
-    titulo:'', descricao:'', tipo:'prova', turma_id: turmas[0]?.id||'',
+    titulo:'', descricao:'', tipo:'prova',
+    turma_ids: turmas[0]?.id ? [turmas[0].id] : [], // multi-turma
+    disciplina_id: '',
     questoes_sel:[], tempo_limite:60, tentativas_permitidas:1,
-    nota_minima:6, peso:10,
+    nota_minima:6, peso:10, randomizar_questoes:false, randomizar_alternativas:false,
     disponivel_em: new Date().toISOString().slice(0,16),
     encerra_em: new Date(Date.now()+7*86400000).toISOString().slice(0,16),
   });
+
+  // Disciplinas das turmas selecionadas
+  const [discsDisponiveis, setDiscsDisp] = useState([]);
+  useEffect(() => {
+    if (!form.turma_ids?.length) { setDiscsDisp([]); return; }
+    Promise.all(form.turma_ids.map(tid =>
+      api.get('/turmas/' + tid + '/disciplinas').then(r => r.data.disciplinas || []).catch(() => [])
+    )).then(results => {
+      const todas = results.flat();
+      const unicas = todas.filter((d, i, arr) => arr.findIndex(x => x.id === d.id) === i);
+      setDiscsDisp(unicas);
+      if (unicas.length === 1 && !form.disciplina_id) {
+        setForm(f => ({ ...f, disciplina_id: String(unicas[0].id) }));
+      }
+    });
+  }, [JSON.stringify(form.turma_ids)]);
+
+  const toggleTurma = (tid) => {
+    setForm(f => {
+      const arr = f.turma_ids || [];
+      const ids = arr.includes(tid) ? arr.filter(x => x !== tid) : [...arr, tid];
+      return { ...f, turma_ids: ids, disciplina_id: '' };
+    });
+  };
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
@@ -51,7 +77,7 @@ function ModalCriar({ turmas, questoesDisp, onClose, onSalvar }) {
   const avancar = () => {
     setError('');
     if (step===1 && !form.titulo.trim()) return setError('Título obrigatório.');
-    if (step===1 && !form.turma_id)      return setError('Selecione uma turma.');
+    if (step===1 && (!form.turma_ids || form.turma_ids.length === 0)) return setError('Selecione ao menos uma turma.');
     if (step===2 && form.tipo!=='entrega' && form.questoes_sel.length===0) return setError('Selecione ao menos 1 questão.');
     // Para tipo 'entrega', pular passo 2 (sem questões) e ir direto para configurações
     if (step===1 && form.tipo==='entrega') { setStep(3); return; }
@@ -63,13 +89,28 @@ function ModalCriar({ turmas, questoesDisp, onClose, onSalvar }) {
     if (form.tipo!=='entrega' && form.questoes_sel.length===0) return setError('Selecione ao menos 1 questão.');
     setSaving(true); setError('');
     try {
-      const payload = { ...form, turma_id:Number(form.turma_id)||null, questoes:form.questoes_sel,
-        tempo_limite:Number(form.tempo_limite)||60, tentativas_permitidas:Number(form.tentativas_permitidas)||1,
-        nota_minima:Number(form.nota_minima)||6, peso:Number(form.peso)||10,
-        disponivel_em:new Date(form.disponivel_em).toISOString(),
-        encerra_em:form.encerra_em?new Date(form.encerra_em).toISOString():null };
+      const tids = form.turma_ids || [];
+      const payload = {
+        titulo: form.titulo, descricao: form.descricao, tipo: form.tipo,
+        turma_id: tids[0] ? Number(tids[0]) : null, // principal
+        disciplina_id: form.disciplina_id ? Number(form.disciplina_id) : null,
+        questoes: form.questoes_sel,
+        tempo_limite: Number(form.tempo_limite)||60,
+        tentativas_permitidas: Number(form.tentativas_permitidas)||1,
+        nota_minima: Number(form.nota_minima)||6,
+        peso: Number(form.peso)||10,
+        randomizar_questoes: form.randomizar_questoes,
+        randomizar_alternativas: form.randomizar_alternativas,
+        disponivel_em: new Date(form.disponivel_em).toISOString(),
+        encerra_em: form.encerra_em ? new Date(form.encerra_em).toISOString() : null,
+      };
       const r = await api.post('/avaliacoes', payload);
-      if (publicar) await api.patch('/avaliacoes/'+r.data.avaliacao.id+'/publicar');
+      const avId = r.data.avaliacao.id;
+      // Vincular turmas adicionais (N:N)
+      if (tids.length > 0) {
+        await api.post('/avaliacoes/'+avId+'/turmas', { turma_ids: tids.map(Number) }).catch(() => {});
+      }
+      if (publicar) await api.patch('/avaliacoes/'+avId+'/publicar');
       onSalvar({ ...r.data.avaliacao, status:publicar?'publicada':'rascunho', total_questoes:form.questoes_sel.length });
       onClose();
     } catch(e){ setError(e.response?.data?.error||'Erro ao salvar.'); }
@@ -104,13 +145,52 @@ function ModalCriar({ turmas, questoesDisp, onClose, onSalvar }) {
                   </div>
                 ))}
               </div>
+              {/* Multi-turma checkboxes */}
               <div className="field">
-                <label>Turma <span style={{color:'var(--coral)'}}>*</span></label>
-                <select value={form.turma_id} onChange={set('turma_id')} style={{ width:'100%',padding:'10px 14px',border:'2px solid '+(form.turma_id?'var(--emerald)':'var(--coral)'),borderRadius:8,fontFamily:'var(--font-body)',fontSize:14,outline:'none' }}>
-                  <option value="">-- Selecione a turma --</option>
-                  {turmas.map(t=><option key={t.id} value={t.id}>{t.nome}</option>)}
-                </select>
+                <label>Turmas <span style={{color:'var(--coral)'}}>*</span>
+                  <span style={{ fontSize:11, color:'var(--slate-400)', fontWeight:400, marginLeft:8 }}>(selecione uma ou mais)</span>
+                </label>
+                <div style={{ display:'flex', flexDirection:'column', gap:6, maxHeight:150, overflowY:'auto', padding:'4px 0' }}>
+                  {turmas.map(t => {
+                    const sel = (form.turma_ids||[]).includes(t.id);
+                    return (
+                      <div key={t.id} onClick={() => toggleTurma(t.id)} style={{
+                        display:'flex', alignItems:'center', gap:10, padding:'9px 12px',
+                        border:'1.5px solid '+(sel?'var(--emerald)':'var(--slate-200)'),
+                        borderRadius:8, cursor:'pointer', background:sel?'#ecfdf5':'white',
+                        transition:'all .12s',
+                      }}>
+                        <div style={{ width:18, height:18, borderRadius:4, flexShrink:0,
+                          border:'2px solid '+(sel?'var(--emerald)':'var(--slate-300)'),
+                          background:sel?'var(--emerald)':'white',
+                          display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          {sel && <span style={{ color:'white', fontSize:11 }}>✓</span>}
+                        </div>
+                        <span style={{ fontSize:13, fontWeight:sel?700:400, color:'var(--navy)' }}>🏫 {t.nome}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {(form.turma_ids||[]).length === 0 && (
+                  <div style={{ fontSize:11, color:'var(--coral)', marginTop:4 }}>Selecione ao menos uma turma.</div>
+                )}
               </div>
+
+              {/* Disciplina auto-carregada */}
+              {discsDisponiveis.length > 0 && (
+                <div className="field">
+                  <label>Disciplina
+                    <span style={{ fontSize:11, color:'var(--slate-400)', fontWeight:400, marginLeft:8 }}>
+                      (carregada automaticamente da turma)
+                    </span>
+                  </label>
+                  <select value={form.disciplina_id} onChange={set('disciplina_id')}
+                    style={{ width:'100%', padding:'10px 14px', border:'1.5px solid var(--slate-200)', borderRadius:8, fontSize:14, outline:'none' }}>
+                    <option value="">-- Selecione a disciplina --</option>
+                    {discsDisponiveis.map(d => <option key={d.id} value={d.id}>{d.nome}</option>)}
+                  </select>
+                </div>
+              )}
               <div className="field"><label>Título <span style={{color:'var(--coral)'}}>*</span></label><input value={form.titulo} onChange={set('titulo')} placeholder="ex: Prova 1 — Algoritmos" /></div>
               <div className="field">
                 <label>Descrição (opcional)</label>
@@ -192,6 +272,28 @@ function ModalCriar({ turmas, questoesDisp, onClose, onSalvar }) {
                   ].map((s,i)=><span key={i} style={{ padding:'3px 10px',borderRadius:50,background:s.bg,color:s.cor,fontSize:11,fontWeight:600 }}>{s.v}</span>)}
                 </div>
               </div>
+              {/* Randomização */}
+              <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:10, padding:'14px', marginBottom:'1rem' }}>
+                <div style={{ fontWeight:700, color:'#1d4ed8', marginBottom:10, fontSize:13 }}>🔀 Randomização</div>
+                {[
+                  { key:'randomizar_questoes', label:'🔀 Randomizar ordem das questões', desc:'Cada aluno recebe as questões em ordem diferente' },
+                  { key:'randomizar_alternativas', label:'🎲 Embaralhar alternativas', desc:'Alternativas de múltipla escolha em ordem diferente (gabarito mantido)' },
+                ].map(opt => (
+                  <div key={opt.key} onClick={() => setForm(f => ({ ...f, [opt.key]: !f[opt.key] }))}
+                    style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', borderRadius:8, cursor:'pointer', marginBottom:6,
+                      background: form[opt.key] ? '#dbeafe' : 'white', border:'1px solid '+(form[opt.key]?'#93c5fd':'var(--slate-200)') }}>
+                    <div style={{ width:20, height:20, borderRadius:4, flexShrink:0, border:'2px solid '+(form[opt.key]?'#2563eb':'var(--slate-300)'),
+                      background:form[opt.key]?'#2563eb':'white', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      {form[opt.key] && <span style={{ color:'white', fontSize:12 }}>✓</span>}
+                    </div>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:600, color:'var(--navy)' }}>{opt.label}</div>
+                      <div style={{ fontSize:11, color:'var(--slate-500)' }}>{opt.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               <div style={{ display:'flex',gap:8,marginTop:16 }}>
                 <button onClick={()=>{setStep(form.tipo==='entrega'?1:2);setError('');}} style={{ padding:'10px 16px',background:'white',border:'1.5px solid var(--slate-200)',borderRadius:8,cursor:'pointer',fontSize:13 }}>← Voltar</button>
                 <button onClick={()=>salvar(false)} disabled={saving} style={{ flex:1,padding:'12px',background:'var(--slate-100)',color:'var(--slate-700)',border:'1.5px solid var(--slate-300)',borderRadius:8,fontWeight:600,fontSize:14,cursor:'pointer' }}>💾 Rascunho</button>

@@ -23,7 +23,14 @@ async function list(req, res, next) {
       // Aluno: apenas avaliações das suas turmas
       const turmaIds = turmaRepo.getTurmasAluno(req.user.id).map(m => m.turma_id);
       if (!turmaIds.length) return res.json({ avaliacoes: [] });
-      avs = turmaIds.flatMap(tid => avaliacaoRepo.findByTurma(tid))
+      // Avaliacoes diretas (turma_id) + vinculadas via turma_avaliacoes
+      const diretas = turmaIds.flatMap(tid => avaliacaoRepo.findByTurma(tid));
+      const { dbFindWhere: fw } = require('../database/init');
+      const vinculadas = turmaIds.flatMap(tid =>
+        fw('turma_avaliacoes', r => r.turma_id === Number(tid))
+          .map(v => avaliacaoRepo.findById(v.avaliacao_id)).filter(Boolean)
+      );
+      avs = [...diretas, ...vinculadas]
         .filter(a => a.status === 'publicada');
       // Dedup
       const seen = new Set();
@@ -151,10 +158,17 @@ async function iniciar(req, res, next) {
     if (!av) return res.status(404).json({ error: 'Avaliação não encontrada.' });
     if (av.status !== 'publicada') return res.status(400).json({ error: 'Avaliação não está publicada.' });
 
-    // Verificar se é da turma do aluno
-    if (av.turma_id) {
-      const turmaIds = turmaRepo.getTurmasAluno(req.user.id).map(m => m.turma_id);
-      if (!turmaIds.includes(av.turma_id))
+    // Verificar se é da turma do aluno (direto ou via turma_avaliacoes)
+    const turmaIds = turmaRepo.getTurmasAluno(req.user.id).map(m => m.turma_id);
+    if (av.turma_id || turmaIds.length > 0) {
+      const { dbFindWhere: fw } = require('../database/init');
+      const vinculadaATurmaDoAluno = av.turma_id
+        ? turmaIds.includes(av.turma_id)
+        : false;
+      const vinculadaViaNtoN = turmaIds.some(tid =>
+        fw('turma_avaliacoes', r => r.avaliacao_id === av.id && r.turma_id === tid).length > 0
+      );
+      if (!vinculadaATurmaDoAluno && !vinculadaViaNtoN && av.turma_id)
         return res.status(403).json({ error: 'Esta avaliação não pertence à sua turma.' });
     }
 
@@ -164,13 +178,48 @@ async function iniciar(req, res, next) {
 
     const tentativaAberta = tentativas.find(t => t.status === 'em_andamento');
 
-    // Montar questões SEM gabaritos para o aluno
-    const questoesCompletas = (av.questoes || []).map(qc => {
+    // ── Randomização das questões ──────────────────────────
+    // Fisher-Yates shuffle
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    const questoesBase = av.randomizar_questoes
+      ? shuffle(av.questoes || [])
+      : (av.questoes || []);
+
+    // Montar questões com alternativas randomizadas SEM gabaritos
+    const questoesCompletas = questoesBase.map(qc => {
       const q = questaoRepo.findById(qc.questao_id);
       if (!q) return null;
       const { gabarito, ...semGabarito } = q;
-      return { ...semGabarito, peso: qc.peso || 1 };
+
+      // Randomizar alternativas de multipla_escolha mantendo mapeamento
+      let mapeamentoAlternativas = null;
+      if (av.randomizar_alternativas && q.tipo === 'multipla_escolha' && Array.isArray(q.alternativas)) {
+        const indices = q.alternativas.map((_, i) => i);
+        const indicesEmbaralhados = shuffle(indices);
+        const altEmbaralhadas = indicesEmbaralhados.map(i => q.alternativas[i]);
+        // mapeamento: posição nova → índice original
+        mapeamentoAlternativas = indicesEmbaralhados;
+        semGabarito.alternativas = altEmbaralhadas;
+      }
+
+      return { ...semGabarito, peso: qc.peso || 1, _mapeamento: mapeamentoAlternativas };
     }).filter(Boolean);
+
+    // Salvar ordem e mapeamentos na tentativa para correção correta
+    const ordemQuestoes      = questoesCompletas.map(q => q.id);
+    const mapeamentosAlt     = {};
+    questoesCompletas.forEach(q => {
+      if (q._mapeamento) mapeamentosAlt[q.id] = q._mapeamento;
+      delete q._mapeamento; // não enviar ao frontend
+    });
 
     // Calcular tempo restante em segundos
     const tempoTotalSegundos = (av.tempo_limite || 60) * 60;
@@ -189,6 +238,8 @@ async function iniciar(req, res, next) {
     const tentativa = avaliacaoRepo.createTentativa({
       avaliacao_id: av.id, aluno_id: req.user.id,
       status: 'em_andamento', respostas: [], iniciada_em: new Date().toISOString(),
+      ordem_questoes: ordemQuestoes,
+      mapeamentos_alternativas: Object.keys(mapeamentosAlt).length > 0 ? mapeamentosAlt : null,
     });
     res.status(201).json({ tentativa, avaliacao: avaliacaoComQuestoes, tempo_restante_segundos: tempoTotalSegundos });
   } catch(e){ next(e); }
@@ -248,7 +299,17 @@ async function concluir(req, res, next) {
           score = av_ia.score || 0;
         } catch { score = 0.5; }
       } else {
-        score = triService.checkResposta(q.tipo, q.gabarito, rAluno.resposta) ? 1 : 0;
+        // Verificar mapeamento de alternativas para correção correta
+        let respostaParaCorrigir = rAluno.resposta;
+        const mapeamentos = tentativa.mapeamentos_alternativas;
+        if (q.tipo === 'multipla_escolha' && mapeamentos && mapeamentos[q.id]) {
+          // Converter posição embaralhada → índice original do gabarito
+          const mapa = mapeamentos[q.id]; // mapa[posiçãoNova] = índiceOriginal
+          if (typeof respostaParaCorrigir === 'number') {
+            respostaParaCorrigir = mapa[respostaParaCorrigir]; // converter para índice original
+          }
+        }
+        score = triService.checkResposta(q.tipo, q.gabarito, respostaParaCorrigir) ? 1 : 0;
       }
 
       pontosBrutos += score * peso;
