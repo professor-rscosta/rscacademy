@@ -25,7 +25,7 @@ export default function ProfQuestoes({ autoCreate } = {}) {
 
   const load = async () => {
     try {
-      const [qRes, tRes] = await Promise.all([
+      const [qRes, tRes, dRes] = await Promise.all([
         api.get(`/questoes?professor_id=${user.id}`),
         api.get(`/trilhas?professor_id=${user.id}`),
       ]);
@@ -330,6 +330,7 @@ export default function ProfQuestoes({ autoCreate } = {}) {
       {showModal && (
         <CriarQuestaoModal
           trilhas={trilhas}
+          disciplinas={disciplinas}
           trilha_id_inicial={Number(trilhaSel) || Number(trilhas[0]?.id) || 0}
           questaoEdit={editQuestao}
           onClose={() => { setShowModal(false); setEditQ(null); }}

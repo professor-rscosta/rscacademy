@@ -559,6 +559,7 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, onBack, onUpdate }) {
       {showModal && (
         <CriarQuestaoModal
           trilhas={trilhas}
+          disciplinas={disciplinasProf}
           trilha_id_inicial={trilhas[0]?.id}
           questaoEdit={editandoQ}
           onClose={() => { setShowModal(false); setEditandoQ(null); }}
@@ -831,14 +832,16 @@ export default function ProfAvaliacoes({ autoCreate } = {}) {
   const [showCriar, setShowCriar] = useState(false);
   const [viewResultados, setViewRes] = useState(null);
   const [editQuestoes, setEditQ]    = useState(null);
+  const [disciplinasProf, setDiscProf] = useState([]);
 
   const load = async () => {
     try {
-      const [avRes, tRes, qRes, trRes] = await Promise.all([
+      const [avRes, tRes, qRes, trRes, dRes] = await Promise.all([
         api.get('/avaliacoes?professor_id='+user.id),
         api.get('/turmas?professor_id='+user.id),
         api.get('/questoes?professor_id='+user.id),
         api.get('/trilhas?professor_id='+user.id),
+        api.get('/disciplinas'),
       ]);
       setAvs(avRes.data.avaliacoes || []);
       setTurmas(tRes.data.turmas || []);
@@ -846,6 +849,8 @@ export default function ProfAvaliacoes({ autoCreate } = {}) {
       const trList = trRes.data.trilhas || [];
       trList.forEach(t=>{ trilhasMap[t.id]=t.nome; });
       setTrilhas(trList);
+      // disciplinas available in scope as dRes.data.disciplinas
+      setDiscProf(dRes?.data?.disciplinas || []);
       setQs((qRes.data.questoes||[]).map(q=>({ ...q, trilha_nome: q.trilha_id?(trilhasMap[q.trilha_id]||'Trilha'):'' })));
     } catch(e){ console.error(e); }
     setLoading(false);

@@ -9,10 +9,13 @@ const { generateCurvePoints } = require('../services/tri.service');
 
 async function list(req, res, next) {
   try {
-    const { trilha_id, professor_id } = req.query;
+    const { trilha_id, professor_id, disciplina_id, tipo_uso } = req.query;
     let questoes;
-    if (trilha_id)     questoes = questaoRepo.findByTrilha(trilha_id);
-    else if (professor_id) questoes = questaoRepo.findByProfessor(professor_id);
+    if (trilha_id)       questoes = questaoRepo.findByTrilha(trilha_id);
+    else if (disciplina_id) questoes = questaoRepo.findByDisciplina ? questaoRepo.findByDisciplina(disciplina_id) : questaoRepo.findAll().filter(q=>String(q.disciplina_id)===String(disciplina_id));
+    else if (professor_id)  questoes = questaoRepo.findByProfessor(professor_id);
+    else                    questoes = questaoRepo.findAll();
+    if (tipo_uso) questoes = questoes.filter(q => q.tipo_uso === tipo_uso || q.tipo_uso === 'ambos' || (!q.tipo_uso && tipo_uso === 'trilha'));
     else questoes = questaoRepo.findAll();
     // Remove senha_hash se vier por join
     res.json({ questoes, total: questoes.length });
@@ -29,13 +32,30 @@ async function getById(req, res, next) {
 
 async function create(req, res, next) {
   try {
-    const { trilha_id, tipo, enunciado, alternativas, gabarito, xp, tri, rag_tags, midias } = req.body;
-    if (!trilha_id || !tipo || !enunciado) return res.status(400).json({ error: 'trilha_id, tipo e enunciado são obrigatórios.' });
-    const trilha = trilhaRepo.findById(trilha_id);
-    if (!trilha) return res.status(404).json({ error: 'Trilha não encontrada.' });
+    const { trilha_id, tipo, enunciado, alternativas, gabarito, xp, tri, rag_tags, midias,
+            disciplina_id, tipo_uso, nivel, instrucoes_extras, dica, explicacao } = req.body;
+    if (!tipo || !enunciado) return res.status(400).json({ error: 'tipo e enunciado são obrigatórios.' });
+
+    const modoUso = tipo_uso || (trilha_id ? 'trilha' : 'banco');
+
+    // Validar trilha se for modo trilha
+    let trilha = null;
+    if (trilha_id) {
+      trilha = trilhaRepo.findById(trilha_id);
+      if (!trilha) return res.status(404).json({ error: 'Trilha não encontrada.' });
+    } else if (modoUso === 'trilha') {
+      return res.status(400).json({ error: 'trilha_id é obrigatório para questões de trilha.' });
+    }
 
     const questao = questaoRepo.create({
-      trilha_id: Number(trilha_id), professor_id: req.user.id,
+      trilha_id: trilha_id ? Number(trilha_id) : null,
+      disciplina_id: disciplina_id ? Number(disciplina_id) : null,
+      tipo_uso: modoUso,
+      nivel: nivel || 'intermediário',
+      dica: dica || null,
+      explicacao: explicacao || null,
+      instrucoes_extras: instrucoes_extras || null,
+      professor_id: req.user.id,
       tipo, enunciado, alternativas: alternativas || null,
       gabarito, xp: xp || 100, ativo: true,
       tri: tri || { modelo:'2PL', a:1.0, b:0.0, c:0, status:'provisorio', total_respostas:0 },

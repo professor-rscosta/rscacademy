@@ -49,7 +49,7 @@ function altsDefault(tipoId) {
   return null;
 }
 
-export default function CriarQuestaoModal({ trilhas = [], trilha_id_inicial, questaoEdit, onClose, onSalvar }) {
+export default function CriarQuestaoModal({ trilhas = [], disciplinas = [], trilha_id_inicial, questaoEdit, contexto = null, onClose, onSalvar }) {
   const modoEditar = !!questaoEdit;
 
   // ── Inicializar estado ────────────────────────────────────────
@@ -82,6 +82,14 @@ export default function CriarQuestaoModal({ trilhas = [], trilha_id_inicial, que
     return triDefault('2PL');
   };
 
+  // Modo: 'trilha' | 'avaliacao' | 'banco'
+  const [modoUso, setModoUso]     = useState(
+    questaoEdit?.tipo_uso || contexto?.tipo ||
+    (trilha_id_inicial && trilha_id_inicial > 0 ? 'trilha' : 'banco')
+  );
+  const [disciplinaId, setDiscId] = useState(
+    questaoEdit?.disciplina_id || contexto?.disciplina_id || ''
+  );
   const [step, setStep]           = useState(modoEditar ? 2 : 1);
   const [trilhaId, setTrilhaId]   = useState(initTrilhaId);
   const [tipo, setTipo]           = useState(initTipo);
@@ -143,8 +151,14 @@ export default function CriarQuestaoModal({ trilhas = [], trilha_id_inicial, que
 
   // ── Salvar (criar ou editar) ─────────────────────────────────
   const salvar = async () => {
-    const tidNum = Number(trilhaId);
-    if (!tidNum || tidNum <= 0) { setError('Selecione uma trilha válida.'); return; }
+    const tidNum = Number(trilhaId) || 0;
+    // Validar destino conforme modo
+    if (modoUso === 'trilha' && (!tidNum || tidNum <= 0)) {
+      setError('Selecione uma trilha válida para questões de trilha.'); return;
+    }
+    if (modoUso === 'avaliacao' && !disciplinaId) {
+      setError('Selecione uma disciplina para questões de avaliação.'); return;
+    }
     if (!tipo?.id)               { setError('Selecione o tipo da questão.'); return; }
     if (!form.enunciado.trim())  { setError('Enunciado é obrigatório.'); return; }
     if (!gabaritoValido(tipo.id, form.gabarito)) { setError('Defina o gabarito correto.'); return; }
@@ -154,7 +168,9 @@ export default function CriarQuestaoModal({ trilhas = [], trilha_id_inicial, que
       const tags   = form.rag_tags ? form.rag_tags.split(',').map(t=>t.trim()).filter(Boolean) : [];
       const midias = (form.midias || []).filter(m => m.tipo && m.tipo !== 'nenhum');
       const payload = {
-        trilha_id:    tidNum,
+        trilha_id:    tidNum || null,
+        disciplina_id: disciplinaId ? Number(disciplinaId) : null,
+        tipo_uso:     modoUso,
         tipo:         tipo.id,
         enunciado:    form.enunciado,
         alternativas: form.alternativas || null,
@@ -163,6 +179,8 @@ export default function CriarQuestaoModal({ trilhas = [], trilha_id_inicial, que
         tri,
         rag_tags:     tags,
         midias,
+        nivel:        form.nivel || 'intermediário',
+        explicacao:   form.explicacao || null,
       };
 
       let questao;
@@ -371,32 +389,84 @@ export default function CriarQuestaoModal({ trilhas = [], trilha_id_inicial, que
         <div style={{ padding:'1.5rem' }}>
           {error && <div className="alert alert-error" style={{ marginBottom:'1rem' }}>{error}</div>}
 
-          {/* ════ STEP 1: Trilha + Tipo (só criação) ════ */}
+          {/* ════ STEP 1: Modo + Destino + Tipo ════ */}
           {step===1 && !modoEditar && (
             <>
-              <div className="field" style={{ marginBottom:'1.25rem' }}>
-                <label style={{ fontWeight:600 }}>Trilha de destino <span style={{color:'var(--coral)'}}>*</span></label>
-                <select value={trilhaId||''} onChange={e=>setTrilhaId(Number(e.target.value))}
-                  style={{ width:'100%', padding:'10px 14px', border:'2px solid '+(trilhaId?'var(--emerald)':'var(--coral)'), borderRadius:8, fontFamily:'var(--font-body)', fontSize:14, outline:'none', background:'rgba(16,185,129,0.04)', color:'var(--navy)', fontWeight:500 }}>
-                  <option value="">-- Selecione uma trilha --</option>
-                  {trilhas.map(t=><option key={t.id} value={t.id}>{t.nome}</option>)}
-                </select>
-                {!trilhaId && <div style={{fontSize:11,color:'var(--coral)',marginTop:4}}>⚠️ Selecione uma trilha para habilitar os tipos</div>}
+              {/* Modo de uso */}
+              <div style={{ marginBottom:'1.25rem' }}>
+                <label style={{ fontWeight:600, display:'block', marginBottom:8 }}>Modo da questão:</label>
+                <div style={{ display:'flex', gap:8 }}>
+                  {[
+                    { v:'trilha',    icon:'🎮', label:'Trilha',    desc:'Gamificação e XP' },
+                    { v:'avaliacao', icon:'📊', label:'Avaliação', desc:'Prova formal' },
+                    { v:'ambos',     icon:'🔀', label:'Ambos',     desc:'Trilha + Avaliação' },
+                  ].map(opt => (
+                    <div key={opt.v} onClick={() => setModoUso(opt.v)} style={{
+                      flex:1, padding:'12px 10px', textAlign:'center', borderRadius:10, cursor:'pointer',
+                      border:'2px solid '+(modoUso===opt.v?'var(--emerald)':'var(--slate-200)'),
+                      background:modoUso===opt.v?'rgba(16,185,129,.08)':'white', transition:'all .12s',
+                    }}>
+                      <div style={{ fontSize:22, marginBottom:4 }}>{opt.icon}</div>
+                      <div style={{ fontWeight:700, fontSize:12, color:'var(--navy)' }}>{opt.label}</div>
+                      <div style={{ fontSize:10, color:'var(--slate-400)' }}>{opt.desc}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
+              {/* Trilha (se modo trilha ou ambos) */}
+              {(modoUso === 'trilha' || modoUso === 'ambos') && (
+                <div className="field" style={{ marginBottom:'1rem' }}>
+                  <label style={{ fontWeight:600 }}>
+                    🎮 Trilha de destino
+                    {modoUso === 'trilha' && <span style={{color:'var(--coral)'}}> *</span>}
+                    {modoUso === 'ambos'  && <span style={{ fontSize:11, color:'var(--slate-400)', fontWeight:400, marginLeft:6 }}>(opcional para ambos)</span>}
+                  </label>
+                  <select value={trilhaId||''} onChange={e=>setTrilhaId(Number(e.target.value))}
+                    style={{ width:'100%', padding:'10px 14px', border:'2px solid '+(trilhaId||modoUso==='ambos'?'var(--emerald)':'var(--coral)'), borderRadius:8, fontFamily:'var(--font-body)', fontSize:14, outline:'none' }}>
+                    <option value="">-- Selecione uma trilha --</option>
+                    {trilhas.map(t=><option key={t.id} value={t.id}>{t.nome}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {/* Disciplina (se modo avaliacao ou ambos) */}
+              {(modoUso === 'avaliacao' || modoUso === 'ambos') && (
+                <div className="field" style={{ marginBottom:'1rem' }}>
+                  <label style={{ fontWeight:600 }}>
+                    📚 Disciplina
+                    {modoUso === 'avaliacao' && <span style={{color:'var(--coral)'}}> *</span>}
+                  </label>
+                  {disciplinas.length > 0 ? (
+                    <select value={disciplinaId||''} onChange={e=>setDiscId(e.target.value)}
+                      style={{ width:'100%', padding:'10px 14px', border:'1.5px solid var(--slate-200)', borderRadius:8, fontSize:14, outline:'none' }}>
+                      <option value="">-- Selecione a disciplina --</option>
+                      {disciplinas.map(d=><option key={d.id} value={d.id}>{d.nome}</option>)}
+                    </select>
+                  ) : (
+                    <div style={{ padding:'10px', background:'#fffbeb', border:'1px solid #fcd34d', borderRadius:8, fontSize:12, color:'#92400e' }}>
+                      ⚠️ Nenhuma disciplina disponível. Crie disciplinas primeiro em "Disciplinas".
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tipo de questão */}
               <div style={{ fontFamily:'var(--font-head)', fontSize:14, fontWeight:600, color:'var(--navy)', marginBottom:'0.75rem' }}>Tipo de questão:</div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(185px,1fr))', gap:8 }}>
-                {TIPOS.map(t=>(
-                  <div key={t.id} onClick={()=>selecionarTipo(t)}
-                    style={{ padding:'14px 12px', border:'1.5px solid var(--slate-200)', borderRadius:12, cursor:trilhaId?'pointer':'not-allowed', opacity:trilhaId?1:0.5, transition:'all .15s', background:'white' }}
-                    onMouseEnter={e=>{if(trilhaId){e.currentTarget.style.borderColor='var(--emerald)';e.currentTarget.style.background='rgba(16,185,129,0.04)';}}}
+                {TIPOS.map(t=>{
+                  const destOk = (modoUso==='trilha'&&!!trilhaId)||(modoUso==='avaliacao')||(modoUso==='ambos');
+                  return (
+                  <div key={t.id} onClick={()=>{ if(destOk) selecionarTipo(t); }}
+                    style={{ padding:'14px 12px', border:'1.5px solid var(--slate-200)', borderRadius:12, cursor:destOk?'pointer':'not-allowed', opacity:destOk?1:0.5, transition:'all .15s', background:'white' }}
+                    onMouseEnter={e=>{if(destOk){e.currentTarget.style.borderColor='var(--emerald)';e.currentTarget.style.background='rgba(16,185,129,0.04)';}}}
                     onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--slate-200)';e.currentTarget.style.background='white';}}>
                     <div style={{fontSize:22,marginBottom:6}}>{t.icon}</div>
                     <div style={{fontWeight:600,fontSize:13,color:'var(--navy)',marginBottom:2}}>{t.label}</div>
                     <div style={{fontSize:11,color:'var(--slate-400)',marginBottom:6}}>{t.desc}</div>
                     <div style={{fontSize:10,color:'var(--emerald-dark)',fontWeight:600}}>TRI: {t.tri}</div>
                   </div>
-                ))}
+                );})}
               </div>
             </>
           )}
