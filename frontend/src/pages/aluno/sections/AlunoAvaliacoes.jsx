@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../../../context/AuthContext';
 import api from '../../../hooks/useApi';
 import { EmptyState } from '../../../components/ui';
 import {
@@ -256,6 +257,7 @@ function renderFeedback(text) {
 }
 
 export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
+  const { user }                = useAuth();
   const [avs, setAvs]           = useState([]);
   const [loading, setLoading]   = useState(true);
   const [fase, setFase]         = useState('lista');
@@ -312,8 +314,9 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
     } catch(e){ console.error(e); }
   };
 
+  const pedirConfirmar = () => setShowConfirm(true);
   const concluir = async () => {
-    if (!window.confirm('Confirmar envio? Não será possível alterar as respostas.')) return;
+    setShowConfirm(false);
     setSubmitting(true);
     try {
       const r = await api.post('/avaliacoes/tentativa/'+tentativaAtual.id+'/concluir');
@@ -382,7 +385,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
 
         {/* ── INFORMAÇÕES GERAIS ── */}
         <div style={{ background:'white', border:'1px solid var(--slate-200)', borderRadius:12, padding:'14px 18px', marginBottom:'1rem', display:'flex', flexWrap:'wrap', gap:'0.75rem', fontSize:13 }}>
-          <span>👤 <strong>{user?.nome}</strong></span>
+          <span>👤 <strong>{user?.nome || 'Aluno'}</strong></span>
           <span style={{ color:'var(--slate-300)' }}>|</span>
           <span>📅 {dataStr}</span>
           <span style={{ color:'var(--slate-300)' }}>|</span>
@@ -607,10 +610,11 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
 
           {Comp && (
             <Comp
+              key={questaoAtual.id}
               questao={questaoAtual}
               onAnswer={resp => salvarResposta(questaoAtual.id, resp)}
               disabled={false}
-              respostaDada={respAtual}
+              respostaDada={respostas[questaoAtual.id]}
             />
           )}
         </div>
@@ -627,7 +631,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
               Próxima →
             </button>
           ) : (
-            <button onClick={concluir} disabled={submitting}
+            <button onClick={pedirConfirmar} disabled={submitting}
               style={{ flex:1, padding:'10px', background:'linear-gradient(135deg,var(--emerald),var(--emerald-dark))', color:'white', border:'none', borderRadius:8, fontWeight:700, fontSize:14, cursor:'pointer', opacity:submitting?0.7:1 }}>
               {submitting ? '⏳ Enviando...' : '🚀 Finalizar ('+respondidas+'/'+questoes.length+')'}
             </button>

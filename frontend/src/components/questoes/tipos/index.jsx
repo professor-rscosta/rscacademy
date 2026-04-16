@@ -25,8 +25,10 @@ export function MultiplaEscolha({ questao, onAnswer, disabled, respostaDada }) {
   const [sel, setSel] = useState(respostaDada ?? null);
   const alts = questao.alternativas || [];
 
+  useEffect(() => { setSel(respostaDada ?? null); }, [respostaDada]);
+
   const escolher = (i) => {
-    if (disabled || sel !== null) return;
+    if (disabled) return;
     setSel(i); onAnswer?.(i);
   };
 
@@ -46,8 +48,13 @@ export function MultiplaEscolha({ questao, onAnswer, disabled, respostaDada }) {
 export function VerdadeiroFalso({ questao, onAnswer, disabled, respostaDada }) {
   const [sel, setSel] = useState(respostaDada ?? null);
 
+  // Sync when respostaDada changes (e.g. navigating between questions)
+  useEffect(() => {
+    setSel(respostaDada ?? null);
+  }, [respostaDada]);
+
   const escolher = (val) => {
-    if (disabled || sel !== null) return;
+    if (disabled) return;
     setSel(val); onAnswer?.(val);
   };
 
