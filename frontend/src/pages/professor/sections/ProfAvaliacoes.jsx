@@ -314,7 +314,7 @@ function ModalCriar({ turmas, questoesDisp, onClose, onSalvar }) {
 // Criar nova questão (com IA + mídia), editar, remover, importar banco
 // ════════════════════════════════════════════════════════════════
 
-function GerenciarQuestoes({ av, questoesDisp, trilhas, onBack, onUpdate }) {
+function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack, onUpdate }) {
   const [questoes, setQuestoes] = useState(() => av.questoes || []);
   const [saving, setSaving]     = useState(false);
   const [alert, setAlert]       = useState(null);
@@ -559,7 +559,7 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, onBack, onUpdate }) {
       {showModal && (
         <CriarQuestaoModal
           trilhas={trilhas}
-          disciplinas={disciplinasProf}
+          disciplinas={disciplinas}
           trilha_id_inicial={trilhas[0]?.id}
           questaoEdit={editandoQ}
           onClose={() => { setShowModal(false); setEditandoQ(null); }}
