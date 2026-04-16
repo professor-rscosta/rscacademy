@@ -536,7 +536,34 @@ async function gerarFeedbackPedagogico(aluno, av, nota, corretas, totalQ, respos
   });
 }
 
-module.exports = { list, getById, create, update, remove, publicar, iniciar, responderQuestao, concluir, resultados, minhasTentativas, listarEntregas, corrigirManual, clonar, vincularTurmas, turmasDaAvaliacao };
+
+// ── RESPONDER múltiplas questões de uma vez (batch) ─────────
+async function responderBatch(req, res, next) {
+  try {
+    const { tentativa_id, respostas } = req.body;
+    if (!tentativa_id || !Array.isArray(respostas)) {
+      return res.status(400).json({ error: 'tentativa_id e respostas[] são obrigatórios.' });
+    }
+    const tentativa = avaliacaoRepo.findTentativaById(tentativa_id);
+    if (!tentativa || tentativa.aluno_id !== req.user.id)
+      return res.status(404).json({ error: 'Tentativa não encontrada.' });
+    if (tentativa.status === 'concluida')
+      return res.status(400).json({ error: 'Tentativa já concluída.' });
+
+    // Salvar todas as respostas de uma vez
+    const respostasAtuais = tentativa.respostas || [];
+    for (const r of respostas) {
+      const idx = respostasAtuais.findIndex(x => x.questao_id === r.questao_id);
+      const respData = { questao_id: r.questao_id, resposta: r.resposta, respondida_em: new Date().toISOString() };
+      if (idx >= 0) respostasAtuais[idx] = respData;
+      else respostasAtuais.push(respData);
+    }
+    avaliacaoRepo.updateTentativa(tentativa_id, { respostas: respostasAtuais });
+    res.json({ ok: true, total: respostas.length });
+  } catch(e) { next(e); }
+}
+
+module.exports = { list, getById, create, update, remove, publicar, iniciar, responderQuestao, responderBatch, concluir, resultados, minhasTentativas, listarEntregas, corrigirManual, clonar, vincularTurmas, turmasDaAvaliacao };
 
 // ── Listar entregas de upload para o professor corrigir ────────
 async function listarEntregas(req, res, next) {

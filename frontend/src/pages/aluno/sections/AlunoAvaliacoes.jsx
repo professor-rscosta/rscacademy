@@ -259,6 +259,7 @@ function renderFeedback(text) {
 export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
   const { user }                = useAuth();
   const [avs, setAvs]           = useState([]);
+  const [disciplinasMap, setDiscMap] = useState({});
   const [loading, setLoading]   = useState(true);
   const [fase, setFase]         = useState('lista');
   const [avAtual, setAvAtual]   = useState(null);
@@ -285,8 +286,14 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
 
   const load = async () => {
     try {
-      const r = await api.get('/avaliacoes');
+      const [r, dRes] = await Promise.all([
+        api.get('/avaliacoes'),
+        api.get('/disciplinas').catch(() => ({ data: { disciplinas: [] } })),
+      ]);
       setAvs(r.data.avaliacoes || []);
+      const dm = {};
+      (dRes.data.disciplinas || []).forEach(d => { dm[d.id] = d.nome; });
+      setDiscMap(dm);
     } catch(e){ console.error(e); }
     setLoading(false);
   };
@@ -307,11 +314,16 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
     } catch(e){ alert(e.response?.data?.error || 'Erro ao iniciar avaliação.'); }
   };
 
-  const salvarResposta = async (qid, resp) => {
+  // Salvar resposta LOCALMENTE (sem API por questão - evita bloqueio Kaspersky)
+  const salvarResposta = (qid, resp) => {
     setRespostas(prev => ({ ...prev, [qid]: resp }));
+    // Persiste no localStorage como backup
     try {
-      await api.post('/avaliacoes/responder', { tentativa_id: tentativaAtual.id, questao_id: qid, resposta: typeof resp === "object" && resp !== null ? JSON.stringify(resp) : resp });
-    } catch(e){ console.error(e); }
+      const key = 'av_respostas_' + (tentativaAtual?.id || 'rascunho');
+      const current = JSON.parse(localStorage.getItem(key) || '{}');
+      current[qid] = resp;
+      localStorage.setItem(key, JSON.stringify(current));
+    } catch(e) {}
   };
 
   const pedirConfirmar = () => {
@@ -326,11 +338,42 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
     setShowConfirm(false);
     setSubmitting(true);
     try {
+      // Enviar TODAS as respostas em um único request (evita múltiplas chamadas que Kaspersky bloqueia)
+      const respostasArray = Object.entries(respostas).map(([qid, resp]) => ({
+        questao_id: Number(qid),
+        resposta: typeof resp === 'object' && resp !== null ? JSON.stringify(resp) : resp,
+      }));
+
+      // Salvar todas as respostas em um batch primeiro
+      if (respostasArray.length > 0) {
+        await api.post('/avaliacoes/responder-batch', {
+          tentativa_id: tentativaAtual.id,
+          respostas: respostasArray,
+        }).catch(() => {
+          // Fallback: salvar uma por uma se batch não existir
+          return Promise.allSettled(respostasArray.map(r =>
+            api.post('/avaliacoes/responder', { tentativa_id: tentativaAtual.id, ...r })
+          ));
+        });
+      }
+
+      // Concluir a tentativa
       const r = await api.post('/avaliacoes/tentativa/'+tentativaAtual.id+'/concluir');
+
+      // Limpar localStorage backup
+      try { localStorage.removeItem('av_respostas_' + tentativaAtual.id); } catch(e) {}
+
       setResultado(r.data);
       setFase('resultado');
       load();
-    } catch(e){ alert(e.response?.data?.error || 'Erro ao concluir.'); }
+    } catch(e) {
+      const msg = e.response?.data?.error || e.message || 'Erro ao concluir avaliação.';
+      if (msg.includes('network') || msg.includes('Network') || e.code === 'ERR_NETWORK_IO_SUSPENDED') {
+        alert('Erro de conexão detectado. Verifique seu antivírus/firewall (ex: Kaspersky pode bloquear requisições). Tente novamente.');
+      } else {
+        alert(msg);
+      }
+    }
     setSubmitting(false);
   };
 
@@ -677,15 +720,37 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
         <div style={{ textAlign:'center', padding:'3rem' }}><div className="spinner" style={{ margin:'0 auto' }} /></div>
       ) : avs.length === 0 ? (
         <div className="card"><EmptyState icon="📝" title="Nenhuma avaliação disponível" sub="Seu professor publicará avaliações em breve" /></div>
-      ) : (
-        <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
-          {avs.map(av => {
+      ) : (() => {
+        // Agrupar por disciplina
+        const porDisc = {};
+        avs.forEach(av => {
+          const did = av.disciplina_id ? String(av.disciplina_id) : '__sem__';
+          if (!porDisc[did]) porDisc[did] = [];
+          porDisc[did].push(av);
+        });
+        return (
+          <div style={{ display:'flex', flexDirection:'column', gap:'1.5rem' }}>
+            {Object.entries(porDisc).map(([did, discAvs]) => {
+              const discNome = did === '__sem__' ? null : (disciplinasMap[Number(did)] || 'Disciplina ' + did);
+              return (
+                <div key={did}>
+                  {discNome && (
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                      <div style={{ width:4, height:20, background:'var(--navy)', borderRadius:2 }}/>
+                      <span style={{ fontFamily:'var(--font-head)', fontSize:14, fontWeight:700, color:'var(--navy)' }}>
+                        📚 {discNome}
+                      </span>
+                      <span style={{ fontSize:11, color:'var(--slate-400)' }}>({discAvs.length})</span>
+                    </div>
+                  )}
+                  <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
+                  {discAvs.map(av => {
             const encerrada = av.encerra_em && new Date(av.encerra_em) < new Date();
             const esgotada  = (av.tentativas_feitas||0) >= (av.tentativas_permitidas||1);
             const numQ      = av.total_questoes ?? (Array.isArray(av.questoes) ? av.questoes.length : 0);
             const isEntrega = av.tipo === 'entrega';
             return (
-              <div key={av.id} className="card" style={{ borderLeft:'4px solid '+(av.minha_nota!=null?(av.minha_nota>=av.nota_minima?'var(--emerald)':'#f59e0b'):isEntrega?'var(--sky)':'var(--sky)') }}>
+              <div key={av.id} className="card" style={{ borderLeft:'4px solid '+(av.minha_nota!=null?(av.minha_nota>=av.nota_minima?'var(--emerald)':'#f59e0b'):isEntrega?'var(--sky)':'var(--sky)'), margin:0 }}>
                 <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
                   <div style={{ fontSize:26, paddingTop:2 }}>{isEntrega?'📤':'📝'}</div>
                   <div style={{ flex:1 }}>
@@ -717,8 +782,13 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
               </div>
             );
           })}
-        </div>
-      )}
+          </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* ── Modal de confirmação de envio (SweetAlert-style) ── */}
       {showConfirm && (

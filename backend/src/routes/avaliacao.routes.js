@@ -10,6 +10,7 @@ r.patch('/:id/publicar', authorize('professor','admin'), c.publicar);
 r.delete('/:id',      authorize('professor','admin'), c.remove);
 r.post('/:id/iniciar', authorize('aluno'), c.iniciar);
 r.post('/responder',   authorize('aluno'), c.responderQuestao);
+r.post('/responder-batch', authorize('aluno'), c.responderBatch);
 r.post('/tentativa/:tentativa_id/concluir', authorize('aluno'), c.concluir);
 r.get('/:id/resultados', authorize('professor','admin'), c.resultados);
 r.get('/:id/entregas',                    authorize('professor','admin'), c.listarEntregas);
