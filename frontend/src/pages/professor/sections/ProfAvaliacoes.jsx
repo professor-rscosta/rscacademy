@@ -323,6 +323,7 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
   const [filtroTipo, setFTipo]  = useState('');
   const [filtroNivel, setFNivel]= useState('');
   const [filtroDisc, setFDisc]  = useState('');
+  const [agruparDisc, setAgrupar] = useState(true);
 
   // Modal CriarQuestaoModal state
   const [showModal, setShowModal]   = useState(false);
@@ -542,39 +543,39 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
                 ) : (
                   <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
                     {(() => {
-                      if (!agruparDisc) {
-                        return banco.map(q => renderBancoCard(q));
-                      }
-                      // Agrupar por disciplina
-                      const sem = banco.filter(q => !q.disciplina_id);
+                      // Separar por categoria: Avaliação (por disciplina) | Trilha | Ambos
+                      const qAvaliacao = banco.filter(q => q.tipo_uso === 'avaliacao' || q.tipo_uso === 'ambos');
+                      const qTrilha    = banco.filter(q => q.tipo_uso === 'trilha' || (!q.tipo_uso));
+
+                      // Agrupar qAvaliacao por disciplina
                       const porDisc = {};
-                      banco.filter(q => q.disciplina_id).forEach(q => {
-                        const key = String(q.disciplina_id);
+                      qAvaliacao.forEach(q => {
+                        const key = q.disciplina_id ? String(q.disciplina_id) : '__sem__';
                         if (!porDisc[key]) porDisc[key] = [];
                         porDisc[key].push(q);
                       });
+
+                      const Section = ({ cor, hdr, qs }) => qs.length > 0 && (
+                        <div style={{ marginBottom:10 }}>
+                          <div style={{ padding:'5px 10px', background:cor, color:'white', borderRadius:'7px 7px 0 0', fontSize:11, fontWeight:700, display:'flex', alignItems:'center', gap:6 }}>
+                            {hdr} <span style={{ opacity:.6, fontWeight:400 }}>({qs.length})</span>
+                          </div>
+                          <div style={{ border:'1px solid var(--slate-200)', borderRadius:'0 0 7px 7px', overflow:'hidden' }}>
+                            {qs.map(q => renderBancoCard(q))}
+                          </div>
+                        </div>
+                      );
+
                       return (
                         <>
+                          {/* Questões de Avaliação agrupadas por disciplina */}
                           {Object.entries(porDisc).map(([did, qs]) => {
                             const disc = disciplinas.find(d => String(d.id) === did);
-                            return (
-                              <div key={did} style={{ marginBottom:10 }}>
-                                <div style={{ padding:'5px 10px', background:'var(--navy)', color:'white', borderRadius:'6px 6px 0 0', fontSize:11, fontWeight:700, display:'flex', alignItems:'center', gap:6 }}>
-                                  📚 {disc ? disc.nome : 'Disciplina '+did}
-                                  <span style={{ opacity:.6, fontWeight:400 }}>({qs.length})</span>
-                                </div>
-                                {qs.map(q => renderBancoCard(q))}
-                              </div>
-                            );
+                            const nome = disc ? disc.nome : (did === '__sem__' ? 'Sem disciplina' : 'Disciplina '+did);
+                            return <Section key={did} cor="var(--navy)" hdr={'📚 '+nome} qs={qs} />;
                           })}
-                          {sem.length > 0 && (
-                            <div style={{ marginBottom:10 }}>
-                              <div style={{ padding:'5px 10px', background:'var(--slate-400)', color:'white', borderRadius:'6px 6px 0 0', fontSize:11, fontWeight:700 }}>
-                                📋 Sem disciplina ({sem.length})
-                              </div>
-                              {sem.map(q => renderBancoCard(q))}
-                            </div>
-                          )}
+                          {/* Questões de Trilha */}
+                          <Section cor="#059669" hdr="🎮 Trilhas & Desafios" qs={qTrilha} />
                         </>
                       );
                     })()}
