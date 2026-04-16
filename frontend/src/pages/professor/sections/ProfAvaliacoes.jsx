@@ -331,12 +331,9 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
 
   const pesoTotal = questoes.reduce((s, q) => s + (q.peso || 1), 0);
 
-  // Banco: quest-es dispon-veis com filtros avan-ados
-  // Banco mostra apenas questoes de avaliacao ou ambos (nao trilha exclusivo)
-  const bancoBase = questoesDisp.filter(q => {
-    const uso = q.tipo_uso || 'trilha';
-    return uso === 'avaliacao' || uso === 'ambos' || uso === 'banco';
-  });
+  // Banco mostra TODAS as questoes disponíveis (tipo_uso é apenas informativo)
+  // Questões antigas sem tipo_uso também aparecem
+  const bancoBase = questoesDisp; // todas as questões do professor
   const banco = bancoBase.filter(q => {
     if (questoes.find(qc => qc.questao_id === q.id)) return false;
     if (busca && !q.enunciado?.toLowerCase().includes(busca.toLowerCase()) &&
