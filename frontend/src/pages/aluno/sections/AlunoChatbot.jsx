@@ -54,7 +54,11 @@ function MsgBubble({ msg, userFoto }) {
           </div>
         ) : msg.isFile ? (
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <span style={{ fontSize:22 }}>[ ]</span>
+            <span style={{ fontSize:22, display:'flex', alignItems:'center' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+              </svg>
+            </span>
             <div>
               <div style={{ fontWeight:700, fontSize:13 }}>{msg.fileName}</div>
               <div style={{ fontSize:11, opacity:.7 }}>{msg.info}</div>
@@ -88,8 +92,9 @@ function MsgBubble({ msg, userFoto }) {
                 </span>
               )}
               {msg.modoArquivo && (
-                <span style={{ fontSize:10, padding:'3px 10px', borderRadius:99, background:'#fffbeb', color:'#92400e', fontWeight:700, border:'1px solid #fde68a' }}>
-                  [PDF] Fonte: Arquivo
+                <span style={{ fontSize:10, padding:'3px 10px', borderRadius:99, background:'#fffbeb', color:'#92400e', fontWeight:700, border:'1px solid #fde68a', display:'flex', alignItems:'center', gap:3 }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                  Fonte: Arquivo
                 </span>
               )}
               {msg.chunks_usados > 0 && (
@@ -308,7 +313,9 @@ export default function AlunoChatbot() {
             <div style={{ fontWeight:800, fontSize:15 }}>Assistente Virtual RSC Academy</div>
             <div style={{ fontSize:11, opacity:.6, display:'flex', gap:8 }}>
               <span>RAG Avancado</span><span>-</span><span>Memoria</span>
-              {modoArquivo && <><span>-</span><span style={{ color:'#fbbf24' }}>[F] {arquivoNome}</span></>}
+              {modoArquivo && <><span>-</span><span style={{ color:'#fbbf24', display:'flex', alignItems:'center', gap:4 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              {arquivoNome}</span></>}
             </div>
           </div>
           <button onClick={limpar} style={{ padding:'5px 10px', background:'rgba(255,255,255,.12)', border:'1px solid rgba(255,255,255,.2)', borderRadius:8, color:'white', fontSize:11, cursor:'pointer' }}>
@@ -340,7 +347,9 @@ export default function AlunoChatbot() {
         {/* Modo arquivo ativo */}
         {modoArquivo && (
           <div style={{ display:'flex', alignItems:'center', gap:8, background:'rgba(245,158,11,.15)', borderRadius:8, padding:'6px 12px', border:'1px solid rgba(245,158,11,.3)' }}>
-            <span>[Arq]</span>
+            <span style={{ display:'flex', alignItems:'center' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            </span>
             <span style={{ fontSize:12, color:'#fbbf24', fontWeight:600 }}>Modo ChatPDF: {arquivoNome}</span>
             <button onClick={() => { setModoArquivo(false); setArquivoKey(null); setArqNome(''); }} style={{ marginLeft:'auto', padding:'2px 8px', background:'rgba(255,255,255,.15)', border:'none', borderRadius:6, color:'white', fontSize:11, cursor:'pointer' }}>? Sair</button>
           </div>
@@ -384,7 +393,17 @@ export default function AlunoChatbot() {
             onMouseEnter={e => { e.currentTarget.style.borderColor='#3b82f6'; e.currentTarget.style.color='#3b82f6'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor=modoArquivo?'#f59e0b':'#e2e8f0'; e.currentTarget.style.color=modoArquivo?'#f59e0b':'#475569'; }}
           >
-            {uploadingFile ? '...' : '[+]'}
+            {uploadingFile ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <circle cx="12" cy="12" r="9" strokeDasharray="28" strokeDashoffset="28">
+                  <animate attributeName="strokeDashoffset" values="28;0" dur="0.8s" repeatCount="indefinite"/>
+                </circle>
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+              </svg>
+            )}
           </button>
           <input ref={fileRef} type="file" accept=".pdf,.docx,.doc,.txt,.md,.html" style={{ display:'none' }} onChange={handleFileUpload} />
 
@@ -393,7 +412,7 @@ export default function AlunoChatbot() {
             ref={inputRef} value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } }}
-            placeholder={modoArquivo ? `Pergunte sobre "${arquivoNome}"...` : discId ? `Pergunte sobre ${discNome}...` : 'Envie um arquivo [F] ou selecione uma disciplina...'}
+            placeholder={modoArquivo ? `Pergunte sobre "${arquivoNome}"...` : discId ? `Pergunte sobre ${discNome}...` : 'Envie um arquivo (clipe) ou selecione uma disciplina...'}
             disabled={loading}
             rows={1}
             style={{
@@ -421,7 +440,7 @@ export default function AlunoChatbot() {
         <div style={{ fontSize:11, color:'#94a3b8', marginTop:5, textAlign:'center' }}>
           {modoArquivo ? '[PDF] Modo ChatPDF ativo - perguntas sobre o arquivo' :
            discAtual?.embeddings_prontos ? 'Busca semantica ativa' : 'Busca por palavras-chave'}
-          {' - Envie um arquivo para analise individual'}
+          {' - Envie arquivo (clipe)'}
         </div>
       </div>
 

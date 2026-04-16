@@ -214,9 +214,11 @@ function avaliarRelevanciaRAG(chunks, usouEmbeddings) {
   const tfidfScores = chunks.filter(c => c._score).map(c => c._score);
   if (tfidfScores.length > 0) {
     const maxScore = Math.max(...tfidfScores);
+    // TF-IDF requer score minimo mais alto para ser considerado confiante
+    // Pois retorna resultados mesmo sem relação real
     return {
       score: maxScore,
-      confiante: maxScore >= 0.01 && chunks.length >= 2,
+      confiante: maxScore >= 0.05 && chunks.length >= 3,
       detalhe: 'tfidf: max=' + maxScore.toFixed(4) + ' chunks=' + chunks.length,
     };
   }
@@ -261,11 +263,14 @@ async function chat({ userId, mensagem, disciplinaId, modoFileSear = false }) {
   }
 
   // ── PASSO 3: Decidir fonte e buscar ───────────────────────────
-  let modoFonte = 'rag';      // 'rag' | 'web' | 'hibrido'
+  // Se nao ha docs na disciplina, comeca como 'web' diretamente
+  let modoFonte = (!temDocsNaDisciplina && !disciplinaId) ? 'rag' : (!temDocsNaDisciplina ? 'web' : 'rag');
   let webResultados = null;
   let webTexto = '';
 
-  const usarWeb = !relevancia.confiante && webSearch.estaDisponivel();
+  // Usar web se RAG nao esta confiante OU se disciplina nao tem documentos
+  const semDocsNaDisciplina = !temDocsNaDisciplina;
+  const usarWeb = (!relevancia.confiante || semDocsNaDisciplina) && webSearch.estaDisponivel();
 
   if (usarWeb) {
     try {
@@ -301,9 +306,9 @@ async function chat({ userId, mensagem, disciplinaId, modoFileSear = false }) {
 
   // Indicador de fonte para o prompt
   const indicadorFonte = {
-    rag:    '📚 Use os documentos abaixo. Inicie a resposta com "📚 Baseado nos documentos da plataforma:"',
-    web:    '🌐 Use os resultados da web abaixo. Inicie a resposta com "🌐 Baseado em busca na web:"',
-    hibrido:'🔀 Combine documentos e web. Inicie com "🔀 Baseado nos documentos e busca na web:"',
+    rag:    'Inicie sua resposta OBRIGATORIAMENTE com: "Baseado nos documentos da plataforma:" e use apenas os documentos fornecidos.',
+    web:    'Inicie sua resposta OBRIGATORIAMENTE com: "Baseado em busca na web:" e cite as fontes consultadas. NAO diga que nao encontrou nos documentos.',
+    hibrido:'Inicie sua resposta com: "Baseado nos documentos e busca na web:" e combine ambas as fontes.',
   }[modoFonte];
 
   const systemParts = [
