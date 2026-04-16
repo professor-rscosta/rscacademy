@@ -352,6 +352,21 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
     setTimeout(() => setAlert(null), 3000);
   };
 
+  const renderBancoCard = (q) => (
+    <div key={q.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', border:'1px solid var(--slate-200)', borderRadius:8, background:'white', marginBottom:4 }}>
+      <span style={{ fontSize:13, flexShrink:0 }}>{TIPO_Q_ICONS[q.tipo] || '❓'}</span>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ fontSize:12, fontWeight:500, color:'var(--slate-700)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{q.enunciado}</div>
+        <div style={{ display:'flex', gap:6, marginTop:2, flexWrap:'wrap' }}>
+          {q.nivel && <span style={{ fontSize:10, padding:'1px 6px', borderRadius:99, background:'var(--slate-100)', color:'var(--slate-500)' }}>{q.nivel}</span>}
+          {q.tipo_uso === 'avaliacao' && <span style={{ fontSize:10, padding:'1px 6px', borderRadius:99, background:'#eff6ff', color:'#1d4ed8' }}>📊 Avaliação</span>}
+          {q.tipo_uso === 'ambos' && <span style={{ fontSize:10, padding:'1px 6px', borderRadius:99, background:'#f5f3ff', color:'#6d28d9' }}>🔀 Ambos</span>}
+        </div>
+      </div>
+      <button onClick={() => addFromBanco(q)} style={{ padding:'4px 10px', background:'var(--emerald)', color:'white', border:'none', borderRadius:6, fontSize:11, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap' }}>+ Adicionar</button>
+    </div>
+  );
+
   const remover = (qid) => setQuestoes(qs => qs.filter(q => q.questao_id !== qid));
 
   const setPeso = (qid, peso) =>
@@ -526,21 +541,43 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
                   </div>
                 ) : (
                   <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
-                    {banco.map(q => (
-                      <div key={q.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 10px', border:'1px solid var(--slate-200)', borderRadius:8, background:'var(--slate-50)' }}>
-                        <span style={{ fontSize:14, flexShrink:0 }}>{TIPO_Q_ICONS[q.tipo] || '❓'}</span>
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontSize:12, fontWeight:500, color:'var(--slate-700)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{q.enunciado}</div>
-                          <div style={{ fontSize:10, color:'var(--slate-400)', marginTop:1, display:'flex', gap:6 }}>
-                            <span>{q.tipo?.replace(/_/g,' ')}</span>
-                            <span>⭐{q.xp}</span>
-                            {q.trilha_nome && <span>📚{q.trilha_nome}</span>}
-                            {(q.midias||[]).filter(m=>m.tipo!=='nenhum').length>0 && <span style={{color:'var(--sky)'}}>🖼️</span>}
-                          </div>
-                        </div>
-                        <button onClick={() => addFromBanco(q)} style={{ padding:'5px 12px', background:'var(--emerald)', color:'white', border:'none', borderRadius:6, cursor:'pointer', fontSize:11, fontWeight:700, flexShrink:0 }}>+ Add</button>
-                      </div>
-                    ))}
+                    {(() => {
+                      if (!agruparDisc) {
+                        return banco.map(q => renderBancoCard(q));
+                      }
+                      // Agrupar por disciplina
+                      const sem = banco.filter(q => !q.disciplina_id);
+                      const porDisc = {};
+                      banco.filter(q => q.disciplina_id).forEach(q => {
+                        const key = String(q.disciplina_id);
+                        if (!porDisc[key]) porDisc[key] = [];
+                        porDisc[key].push(q);
+                      });
+                      return (
+                        <>
+                          {Object.entries(porDisc).map(([did, qs]) => {
+                            const disc = disciplinas.find(d => String(d.id) === did);
+                            return (
+                              <div key={did} style={{ marginBottom:10 }}>
+                                <div style={{ padding:'5px 10px', background:'var(--navy)', color:'white', borderRadius:'6px 6px 0 0', fontSize:11, fontWeight:700, display:'flex', alignItems:'center', gap:6 }}>
+                                  📚 {disc ? disc.nome : 'Disciplina '+did}
+                                  <span style={{ opacity:.6, fontWeight:400 }}>({qs.length})</span>
+                                </div>
+                                {qs.map(q => renderBancoCard(q))}
+                              </div>
+                            );
+                          })}
+                          {sem.length > 0 && (
+                            <div style={{ marginBottom:10 }}>
+                              <div style={{ padding:'5px 10px', background:'var(--slate-400)', color:'white', borderRadius:'6px 6px 0 0', fontSize:11, fontWeight:700 }}>
+                                📋 Sem disciplina ({sem.length})
+                              </div>
+                              {sem.map(q => renderBancoCard(q))}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
               </>
@@ -893,7 +930,7 @@ export default function ProfAvaliacoes({ autoCreate } = {}) {
   };
 
   if (viewResultados) return <ResultadosView av={viewResultados} onBack={()=>setViewRes(null)} />;
-  if (editQuestoes)   return <GerenciarQuestoes av={editQuestoes} questoesDisp={questoesDisp} trilhas={trilhas} onBack={()=>setEditQ(null)} onUpdate={up=>{ handleUpdateAv(up); setEditQ(up); }} />;
+  if (editQuestoes)   return <GerenciarQuestoes av={editQuestoes} questoesDisp={questoesDisp} trilhas={trilhas} disciplinas={disciplinasProf} onBack={()=>setEditQ(null)} onUpdate={up=>{ handleUpdateAv(up); setEditQ(up); }} />;
 
   return (
     <>

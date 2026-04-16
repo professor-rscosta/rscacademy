@@ -28,10 +28,12 @@ export default function ProfQuestoes({ autoCreate } = {}) {
       const [qRes, tRes, dRes] = await Promise.all([
         api.get(`/questoes?professor_id=${user.id}`),
         api.get(`/trilhas?professor_id=${user.id}`),
+        api.get('/disciplinas'),
       ]);
       const ts = tRes.data.trilhas || [];
       setQuestoes(qRes.data.questoes || []);
       setTrilhas(ts);
+      setDiscs(dRes.data.disciplinas || []);
       if (ts.length > 0 && !trilhaSel) setTrilhaSel(ts[0].id);
     } catch(e) { console.error(e); }
     setLoading(false);
