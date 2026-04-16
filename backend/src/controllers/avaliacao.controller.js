@@ -292,6 +292,21 @@ async function concluir(req, res, next) {
 
     const av = avaliacaoRepo.findById(tentativa.avaliacao_id);
     const questoesConfig = av.questoes || [];
+
+    // Se o cliente enviou respostas no body, salvar agora (single-request flow)
+    if (req.body.respostas && Array.isArray(req.body.respostas) && req.body.respostas.length > 0) {
+      const inlineRespostas = req.body.respostas;
+      const currentResps = tentativa.respostas || [];
+      for (const r of inlineRespostas) {
+        const idx = currentResps.findIndex(x => x.questao_id === r.questao_id);
+        const entry = { questao_id: r.questao_id, resposta: r.resposta, respondida_em: new Date().toISOString() };
+        if (idx >= 0) currentResps[idx] = entry;
+        else currentResps.push(entry);
+      }
+      avaliacaoRepo.updateTentativa(tentativa.id, { respostas: currentResps });
+      tentativa.respostas = currentResps;
+    }
+
     const respostasAluno = tentativa.respostas || [];
     let pontosBrutos = 0, pesoTotal = 0;
     const respostasCorrigidas = [];

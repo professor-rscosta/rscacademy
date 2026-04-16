@@ -605,6 +605,132 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
     );
   }
 
+
+// ── Modal Editar Avaliação ────────────────────────────────────
+function EditAvaliacaoModal({ av, turmas, onClose, onSalvar }) {
+  const [form, setForm] = React.useState({
+    titulo:                av.titulo || '',
+    descricao:             av.descricao || '',
+    tempo_limite:          av.tempo_limite || 60,
+    tentativas_permitidas: av.tentativas_permitidas || 1,
+    nota_minima:           av.nota_minima || 6,
+    disponivel_em:         av.disponivel_em ? av.disponivel_em.slice(0,16) : '',
+    encerra_em:            av.encerra_em    ? av.encerra_em.slice(0,16)    : '',
+    turma_id:              av.turma_id || '',
+  });
+  const [saving, setSaving] = React.useState(false);
+  const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
+
+  const salvar = async () => {
+    if (!form.titulo.trim()) { alert('Titulo obrigatorio.'); return; }
+    setSaving(true);
+    try {
+      const payload = {
+        ...form,
+        tempo_limite:          Number(form.tempo_limite),
+        tentativas_permitidas: Number(form.tentativas_permitidas),
+        nota_minima:           Number(form.nota_minima),
+        disponivel_em:         form.disponivel_em ? new Date(form.disponivel_em).toISOString() : null,
+        encerra_em:            form.encerra_em    ? new Date(form.encerra_em).toISOString()    : null,
+        turma_id:              form.turma_id ? Number(form.turma_id) : null,
+      };
+      const r = await api.put('/avaliacoes/' + av.id, payload);
+      onSalvar(r.data.avaliacao || { ...av, ...payload });
+      showToast('Avaliacao atualizada!', 'success');
+    } catch(e) {
+      showToast('Erro: ' + (e.response?.data?.error || e.message), 'error');
+    }
+    setSaving(false);
+  };
+
+  const inp = (label, k, type, extra) => (
+    <div className="field">
+      <label>{label}</label>
+      <input type={type||'text'} value={form[k]} onChange={set(k)} {...(extra||{})}
+        style={{ padding:'8px 12px', border:'1.5px solid var(--slate-200)', borderRadius:8, fontSize:13, outline:'none', width:'100%', boxSizing:'border-box' }}
+        onFocus={e=>e.target.style.borderColor='var(--emerald)'}
+        onBlur={e=>e.target.style.borderColor='var(--slate-200)'}
+      />
+    </div>
+  );
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.55)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem', backdropFilter:'blur(2px)' }}>
+      <div style={{ background:'white', borderRadius:16, width:'100%', maxWidth:520, maxHeight:'92vh', overflow:'auto', boxShadow:'0 25px 60px rgba(0,0,0,.3)' }}>
+        {/* Header */}
+        <div style={{ background:'linear-gradient(135deg,var(--navy),#2d5a9e)', padding:'1rem 1.25rem', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, zIndex:1 }}>
+          <span style={{ fontFamily:'var(--font-head)', fontSize:16, fontWeight:700, color:'white' }}>Editar Avaliacao</span>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'white', fontSize:20, cursor:'pointer', opacity:.7 }}>&#x2715;</button>
+        </div>
+
+        <div style={{ padding:'1.25rem', display:'flex', flexDirection:'column', gap:'0.75rem' }}>
+          {/* Titulo */}
+          <div className="field">
+            <label>Titulo *</label>
+            <input value={form.titulo} onChange={set('titulo')} placeholder="Nome da avaliacao"
+              style={{ padding:'8px 12px', border:'1.5px solid var(--slate-200)', borderRadius:8, fontSize:13, outline:'none', width:'100%', boxSizing:'border-box' }}
+              onFocus={e=>e.target.style.borderColor='var(--emerald)'} onBlur={e=>e.target.style.borderColor='var(--slate-200)'}/>
+          </div>
+
+          {/* Descricao */}
+          <div className="field">
+            <label>Descricao</label>
+            <textarea value={form.descricao} onChange={set('descricao')} rows={3}
+              style={{ padding:'8px 12px', border:'1.5px solid var(--slate-200)', borderRadius:8, fontSize:13, outline:'none', width:'100%', boxSizing:'border-box', resize:'vertical', fontFamily:'var(--font-body)' }}
+              onFocus={e=>e.target.style.borderColor='var(--emerald)'} onBlur={e=>e.target.style.borderColor='var(--slate-200)'}/>
+          </div>
+
+          {/* Grid de numericos */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
+            {inp('Tempo (min)', 'tempo_limite', 'number', { min:1, max:300 })}
+            {inp('Tentativas', 'tentativas_permitidas', 'number', { min:1, max:10 })}
+            {inp('Nota minima', 'nota_minima', 'number', { min:0, max:10, step:0.5 })}
+          </div>
+
+          {/* Datas */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+            <div className="field">
+              <label>Abertura</label>
+              <input type="datetime-local" value={form.disponivel_em} onChange={set('disponivel_em')}
+                style={{ padding:'8px 12px', border:'1.5px solid var(--slate-200)', borderRadius:8, fontSize:13, outline:'none', width:'100%', boxSizing:'border-box' }}
+                onFocus={e=>e.target.style.borderColor='var(--emerald)'} onBlur={e=>e.target.style.borderColor='var(--slate-200)'}/>
+            </div>
+            <div className="field">
+              <label>Encerramento</label>
+              <input type="datetime-local" value={form.encerra_em} onChange={set('encerra_em')}
+                style={{ padding:'8px 12px', border:'1.5px solid var(--slate-200)', borderRadius:8, fontSize:13, outline:'none', width:'100%', boxSizing:'border-box' }}
+                onFocus={e=>e.target.style.borderColor='var(--emerald)'} onBlur={e=>e.target.style.borderColor='var(--slate-200)'}/>
+            </div>
+          </div>
+
+          {/* Turma */}
+          {turmas.length > 0 && (
+            <div className="field">
+              <label>Turma</label>
+              <select value={form.turma_id} onChange={set('turma_id')}
+                style={{ padding:'8px 12px', border:'1.5px solid var(--slate-200)', borderRadius:8, fontSize:13, outline:'none', width:'100%', boxSizing:'border-box' }}>
+                <option value="">Sem turma especifica</option>
+                {turmas.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Botoes */}
+          <div style={{ display:'flex', gap:10, marginTop:'0.5rem' }}>
+            <button onClick={onClose} style={{ flex:1, padding:'11px 0', border:'2px solid var(--slate-200)', borderRadius:10, background:'white', cursor:'pointer', fontSize:13, fontWeight:600, color:'var(--slate-600)' }}>
+              Cancelar
+            </button>
+            <button onClick={salvar} disabled={saving} style={{ flex:2, padding:'11px 0', border:'none', borderRadius:10, background:'linear-gradient(135deg,var(--emerald),var(--emerald-dark))', color:'white', cursor:'pointer', fontSize:14, fontWeight:700, boxShadow:'0 4px 14px rgba(16,185,129,.3)' }}>
+              {saving ? 'Salvando...' : 'Salvar Alteracoes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 export default function ProfAvaliacoes({ autoCreate } = {}) {
   const { user } = useAuth();
   const [avs, setAvs]           = useState([]);
@@ -615,6 +741,7 @@ export default function ProfAvaliacoes({ autoCreate } = {}) {
   const [loading, setLoading]   = useState(true);
   const [showCriar, setShowCriar] = useState(false);
   const [viewResultados, setViewRes] = useState(null);
+  const [editAv, setEditAv] = useState(null);
   const [editQuestoes, setEditQ]    = useState(null);
 
   const load = async () => {
@@ -659,6 +786,10 @@ export default function ProfAvaliacoes({ autoCreate } = {}) {
 
   const handleUpdateAv = (updated) => {
     setAvs(p => p.map(a => a.id===updated.id ? updated : a));
+  };
+  const handleEditAv = (updated) => {
+    handleUpdateAv(updated);
+    setEditAv(null);
   };
 
   if (viewResultados) return <ResultadosView av={viewResultados} onBack={()=>setViewRes(null)} />;
@@ -712,13 +843,16 @@ export default function ProfAvaliacoes({ autoCreate } = {}) {
                         <span>🔁 {av.tentativas_permitidas}x</span>
                         <span>✅ Mín:{av.nota_minima}</span>
                         {turmas.find(t=>t.id===av.turma_id)&&<span>🏫 {turmas.find(t=>t.id===av.turma_id)?.nome}</span>}
+                        {av.disponivel_em&&<span>Abertura: {new Date(av.disponivel_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</span>}
+                        {av.encerra_em&&<span>Encerra: {new Date(av.encerra_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</span>}
                       </div>
                     </div>
                     <div style={{ display:'flex',gap:6,flexShrink:0,flexWrap:'wrap' }}>
-                      <button className="btn-sm" style={{ background:'rgba(99,102,241,.1)',color:'#4f46e5',border:'1px solid rgba(99,102,241,.3)' }} onClick={()=>setEditQ(av)}>✏️ Questões</button>
-                      <button className="btn-sm btn-view" onClick={()=>setViewRes(av)}>📊</button>
-                      {av.status==='rascunho'&&<button className="btn-sm btn-approve" onClick={()=>handlePublicar(av.id)}>🚀</button>}
-                      <button className="btn-sm btn-danger" onClick={()=>handleDelete(av.id)}>🗑</button>
+                      <button className="btn-sm" style={{ background:'rgba(99,102,241,.1)',color:'#4f46e5',border:'1px solid rgba(99,102,241,.3)' }} onClick={()=>setEditQ(av)}>Questoes</button>
+                      <button className="btn-sm" style={{ background:'#eff6ff',color:'#1d4ed8',border:'1px solid #bfdbfe' }} onClick={()=>setEditAv(av)}>Editar</button>
+                      <button className="btn-sm btn-view" onClick={()=>setViewRes(av)}>Resultados</button>
+                      {av.status==='rascunho'&&<button className="btn-sm btn-approve" onClick={()=>handlePublicar(av.id)}>Publicar</button>}
+                      <button className="btn-sm btn-danger" onClick={()=>handleDelete(av.id)}>Excluir</button>
                     </div>
                   </div>
                 </div>
@@ -729,6 +863,7 @@ export default function ProfAvaliacoes({ autoCreate } = {}) {
       </div>
 
       {showCriar && <ModalCriar turmas={turmas} questoesDisp={questoesDisp} onClose={()=>setShowCriar(false)} onSalvar={nova=>setAvs(p=>[nova,...p])} />}
+      {editAv && <EditAvaliacaoModal av={editAv} turmas={turmas} onClose={()=>setEditAv(null)} onSalvar={handleEditAv} />}
     </>
   );
 }

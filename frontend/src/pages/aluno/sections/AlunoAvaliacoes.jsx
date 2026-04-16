@@ -260,27 +260,26 @@ function renderFeedback(text) {
 }
 
 
-// ── API direta - bypassa proxy de antivírus (Kaspersky etc) ──
-async function apiDireta(url, payload) {
+// ── Chamada direta à API (bypassa proxies de antivírus) ──────
+async function postDireto(path, payload) {
   const token = localStorage.getItem('rsc_token') || '';
-  const baseUrl = window.location.origin + '/api';
-  const opts = {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-    body: JSON.stringify(payload),
-    // Configurações que reduzem interferência de proxy
-    cache: 'no-store',
+  const url   = window.location.origin + '/api' + path;
+  const resp  = await fetch(url, {
+    method:      'POST',
+    headers:     { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body:        JSON.stringify(payload),
+    cache:       'no-store',
     credentials: 'same-origin',
-    mode: 'same-origin',
-  };
-  const resp = await fetch(baseUrl + url, opts);
+    mode:        'same-origin',
+  });
   const data = await resp.json().catch(() => ({}));
   if (!resp.ok) {
-    const err = new Error(data.error || 'Erro ' + resp.status);
-    err.response = { data, status: resp.status };
-    throw err;
+    const e = new Error(data.error || 'Erro ' + resp.status);
+    e.status  = resp.status;
+    e.payload = data;
+    throw e;
   }
-  return { data };
+  return data;
 }
 
 
@@ -377,67 +376,30 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
     setShowConfirm(false);
     setSubmitting(true);
     try {
-      // Montar array de respostas
+      // Montar array de todas as respostas
       const respostasArray = Object.entries(respostas).map(([qid, resp]) => ({
         questao_id: Number(qid),
         resposta: typeof resp === 'object' && resp !== null ? JSON.stringify(resp) : resp,
       }));
 
-      // PASSO 1: Batch de respostas via fetch direto (bypassa proxy Kaspersky)
-      if (respostasArray.length > 0) {
-        await apiDireta('/avaliacoes/responder-batch', {
-          tentativa_id: tentativaAtual.id,
-          respostas: respostasArray,
-        }).catch(async () => {
-          // Fallback: concluir carrega as respostas do localStorage
-          console.warn('Batch falhou, usando fallback via concluir direto');
-        });
-      }
+      // UM ÚNICO request com respostas + concluir
+      // Backend aceita respostas inline e calcula tudo de uma vez
+      const data = await postDireto(
+        '/avaliacoes/tentativa/' + tentativaAtual.id + '/concluir',
+        { respostas: respostasArray }
+      );
 
-      // PASSO 2: Concluir via fetch direto
-      const r = await apiDireta('/avaliacoes/tentativa/'+tentativaAtual.id+'/concluir', {});
+      try { localStorage.removeItem('av_respostas_' + tentativaAtual.id); } catch(_e) {}
 
-      // Limpar backup
-      try { localStorage.removeItem('av_respostas_' + tentativaAtual.id); } catch(e) {}
-
-      setResultado(r.data);
+      setResultado(data);
       setFase('resultado');
       load();
 
     } catch(e) {
-      const status  = e.response?.status;
-      const msg     = e.response?.data?.error || e.message || '';
-      const isKasp  = msg.includes('NetworkError') || msg.includes('network') ||
-                      msg.includes('Failed to fetch') || msg.includes('SUSPENDED');
-      if (isKasp || status === undefined) {
-        // Kaspersky detectado — tentar via XMLHttpRequest como último recurso
-        const token = localStorage.getItem('rsc_token') || '';
-        const url   = window.location.origin + '/api/avaliacoes/tentativa/' + tentativaAtual.id + '/concluir';
-        const xhr   = new XMLHttpRequest();
-        xhr.open('POST', url, true);
-        xhr.setRequestHeader('Content-Type', 'application/json');
-        xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-        xhr.timeout = 30000;
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              const data = JSON.parse(xhr.responseText);
-              setResultado(data);
-              setFase('resultado');
-              load();
-            } catch(pe) { alert('Erro ao processar resultado. Contate o suporte.'); }
-          } else {
-            alert('Erro ao finalizar (status ' + xhr.status + '). Contate o suporte.');
-          }
-          setSubmitting(false);
-        };
-        xhr.onerror = () => {
-          alert('Sua rede ou antivirus (ex: Kaspersky) esta bloqueando a requisicao.\n\nSolucoes:\n1. Desative o antivirus temporariamente\n2. Use modo anonimo\n3. Tente outro navegador');
-          setSubmitting(false);
-        };
-        xhr.ontimeout = () => { alert('Timeout. Verifique a conexao e tente novamente.'); setSubmitting(false); };
-        xhr.send(JSON.stringify({}));
-        return; // early return, setSubmitting handled in xhr callbacks
+      const msg = e.payload?.error || e.message || '';
+      const rede = msg.includes('fetch') || msg.includes('network') || msg.includes('Failed') || e.status === undefined;
+      if (rede) {
+        alert('Erro de conexao. Verifique:\n1. Desative antivirus temporariamente (ex: Kaspersky)\n2. Tente em modo anonimo\n3. Tente outro navegador\n\nSe o problema persistir, seus dados foram salvos localmente.');
       } else {
         alert(msg || 'Erro ao finalizar avaliacao. Tente novamente.');
       }
@@ -445,7 +407,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
     setSubmitting(false);
   };
 
-  // ── RESULTADO ─────────────────────────────────────────────────
+    // ── RESULTADO ─────────────────────────────────────────────────
   if (fase === 'resultado' && resultado) {
     const { nota, aprovado, xp_ganho, nota_minima, estatisticas, feedback_geral, novas_medalhas, respostas: resCorr, avaliacao_titulo, concluida_em } = resultado;
     const corretas  = estatisticas?.corretas || 0;
