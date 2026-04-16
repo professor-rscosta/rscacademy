@@ -443,70 +443,53 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
 
       {alert && <div className={'alert alert-' + alert.type} style={{ marginBottom:'1rem' }}>{alert.msg}</div>}
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem', alignItems:'start' }}>
-
-        {/* ── ESQUERDA: questões na avaliação ── */}
-        <div style={{ background:'white', border:'1px solid var(--slate-200)', borderRadius:12, overflow:'hidden' }}>
-          <div style={{ padding:'0.875rem 1rem', borderBottom:'1px solid var(--slate-100)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <span style={{ fontFamily:'var(--font-head)', fontSize:13, fontWeight:600, color:'var(--navy)' }}>
-              📋 Na Avaliação ({questoes.length})
+      {/* ── Questões selecionadas (compacto) ── */}
+      {qEnriquecidas.length > 0 && (
+        <div style={{ background:'white', border:'1px solid var(--slate-200)', borderRadius:12, marginBottom:'1rem', overflow:'hidden' }}>
+          <div style={{ padding:'10px 14px', borderBottom:'1px solid var(--slate-100)', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc' }}>
+            <span style={{ fontSize:13, fontWeight:700, color:'var(--navy)' }}>
+              Questões na Avaliação ({questoes.length})
             </span>
             <span style={{ fontSize:11, color:'var(--slate-400)' }}>Peso total: {pesoTotal}</span>
           </div>
-          <div style={{ padding:'0.75rem', maxHeight:540, overflowY:'auto' }}>
-            {qEnriquecidas.length === 0 ? (
-              <div style={{ textAlign:'center', padding:'2.5rem', color:'var(--slate-400)' }}>
-                <div style={{ fontSize:36, marginBottom:8 }}>📝</div>
-                <div style={{ fontSize:13 }}>Nenhuma questão.<br/>Crie ou importe pelo painel ao lado →</div>
-              </div>
-            ) : (
-              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                {qEnriquecidas.map((qc, i) => {
-                  const m = qc._meta;
-                  return (
-                    <div key={qc.questao_id} style={{ padding:'9px 10px', border:'1px solid var(--slate-200)', borderRadius:8, background:'white' }}>
-                      <div style={{ display:'flex', alignItems:'flex-start', gap:7 }}>
-                        <span style={{ fontSize:10, fontWeight:700, color:'var(--slate-400)', minWidth:16, paddingTop:3 }}>{i + 1}</span>
-                        <span style={{ fontSize:14, flexShrink:0 }}>{m ? (TIPO_Q_ICONS[m.tipo] || '❓') : '❓'}</span>
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontSize:12, fontWeight:500, color:'var(--slate-700)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                            {m?.enunciado || 'Questão #' + qc.questao_id}
-                          </div>
-                          <div style={{ fontSize:10, color:'var(--slate-400)', marginTop:2, display:'flex', gap:6, flexWrap:'wrap' }}>
-                            <span>{m?.tipo?.replace(/_/g,' ')}</span>
-                            <span>⭐ {m?.xp} XP</span>
-                            {m?.trilha_nome && <span>📚 {m.trilha_nome}</span>}
-                            {(m?.midias||[]).filter(md=>md.tipo!=='nenhum').length > 0 && (
-                              <span style={{ color:'var(--sky)', fontWeight:600 }}>🖼️ Mídia</span>
-                            )}
-                          </div>
-                        </div>
-                        <div style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4 }}>
-                          <input type="number" min={0.5} max={10} step={0.5} value={qc.peso || 1}
-                            onChange={e => setPeso(qc.questao_id, e.target.value)}
-                            title="Peso"
-                            style={{ width:40, padding:'2px 4px', border:'1px solid var(--slate-200)', borderRadius:5, fontSize:11, textAlign:'center', outline:'none' }} />
-                          <button onClick={() => abrirEditar(qc)} title="Editar questão completa"
-                            style={{ width:26, height:26, borderRadius:6, background:'#eff6ff', border:'1px solid #bfdbfe', color:'#2563eb', cursor:'pointer', fontSize:12, display:'flex', alignItems:'center', justifyContent:'center' }}>✏️</button>
-                          <button onClick={() => remover(qc.questao_id)} title="Remover da avaliação"
-                            style={{ width:26, height:26, borderRadius:6, background:'#fef2f2', border:'1px solid #fca5a5', color:'#b91c1c', cursor:'pointer', fontSize:12, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
-                        </div>
-                      </div>
+          <div style={{ padding:'8px 10px', display:'flex', flexDirection:'column', gap:5, maxHeight:280, overflowY:'auto' }}>
+            {qEnriquecidas.map((qc, i) => {
+              const m = qc._meta;
+              return (
+                <div key={qc.questao_id} style={{ display:'flex', alignItems:'center', gap:7, padding:'7px 10px', border:'1px solid var(--slate-100)', borderRadius:8, background:'white' }}>
+                  <span style={{ fontSize:11, fontWeight:700, color:'var(--slate-300)', minWidth:18, textAlign:'right' }}>{i+1}</span>
+                  <span style={{ fontSize:13, flexShrink:0 }}>{m ? (TIPO_Q_ICONS[m.tipo] || '❓') : '❓'}</span>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:12, fontWeight:500, color:'var(--slate-700)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      {m?.enunciado || 'Questão #' + qc.questao_id}
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                    <div style={{ fontSize:10, color:'var(--slate-400)', display:'flex', gap:5 }}>
+                      <span>{m?.tipo?.replace(/_/g,' ')}</span>
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
+                    <input type="number" min={0.5} max={10} step={0.5} value={qc.peso || 1}
+                      onChange={e => setPeso(qc.questao_id, e.target.value)} title="Peso"
+                      style={{ width:36, padding:'2px 4px', border:'1px solid var(--slate-200)', borderRadius:5, fontSize:11, textAlign:'center', outline:'none' }} />
+                    <button onClick={() => abrirEditar(qc)} title="Editar"
+                      style={{ width:24, height:24, borderRadius:5, background:'#eff6ff', border:'1px solid #bfdbfe', color:'#2563eb', cursor:'pointer', fontSize:11, display:'flex', alignItems:'center', justifyContent:'center' }}>✏️</button>
+                    <button onClick={() => remover(qc.questao_id)} title="Remover"
+                      style={{ width:24, height:24, borderRadius:5, background:'#fef2f2', border:'1px solid #fca5a5', color:'#b91c1c', cursor:'pointer', fontSize:11, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
+      )}
 
-        {/* ── DIREITA: Banco + Criar ── */}
-        <div style={{ background:'white', border:'1px solid var(--slate-200)', borderRadius:12, overflow:'hidden' }}>
-          {/* Abas */}
+      {/* ── BANCO DE QUESTÕES ── */}
+      <div style={{ background:'white', border:'1px solid var(--slate-200)', borderRadius:12, overflow:'hidden' }}>
+          {/* Cabeçalho do banco */}
           <div style={{ padding:'0.5rem 0.75rem', borderBottom:'1px solid var(--slate-100)', display:'flex', gap:4, alignItems:'center' }}>
-            {[['banco', '📚 Banco (' + banco.length + ')'], ['avaliacao', '📋 Na Avaliação']].map(([k, l]) => (
-              <button key={k} onClick={() => setAba(k)} style={{ padding:'6px 14px', borderRadius:7, border:'none', cursor:'pointer', fontSize:12, fontWeight:600, background: abaAtiva===k ? 'var(--navy)' : 'transparent', color: abaAtiva===k ? 'white' : 'var(--slate-500)', transition:'all .15s' }}>{l}</button>
-            ))}
+            <span style={{ fontSize:13, fontWeight:700, color:'var(--navy)' }}>
+              Banco de Questões ({banco.length})
+            </span>
             <button onClick={abrirCriar} style={{ marginLeft:'auto', padding:'6px 14px', background:'linear-gradient(135deg,var(--emerald),var(--emerald-dark))', color:'white', border:'none', borderRadius:7, cursor:'pointer', fontSize:12, fontWeight:700, boxShadow:'0 2px 8px rgba(16,185,129,.3)', whiteSpace:'nowrap' }}>
               ✨ Nova Questão
             </button>
@@ -591,7 +574,6 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
           </div>
         </div>
 
-        </div>
         {/* -- CriarQuestaoModal -- create or edit -- */}
         {showModal && (
           <CriarQuestaoModal
