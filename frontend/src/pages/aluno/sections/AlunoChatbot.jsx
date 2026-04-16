@@ -1,78 +1,14 @@
 /**
- * AlunoChatbot — Assistente Virtual + ChatPDF
+ * AlunoChatbot - Assistente Virtual + ChatPDF
  * RAG por disciplina + upload de arquivo no chat
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../../../hooks/useApi';
 import { useAuth } from '../../../context/AuthContext';
+import { renderMd } from './chatMarkdown.js';
 
-// ── Markdown renderer ────────────────────────────────────────
-function renderMd(text) {
-  if (!text) return '';
-  let html = text
-    // Cabeçalhos
-    .replace(/^### (.+)$/gm, '<h4 style="margin:12px 0 5px;font-size:13px;font-weight:800;color:#1e3a5f">$1</h4>')
-    .replace(/^## (.+)$/gm,  '<h3 style="margin:14px 0 7px;font-size:14px;font-weight:800;color:#1e3a5f;border-bottom:2px solid #3b82f6;padding-bottom:4px">$1</h3>')
-    .replace(/^# (.+)$/gm,   '<h2 style="margin:14px 0 7px;font-size:16px;font-weight:800;color:#1e3a5f">$1</h2>')
-    // Bold/itálico/código inline
-    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g,   '<em style="color:#475569">$1</em>')
-    .replace(/`([^`]+)`/g,  '<code style="background:#f1f5f9;padding:2px 7px;border-radius:5px;font-size:12px;font-family:monospace;color:#1d4ed8;border:1px solid #e2e8f0">$1</code>')
-    // Separadores
-    .replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid #e2e8f0;margin:10px 0"/>')
-    // Citações
-    .replace(/^> (.+)$/gm, '<blockquote style="border-left:4px solid #3b82f6;padding:6px 12px;margin:8px 0;background:#f8fafc;border-radius:0 6px 6px 0;color:#475569;font-style:italic">$1</blockquote>');
 
-  // Blocos de código
-  html = html.replace(/```([\s\S]+?)```/g, function(_, code) {
-    return '<pre style="background:#1e293b;color:#e2e8f0;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:12px;line-height:1.6;margin:8px 0"><code>' +
-      code.trim().replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
-  });
-
-  // Listas com hífen/asterisco — processar linha por linha
-  const listLines = html.split('\n');
-  let inList = false;
-  const listResult = [];
-  for (const line of listLines) {
-    const liMatch = line.match(/^\s*[-*]\s+(.+)/);
-    if (liMatch) {
-      if (!inList) { listResult.push('<ul style="margin:8px 0;padding-left:18px;list-style:disc">'); inList = true; }
-      listResult.push('<li style="margin:3px 0;line-height:1.6">' + liMatch[1] + '</li>');
-    } else {
-      if (inList) { listResult.push('</ul>'); inList = false; }
-      listResult.push(line);
-    }
-  }
-  if (inList) listResult.push('</ul>');
-  html = listResult.join('\n');
-
-  // Listas numeradas — processar linha por linha
-  const numLines = html.split('\n');
-  let inOl = false;
-  const olResult = [];
-  for (const line of numLines) {
-    const olMatch = line.match(/^\s*\d+\.\s+(.+)/);
-    if (olMatch) {
-      if (!inOl) { olResult.push('<ol style="margin:8px 0;padding-left:20px">'); inOl = true; }
-      olResult.push('<li style="margin:3px 0;line-height:1.6">' + olMatch[1] + '</li>');
-    } else {
-      if (inOl) { olResult.push('</ol>'); inOl = false; }
-      olResult.push(line);
-    }
-  }
-  if (inOl) olResult.push('</ol>');
-  html = olResult.join('\n');
-
-  // Parágrafos
-  html = html
-    .replace(/\n\n+/g, '</p><p style="margin:8px 0;line-height:1.7">')
-    .replace(/\n/g, '<br/>');
-
-  return '<div style="line-height:1.7">' + html + '</div>';
-}
-
-// ── Avatar ────────────────────────────────────────────────────
+// -- Avatar ----------------------------------------------------
 function ChatAvatar({ isUser, foto }) {
   return (
     <div style={{
@@ -88,7 +24,7 @@ function ChatAvatar({ isUser, foto }) {
   );
 }
 
-// ── Bolha de mensagem ─────────────────────────────────────────
+// -- Bolha de mensagem -----------------------------------------
 function MsgBubble({ msg, userFoto }) {
   const isUser = msg.role === 'user';
   return (
@@ -193,7 +129,7 @@ function MsgBubble({ msg, userFoto }) {
   );
 }
 
-// ── Componente principal ──────────────────────────────────────
+// -- Componente principal --------------------------------------
 export default function AlunoChatbot() {
   const { user } = useAuth();
   const [msgs, setMsgs]               = useState([]);
@@ -240,7 +176,7 @@ export default function AlunoChatbot() {
     }
   }, [loadingDiscs]);
 
-  // ── Upload de arquivo no chat ─────────────────────────────
+  // -- Upload de arquivo no chat -----------------------------
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -293,7 +229,7 @@ export default function AlunoChatbot() {
     } finally { setUpFile(false); }
   };
 
-  // ── Enviar pergunta ───────────────────────────────────────
+  // -- Enviar pergunta ---------------------------------------
   const enviar = useCallback(async () => {
     const texto = input.trim();
     if (!texto || loading) return;
