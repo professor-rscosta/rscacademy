@@ -1,6 +1,6 @@
 /**
- * ProfAvaliacoes — Criar, Editar, CRUD de questões da avaliação
- * Wizard 3 passos para criar | Edição completa de questões na avaliação
+ * ProfAvaliacoes - Criar, Editar, CRUD de quest-es da avalia--o
+ * Wizard 3 passos para criar | Edi--o completa de quest-es na avalia--o
  */
 import { useState, useEffect } from 'react';
 import CriarQuestaoModal from './CriarQuestaoModal';
@@ -24,9 +24,9 @@ const STATUS_CFG = {
   encerrada: { bg:'#fef2f2', cor:'#b91c1c', label:'Encerrada' },
 };
 
-// ════════════════════════════════════════════════════════════════
-// MODAL CRIAR — wizard 3 passos
-// ════════════════════════════════════════════════════════════════
+// ----------------------------------------------------------------
+// MODAL CRIAR - wizard 3 passos
+// ----------------------------------------------------------------
 function ModalCriar({ turmas, questoesDisp, onClose, onSalvar }) {
   const [step, setStep]   = useState(1);
   const [error, setError] = useState('');
@@ -79,7 +79,7 @@ function ModalCriar({ turmas, questoesDisp, onClose, onSalvar }) {
     if (step===1 && !form.titulo.trim()) return setError('Título obrigatório.');
     if (step===1 && (!form.turma_ids || form.turma_ids.length === 0)) return setError('Selecione ao menos uma turma.');
     if (step===2 && form.tipo!=='entrega' && form.questoes_sel.length===0) return setError('Selecione ao menos 1 questão.');
-    // Para tipo 'entrega', pular passo 2 (sem questões) e ir direto para configurações
+    // Para tipo 'entrega', pular passo 2 (sem quest-es) e ir direto para configura--es
     if (step===1 && form.tipo==='entrega') { setStep(3); return; }
     if (step===3 && form.tipo==='entrega') {} // allow back to step 1
     setStep(s => s+1);
@@ -309,10 +309,10 @@ function ModalCriar({ turmas, questoesDisp, onClose, onSalvar }) {
   );
 }
 
-// ════════════════════════════════════════════════════════════════
-// GERENCIAR QUESTÕES DA AVALIAÇÃO — usa CriarQuestaoModal completo
-// Criar nova questão (com IA + mídia), editar, remover, importar banco
-// ════════════════════════════════════════════════════════════════
+// ----------------------------------------------------------------
+// GERENCIAR QUEST-ES DA AVALIA--O - usa CriarQuestaoModal completo
+// Criar nova quest-o (com IA + m-dia), editar, remover, importar banco
+// ----------------------------------------------------------------
 
 function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack, onUpdate }) {
   const [questoes, setQuestoes] = useState(() => av.questoes || []);
@@ -331,7 +331,7 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
 
   const pesoTotal = questoes.reduce((s, q) => s + (q.peso || 1), 0);
 
-  // Banco: questões disponíveis com filtros avançados
+  // Banco: quest-es dispon-veis com filtros avan-ados
   const banco = questoesDisp.filter(q => {
     if (questoes.find(qc => qc.questao_id === q.id)) return false;
     if (busca && !q.enunciado?.toLowerCase().includes(busca.toLowerCase()) &&
@@ -342,7 +342,7 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
     return true;
   });
 
-  // Opções únicas para os filtros
+  // Op--es -nicas para os filtros
   const tiposDisp  = [...new Set(questoesDisp.map(q => q.tipo).filter(Boolean))];
   const niveisDisp = [...new Set(questoesDisp.map(q => q.nivel).filter(Boolean))];
   const discsDisp  = [...new Set(questoesDisp.map(q => q.disciplina_id).filter(Boolean))];
@@ -373,7 +373,7 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
   const setPeso = (qid, peso) =>
     setQuestoes(qs => qs.map(q => q.questao_id === qid ? { ...q, peso: Number(peso) } : q));
 
-  // Nova questão criada via CriarQuestaoModal
+  // Nova quest-o criada via CriarQuestaoModal
   const handleNovaCriada = (novaQ) => {
     setQuestoes(qs => [...qs, { questao_id: novaQ.id, peso: 1, _meta: novaQ }]);
     setShowModal(false);
@@ -383,7 +383,7 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
     setTimeout(() => setAlert(null), 5000);
   };
 
-  // Questão editada via CriarQuestaoModal
+  // Quest-o editada via CriarQuestaoModal
   const handleEditSalva = (qAtualizada) => {
     setQuestoes(qs => qs.map(q => q.questao_id === qAtualizada.id ? { ...q, _meta: qAtualizada } : q));
     setShowModal(false);
@@ -416,7 +416,7 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
     setSaving(false);
   };
 
-  // Enriquecer questões com dados do banco
+  // Enriquecer quest-es com dados do banco
   const qEnriquecidas = questoes.map(qc => ({
     ...qc,
     _meta: qc._meta || questoesDisp.find(q => q.id === qc.questao_id),
@@ -543,7 +543,7 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
                 ) : (
                   <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
                     {(() => {
-                      // Separar por categoria: Avaliação (por disciplina) | Trilha | Ambos
+                      // Separar por categoria: Avalia--o (por disciplina) | Trilha | Ambos
                       const qAvaliacao = banco.filter(q => q.tipo_uso === 'avaliacao' || q.tipo_uso === 'ambos');
                       const qTrilha    = banco.filter(q => q.tipo_uso === 'trilha' || (!q.tipo_uso));
 
@@ -583,5 +583,142 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
                 )}
               </>
             )}
+          </div>
+        </div>
 
+        </div>
+        {/* -- CriarQuestaoModal -- create or edit -- */}
+        {showModal && (
+          <CriarQuestaoModal
+            trilhas={trilhas}
+            disciplinas={disciplinas}
+            trilha_id_inicial={trilhas[0]?.id}
+            questaoEdit={editandoQ}
+            onClose={() => { setShowModal(false); setEditandoQ(null); }}
+            onSalvar={editandoQ ? handleEditSalva : handleNovaCriada}
+          />
+        )}
+      </>
+    );
+  }
 
+export default function ProfAvaliacoes({ autoCreate } = {}) {
+  const { user } = useAuth();
+  const [avs, setAvs]           = useState([]);
+  const [turmas, setTurmas]     = useState([]);
+  const [questoesDisp, setQs]   = useState([]);
+  const [trilhas, setTrilhas]   = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [showCriar, setShowCriar] = useState(false);
+  const [viewResultados, setViewRes] = useState(null);
+  const [editQuestoes, setEditQ]    = useState(null);
+
+  const load = async () => {
+    try {
+      const [avRes, tRes, qRes, trRes] = await Promise.all([
+        api.get('/avaliacoes?professor_id='+user.id),
+        api.get('/turmas?professor_id='+user.id),
+        api.get('/questoes?professor_id='+user.id),
+        api.get('/trilhas?professor_id='+user.id),
+      ]);
+      setAvs(avRes.data.avaliacoes || []);
+      setTurmas(tRes.data.turmas || []);
+      const trilhasMap = {};
+      const trList = trRes.data.trilhas || [];
+      trList.forEach(t=>{ trilhasMap[t.id]=t.nome; });
+      setTrilhas(trList);
+      setQs((qRes.data.questoes||[]).map(q=>({ ...q, trilha_nome: q.trilha_id?(trilhasMap[q.trilha_id]||'Trilha'):'' })));
+    } catch(e){ console.error(e); }
+    setLoading(false);
+  };
+
+  useEffect(()=>{ load(); },[]);
+
+  useEffect(() => { if (autoCreate) setShowCriar(true); }, [autoCreate]);
+
+  const handlePublicar = async (id) => {
+    try { await api.patch('/avaliacoes/'+id+'/publicar'); setAvs(p=>p.map(a=>a.id===id?{...a,status:'publicada'}:a)); }
+    catch(e){ alert(e.response?.data?.error||'Erro.'); }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Excluir avaliação?')) return;
+    await api.delete('/avaliacoes/'+id);
+    setAvs(p=>p.filter(a=>a.id!==id));
+  };
+
+  const handleUpdateAv = (updated) => {
+    setAvs(p => p.map(a => a.id===updated.id ? updated : a));
+  };
+
+  if (viewResultados) return <ResultadosView av={viewResultados} onBack={()=>setViewRes(null)} />;
+  if (editQuestoes)   return <GerenciarQuestoes av={editQuestoes} questoesDisp={questoesDisp} trilhas={trilhas} onBack={()=>setEditQ(null)} onUpdate={up=>{ handleUpdateAv(up); setEditQ(up); }} />;
+
+  return (
+    <>
+      <div className="page-header">
+        <div className="page-title">Avaliações</div>
+        <div className="page-sub">Crie provas, trabalhos e quizzes com correção automática por IA</div>
+      </div>
+
+      <div className="stats-grid" style={{ marginBottom:'1.5rem' }}>
+        <StatCard label="Total"      value={avs.length}                            icon="📝" accent="accent-sky" />
+        <StatCard label="Publicadas" value={avs.filter(a=>a.status==='publicada').length} icon="🚀" accent="accent-green" />
+        <StatCard label="Rascunhos"  value={avs.filter(a=>a.status==='rascunho').length}  icon="💾" accent="accent-amber" />
+        <StatCard label="Questões"   value={questoesDisp.length}                   icon="❓" accent="accent-coral" />
+      </div>
+
+      <div className="card">
+        <div className="section-header">
+          <span style={{ fontSize:13,color:'var(--slate-500)' }}>{avs.length} avaliação(ões)</span>
+          <button className="btn-create" onClick={()=>setShowCriar(true)}>+ Nova Avaliação</button>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign:'center',padding:'2rem' }}><div className="spinner" style={{ margin:'0 auto' }} /></div>
+        ) : avs.length===0 ? (
+          <EmptyState icon="📝" title="Nenhuma avaliação criada" sub="Clique em '+ Nova Avaliação' para começar" />
+        ) : (
+          <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+            {avs.map(av => {
+              const cfg = STATUS_CFG[av.status] || STATUS_CFG.rascunho;
+              const numQ = av.total_questoes ?? (Array.isArray(av.questoes)?av.questoes.length:0);
+              return (
+                <div key={av.id} style={{ border:'1px solid var(--slate-200)',borderRadius:10,overflow:'hidden' }}>
+                  <div style={{ display:'flex',alignItems:'flex-start',gap:12,padding:'12px 14px' }}>
+                    <div style={{ width:44,height:44,borderRadius:10,background:'var(--slate-100)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,flexShrink:0 }}>
+                      {TIPOS_AV.find(t=>t.id===av.tipo)?.icon||'📝'}
+                    </div>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <div style={{ display:'flex',gap:8,alignItems:'center',marginBottom:4,flexWrap:'wrap' }}>
+                        <span style={{ fontWeight:600,fontSize:14,color:'var(--navy)' }}>{av.titulo}</span>
+                        <span style={{ padding:'2px 9px',borderRadius:50,fontSize:11,fontWeight:600,background:cfg.bg,color:cfg.cor }}>{cfg.label}</span>
+                        {numQ===0 && <span style={{ padding:'2px 9px',borderRadius:50,fontSize:11,background:'#fffbeb',color:'#92400e',border:'1px solid #fcd34d' }}>⚠️ Sem questões</span>}
+                      </div>
+                      {av.descricao&&<div style={{ fontSize:12,color:'var(--slate-500)',marginBottom:4 }}>{av.descricao}</div>}
+                      <div style={{ display:'flex',gap:10,fontSize:11,color:'var(--slate-400)',flexWrap:'wrap' }}>
+                        <span>❓ {numQ} questão(ões)</span>
+                        <span>⏱ {av.tempo_limite}min</span>
+                        <span>🔁 {av.tentativas_permitidas}x</span>
+                        <span>✅ Mín:{av.nota_minima}</span>
+                        {turmas.find(t=>t.id===av.turma_id)&&<span>🏫 {turmas.find(t=>t.id===av.turma_id)?.nome}</span>}
+                      </div>
+                    </div>
+                    <div style={{ display:'flex',gap:6,flexShrink:0,flexWrap:'wrap' }}>
+                      <button className="btn-sm" style={{ background:'rgba(99,102,241,.1)',color:'#4f46e5',border:'1px solid rgba(99,102,241,.3)' }} onClick={()=>setEditQ(av)}>✏️ Questões</button>
+                      <button className="btn-sm btn-view" onClick={()=>setViewRes(av)}>📊</button>
+                      {av.status==='rascunho'&&<button className="btn-sm btn-approve" onClick={()=>handlePublicar(av.id)}>🚀</button>}
+                      <button className="btn-sm btn-danger" onClick={()=>handleDelete(av.id)}>🗑</button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {showCriar && <ModalCriar turmas={turmas} questoesDisp={questoesDisp} onClose={()=>setShowCriar(false)} onSalvar={nova=>setAvs(p=>[nova,...p])} />}
+    </>
+  );
+}
