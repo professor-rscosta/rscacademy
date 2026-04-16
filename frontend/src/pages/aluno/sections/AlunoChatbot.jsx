@@ -23,23 +23,40 @@ function renderMd(text) {
     .replace(/^([🎯📚🌐🔒💡✅❌⚠️🚀📊🤖🔍🎓])\s+(.+)$/gm, '<div style="display:flex;gap:8px;margin:6px 0;align-items:flex-start"><span style="font-size:16px;flex-shrink:0">$1</span><span>$2</span></div>');
 
   // Processar listas
-  html = html.replace(/^(\s*[-*•]\s+.+
-?)+/gm, (block) => {
-    const items = block.trim().split('\n').filter(Boolean).map(l => {
-      const text = l.replace(/^\s*[-*•]\s+/, '');
-      return '<li style="margin:4px 0;line-height:1.6">' + text + '</li>';
-    });
-    return '<ul style="margin:8px 0;padding-left:18px;list-style:disc">' + items.join('') + '</ul>';
-  });
+  // Listas com hífen/asterisco
+  const listLines = html.split('\n');
+  let inList = false;
+  const listResult = [];
+  for (const line of listLines) {
+    const liMatch = line.match(/^\s*[-*•]\s+(.+)/);
+    if (liMatch) {
+      if (!inList) { listResult.push('<ul style="margin:8px 0;padding-left:18px;list-style:disc">'); inList = true; }
+      listResult.push('<li style="margin:4px 0;line-height:1.6">' + liMatch[1] + '</li>');
+    } else {
+      if (inList) { listResult.push('</ul>'); inList = false; }
+      listResult.push(line);
+    }
+  }
+  if (inList) listResult.push('</ul>');
+  html = listResult.join('\n');
 
   // Listas numeradas
-  html = html.replace(/^(\s*\d+\.\s+.+\n?)+/gm, (block) => {
-    const items = block.trim().split('\n').filter(Boolean).map(l => {
-      const text = l.replace(/^\s*\d+\.\s+/, '');
-      return '<li style="margin:4px 0;line-height:1.6">' + text + '</li>';
-    });
-    return '<ol style="margin:8px 0;padding-left:20px">' + items.join('') + '</ol>';
-  });
+  // Listas numeradas
+  const numLines = html.split('\n');
+  let inOl = false;
+  const olResult = [];
+  for (const line of numLines) {
+    const olMatch = line.match(/^\s*\d+\.\s+(.+)/);
+    if (olMatch) {
+      if (!inOl) { olResult.push('<ol style="margin:8px 0;padding-left:20px">'); inOl = true; }
+      olResult.push('<li style="margin:4px 0;line-height:1.6">' + olMatch[1] + '</li>');
+    } else {
+      if (inOl) { olResult.push('</ol>'); inOl = false; }
+      olResult.push(line);
+    }
+  }
+  if (inOl) olResult.push('</ol>');
+  html = olResult.join('\n');
 
   // Separadores
   html = html.replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid #e2e8f0;margin:12px 0"/>');
