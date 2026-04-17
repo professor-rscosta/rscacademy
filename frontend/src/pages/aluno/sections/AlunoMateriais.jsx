@@ -277,7 +277,8 @@ function Accordion(props) {
   var modo = props.modo;
   var discMap = props.discMap;
   var [aberta, setAberta] = useState(true);
-  if (!itens || itens.length === 0) return null;
+  var isEmpty = !itens || itens.length === 0;
+  if (isEmpty && cat.key !== 'conteudos') return null;
 
   var byDisc = {};
   itens.forEach(function(m) {
@@ -320,6 +321,22 @@ function Accordion(props) {
 
       {aberta && (
         <div style={{ padding:'16px', background:'var(--slate-50)' }}>
+      {isEmpty && (
+        <div style={{ padding:'20px', textAlign:'center', background:'white', borderRadius:10,
+          border:'2px dashed var(--slate-200)' }}>
+          <div style={{ color:cat.cor, marginBottom:6, display:'flex', justifyContent:'center' }}>
+            <cat.Icon />
+          </div>
+          <div style={{ fontWeight:600, fontSize:13, color:'var(--navy)', marginBottom:4 }}>
+            Nenhum conteudo disponivel ainda
+          </div>
+          <div style={{ fontSize:12, color:'var(--slate-400)' }}>
+            Seu professor adicionara PDFs, slides e documentos em breve.
+          </div>
+        </div>
+      )}
+      {!isEmpty && (
+        <div>
           {Object.entries(byDisc).map(function(e2) {
             var did = e2[0];
             var its = e2[1];
@@ -343,6 +360,8 @@ function Accordion(props) {
               </div>
             );
           })}
+        </div>
+      )}
         </div>
       )}
     </div>

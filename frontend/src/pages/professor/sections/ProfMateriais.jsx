@@ -527,7 +527,9 @@ function AccordionProf(props) {
   var onEdit  = props.onEdit;
   var onDel   = props.onDel;
   var [aberta, setAberta] = useState(true);
-  if (!itens || itens.length === 0) return null;
+  // Always show "conteudos" (PDFs/slides) even when empty so professor can add content
+  var isEmpty = !itens || itens.length === 0;
+  if (isEmpty && cat.key !== 'conteudos') return null;
 
   var discNomeFor = function(id) {
     var d = discs.find(function(x){ return x.id===Number(id); });
@@ -575,6 +577,32 @@ function AccordionProf(props) {
 
       {aberta && (
         <div style={{ padding:'16px', background:'var(--slate-50)' }}>
+      {isEmpty && (
+        <div style={{ padding:'20px', textAlign:'center', background:'white', borderRadius:10,
+          border:'2px dashed var(--slate-200)' }}>
+          <div style={{ color:cat.cor, marginBottom:6, display:'flex', justifyContent:'center' }}>
+            <cat.Icon />
+          </div>
+          <div style={{ fontWeight:600, fontSize:13, color:'var(--navy)', marginBottom:4 }}>
+            Nenhum PDF ou arquivo ainda
+          </div>
+          <div style={{ fontSize:12, color:'var(--slate-400)', marginBottom:12 }}>
+            Clique em "Adicionar Material" e escolha o tipo PDF/Arquivo ou Imagem para adicionar slides, documentos e apresentacoes.
+          </div>
+          <div style={{ display:'flex', gap:6, justifyContent:'center', flexWrap:'wrap' }}>
+            {['PDF', 'DOC', 'PPT', 'XLS', 'ZIP', 'Imagem'].map(function(ext){
+              return (
+                <span key={ext} style={{ padding:'3px 10px', borderRadius:99, background:cat.bg,
+                  color:cat.cor, fontSize:11, fontWeight:700, border:'1px solid '+cat.cor+'30' }}>
+                  .{ext.toLowerCase()}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {!isEmpty && (
+        <div>
           {Object.entries(byDisc).map(function(e2) {
             var did = e2[0];
             var its = e2[1];
@@ -604,6 +632,8 @@ function AccordionProf(props) {
               </div>
             );
           })}
+        </div>
+      )}
         </div>
       )}
     </div>
