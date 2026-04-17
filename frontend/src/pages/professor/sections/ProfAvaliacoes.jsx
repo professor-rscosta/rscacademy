@@ -607,15 +607,62 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
 
 
 // -- Modal Editar Avaliacao --
-// -- ResultadosView --
+// -- ResultadosView - Dashboard Pedagogico Completo --
+
+// SVG icons inline (no dependency needed)
+function IcoUsers()   { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>; }
+function IcoChart()   { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6"  y1="20" x2="6"  y2="14"/><line x1="2"  y1="20" x2="22" y2="20"/></svg>; }
+function IcoCheck()   { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>; }
+function IcoX()       { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>; }
+function IcoAI()      { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>; }
+function IcoBack()    { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>; }
+function IcoRefresh() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>; }
+function IcoStar()    { return <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>; }
+
 function renderMd(text) {
   if (!text) return '';
   return text
     .replace(/^## (.+)$/gm, '<h3 style="font-size:14px;font-weight:800;color:#1e3a5f;margin:16px 0 8px;padding-bottom:5px;border-bottom:2px solid #3b82f6">$1</h3>')
     .replace(/^### (.+)$/gm, '<h4 style="font-size:13px;font-weight:700;color:#1e3a5f;margin:12px 0 6px">$1</h4>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/^[-*] (.+)$/gm, '<li style="margin:4px 0 4px 16px;list-style:disc">$1</li>')
+    .replace(/^[-*] (.+)$/gm, '<li style="margin:4px 0 4px 16px;list-style:disc;font-size:13px">$1</li>')
     .replace(/\n\n/g, '<br/><br/>').replace(/\n/g, '<br/>');
+}
+
+// Inline mini bar chart (no library needed)
+function MiniBarChart({ data, height=120 }) {
+  if (!data || data.length === 0) return <div style={{ textAlign:'center', padding:'2rem', color:'var(--slate-400)', fontSize:13 }}>Sem dados</div>;
+  var max = Math.max(...data.map(function(d){ return d.value; }), 10);
+  return (
+    <div style={{ display:'flex', alignItems:'flex-end', gap:4, height:height, padding:'0 4px' }}>
+      {data.map(function(d, i) {
+        var h = Math.max(4, Math.round(d.value / max * (height - 24)));
+        var color = d.color || (d.value >= 70 ? '#10b981' : d.value >= 50 ? '#3b82f6' : d.value >= 30 ? '#f59e0b' : '#ef4444');
+        return (
+          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
+            <div style={{ fontSize:9, fontWeight:700, color:color }}>{d.label2 || d.value + (d.pct ? '%' : '')}</div>
+            <div title={d.label} style={{ width:'100%', height:h, background:color, borderRadius:'4px 4px 0 0', transition:'height .4s ease', cursor:'default', minWidth:8 }} />
+            <div style={{ fontSize:9, color:'var(--slate-500)', textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:32 }}>{d.label}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MetricCard({ icon, label, value, sub, bg, iconBg, iconColor }) {
+  return (
+    <div style={{ background:'white', borderRadius:14, border:'1px solid var(--slate-200)', padding:'1.25rem', display:'flex', gap:14, alignItems:'center', boxShadow:'0 2px 8px rgba(0,0,0,.04)' }}>
+      <div style={{ width:48, height:48, borderRadius:12, background:iconBg||bg||'#eff6ff', display:'flex', alignItems:'center', justifyContent:'center', color:iconColor||'#2563eb', flexShrink:0 }}>
+        {icon}
+      </div>
+      <div>
+        <div style={{ fontSize:11, fontWeight:600, color:'var(--slate-500)', textTransform:'uppercase', letterSpacing:'.5px', marginBottom:2 }}>{label}</div>
+        <div style={{ fontSize:26, fontWeight:900, color:'var(--navy)', lineHeight:1 }}>{value}</div>
+        {sub && <div style={{ fontSize:11, color:'var(--slate-400)', marginTop:2 }}>{sub}</div>}
+      </div>
+    </div>
+  );
 }
 
 function AlunoDetalhe({ av, alunoId, alunoNome, onBack }) {
@@ -630,86 +677,90 @@ function AlunoDetalhe({ av, alunoId, alunoNome, onBack }) {
   }, [av.id, alunoId]);
 
   if (loading) return <div style={{ textAlign:'center', padding:'3rem' }}><div className="spinner" style={{ margin:'0 auto' }}/></div>;
-  if (!data) return <div className="card"><div style={{ color:'var(--coral)' }}>Dados nao encontrados.</div></div>;
+  if (!data) return <div className="card"><div style={{ color:'var(--coral)', padding:'1rem' }}>Dados nao encontrados.</div></div>;
 
-  var t   = data.tentativa;
-  var stats = t.estatisticas || {};
-  var resps = t.respostas_corrigidas || t.respostas || [];
-  var questoesComp = av.questoes_completas || [];
+  var t      = data.tentativa;
+  var stats  = t.estatisticas || {};
+  var resps  = t.respostas_corrigidas || t.respostas || [];
+  var questComp = av.questoes_completas || [];
   var corretas = stats.corretas || 0;
   var total    = stats.total_questoes || resps.length;
   var taxa     = stats.taxa_acerto || 0;
   var dataHora = t.concluida_em ? new Date(t.concluida_em).toLocaleString('pt-BR') : '--';
+  var aprovado = t.aprovado || (t.nota != null && t.nota >= (av.nota_minima || 6));
 
   return (
     <div>
-      <button onClick={onBack} style={{ padding:'6px 14px', border:'1.5px solid var(--slate-200)', borderRadius:8, background:'white', cursor:'pointer', fontSize:13, marginBottom:'1.5rem' }}>
-        &#8592; Voltar aos Resultados
+      <button onClick={onBack} style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 14px', border:'1.5px solid var(--slate-200)', borderRadius:8, background:'white', cursor:'pointer', fontSize:13, marginBottom:'1.5rem' }}>
+        <IcoBack /> Voltar aos Resultados
       </button>
 
-      {/* Header aluno */}
-      <div style={{ background:'linear-gradient(135deg,var(--navy),#2d5a9e)', borderRadius:14, padding:'1.5rem', color:'white', marginBottom:'1.5rem' }}>
-        <div style={{ fontSize:13, opacity:.6, marginBottom:4 }}>Relatorio Individual</div>
-        <div style={{ fontFamily:'var(--font-head)', fontSize:22, fontWeight:800, marginBottom:8 }}>{data.aluno && data.aluno.nome || alunoNome}</div>
-        <div style={{ display:'flex', flexWrap:'wrap', gap:16, fontSize:13 }}>
-          <span>Avaliacao: {av.titulo}</span>
-          <span>Data: {dataHora}</span>
-          <span>Nota: <strong style={{ fontSize:18 }}>{t.nota != null ? t.nota.toFixed(1) : '--'}/10</strong></span>
+      <div style={{ background:'linear-gradient(135deg,#1e3a5f,#2d5a9e)', borderRadius:14, padding:'1.5rem 2rem', color:'white', marginBottom:'1.5rem', display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:12, alignItems:'center' }}>
+        <div>
+          <div style={{ fontSize:11, opacity:.6, textTransform:'uppercase', letterSpacing:1, marginBottom:4 }}>Relatorio Individual</div>
+          <div style={{ fontFamily:'var(--font-head)', fontSize:22, fontWeight:800, marginBottom:6 }}>{data.aluno && data.aluno.nome || alunoNome}</div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:16, fontSize:12, opacity:.85 }}>
+            <span>Avaliacao: <strong>{av.titulo}</strong></span>
+            <span>Data: <strong>{dataHora}</strong></span>
+          </div>
+        </div>
+        <div style={{ textAlign:'center', background:'rgba(255,255,255,.12)', borderRadius:12, padding:'12px 24px' }}>
+          <div style={{ fontSize:40, fontWeight:900, lineHeight:1 }}>{t.nota != null ? t.nota.toFixed(1) : '--'}</div>
+          <div style={{ fontSize:11, opacity:.7, marginTop:2 }}>de 10 pts</div>
+          <div style={{ marginTop:8, padding:'4px 12px', borderRadius:99, background:aprovado?'rgba(16,185,129,.3)':'rgba(239,68,68,.3)', fontSize:12, fontWeight:700 }}>
+            {aprovado ? 'Aprovado' : 'Reprovado'}
+          </div>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="stats-grid" style={{ marginBottom:'1.5rem' }}>
-        {[
-          { l:'Questoes',  v:total,             i:'[?]' },
-          { l:'Acertos',   v:corretas,           i:'[OK]', c:'#059669' },
-          { l:'Erros',     v:total - corretas,   i:'[X]',  c:'#dc2626' },
-          { l:'Taxa',      v:Math.round(taxa)+'%', i:'[%]' },
-        ].map(function(s) {
-          return (
-            <div key={s.l} className="stat-card">
-              <div className="stat-accent">{s.i}</div>
-              <div className="stat-label">{s.l}</div>
-              <div className="stat-value" style={{ color:s.c||'var(--navy)' }}>{s.v}</div>
-            </div>
-          );
-        })}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:10, marginBottom:'1.5rem' }}>
+        <MetricCard icon={<IcoChart/>} label="Questoes" value={total} iconBg="#eff6ff" iconColor="#2563eb"/>
+        <MetricCard icon={<IcoCheck/>} label="Acertos" value={corretas} iconBg="#f0fdf4" iconColor="#059669"/>
+        <MetricCard icon={<IcoX/>}     label="Erros" value={total-corretas} iconBg="#fef2f2" iconColor="#dc2626"/>
+        <MetricCard icon={<IcoStar/>}  label="Taxa" value={Math.round(taxa)+'%'} iconBg="#fffbeb" iconColor="#d97706"/>
       </div>
 
-      {/* Detalhamento */}
+      <div className="card" style={{ marginBottom:'1.5rem' }}>
+        <div style={{ fontWeight:700, fontSize:14, color:'var(--navy)', marginBottom:'1rem' }}>Desempenho por Questao</div>
+        <MiniBarChart height={100} data={resps.map(function(r, i) {
+          var acertou = (r.score || 0) >= 0.8 || r.is_correct;
+          return { label:'Q'+(i+1), value: acertou ? 100 : 0, label2: acertou ? 'OK' : 'X', pct:false,
+            color: acertou ? '#10b981' : '#ef4444' };
+        })} />
+      </div>
+
       <div className="card" style={{ marginBottom:'1.5rem' }}>
         <div style={{ fontWeight:700, fontSize:14, color:'var(--navy)', marginBottom:'1rem' }}>Detalhamento por Questao</div>
         {resps.map(function(r, i) {
-          var qc   = questoesComp.find(function(x) { return x.id === r.questao_id || x.questao_id === r.questao_id; });
-          var q    = qc || {};
+          var qc = questComp.find(function(x) { return x.id === r.questao_id || x.questao_id === r.questao_id; }) || {};
           var acertou = (r.score || 0) >= 0.8 || r.is_correct;
           return (
-            <div key={r.questao_id || i} style={{ padding:'12px 14px', borderRadius:10, marginBottom:8, background:acertou?'#f0fdf4':'#fef2f2', border:'1px solid '+(acertou?'#86efac':'#fca5a5') }}>
-              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                <span style={{ fontSize:12, fontWeight:700, color:'var(--slate-600)' }}>Questao {i+1}</span>
-                <span style={{ fontSize:12, fontWeight:700, padding:'2px 10px', borderRadius:99, background:acertou?'#dcfce7':'#fee2e2', color:acertou?'#15803d':'#b91c1c' }}>
-                  {acertou ? '&#10003; Correto' : '&#10007; Incorreto'}
-                </span>
+            <div key={r.questao_id || i} style={{ padding:'12px 14px', borderRadius:10, marginBottom:8, background:acertou?'#f0fdf4':'#fef2f2', border:'1px solid '+(acertou?'#86efac':'#fca5a5'), display:'flex', gap:12, alignItems:'flex-start' }}>
+              <div style={{ width:28, height:28, borderRadius:'50%', background:acertou?'#10b981':'#ef4444', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1 }}>
+                {acertou ? <IcoCheck/> : <IcoX/>}
               </div>
-              {q.enunciado && <div style={{ fontSize:13, color:'var(--slate-700)', marginBottom:6 }}>{q.enunciado}</div>}
-              <div style={{ fontSize:12, color:'var(--slate-600)' }}>
-                <strong>Resposta do aluno:</strong> {r.resposta_aluno !== undefined ? String(r.resposta_aluno) : '--'}
-              </div>
-              {!acertou && q.gabarito !== undefined && (
-                <div style={{ fontSize:12, color:'#15803d', marginTop:3 }}>
-                  <strong>Resposta correta:</strong> {String(q.gabarito)}
+              <div style={{ flex:1 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:'var(--slate-600)' }}>Questao {i+1}</span>
+                  <span style={{ fontSize:11, color:acertou?'#15803d':'#b91c1c', fontWeight:700 }}>{Math.round((r.score||0)*100)}%</span>
                 </div>
-              )}
+                {qc.enunciado && <div style={{ fontSize:13, color:'var(--slate-700)', marginBottom:5 }}>{qc.enunciado}</div>}
+                <div style={{ fontSize:12, color:'var(--slate-600)' }}><strong>Resposta:</strong> {r.resposta_aluno !== undefined ? String(r.resposta_aluno) : '--'}</div>
+                {!acertou && qc.gabarito !== undefined && (
+                  <div style={{ fontSize:12, color:'#15803d', marginTop:3 }}><strong>Correta:</strong> {String(qc.gabarito)}</div>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
 
-      {/* Feedback IA */}
       {t.feedback_geral && (
-        <div className="card" style={{ borderLeft:'4px solid var(--sky)' }}>
-          <div style={{ fontWeight:700, fontSize:14, color:'var(--navy)', marginBottom:10 }}>Feedback Pedagogico (IA)</div>
-          <div style={{ fontSize:13, lineHeight:1.8 }} dangerouslySetInnerHTML={{ __html: renderMd(t.feedback_geral) }} />
+        <div className="card" style={{ borderLeft:'4px solid #2563eb' }}>
+          <div style={{ fontWeight:700, fontSize:14, color:'var(--navy)', marginBottom:10, display:'flex', alignItems:'center', gap:8 }}>
+            <IcoAI/> Feedback Pedagogico (IA)
+          </div>
+          <div style={{ fontSize:13, lineHeight:1.9 }} dangerouslySetInnerHTML={{ __html: renderMd(t.feedback_geral) }} />
         </div>
       )}
     </div>
@@ -757,54 +808,49 @@ function ResultadosView({ av, onBack }) {
     return <AlunoDetalhe av={av} alunoId={alunoSel.aluno_id} alunoNome={alunoSel.nome} onBack={function(){ setAlunoSel(null); }} />;
   }
 
+  var totalAlunos = metricas ? (metricas.total_alunos || 0) : 0;
+  var media       = metricas ? (metricas.media_geral || 0).toFixed(1) : '--';
+  var aprovados   = metricas ? (metricas.aprovados || 0) : 0;
+  var reprovados  = metricas ? (metricas.reprovados || 0) : 0;
+  var taxaAprov   = metricas ? (metricas.taxa_aprovacao || 0) : 0;
+
   return (
     <div>
-      {/* Header */}
+      {/* Page header */}
       <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:'1.5rem', flexWrap:'wrap' }}>
-        <button onClick={onBack} style={{ padding:'6px 14px', border:'1.5px solid var(--slate-200)', borderRadius:8, background:'white', cursor:'pointer', fontSize:13 }}>
-          &#8592; Voltar
+        <button onClick={onBack} style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 14px', border:'1.5px solid var(--slate-200)', borderRadius:8, background:'white', cursor:'pointer', fontSize:13 }}>
+          <IcoBack /> Voltar
         </button>
         <div>
-          <div className="page-title" style={{ marginBottom:0 }}>Resultados — {av.titulo}</div>
-          <div className="page-sub">Modulo de analise pedagogica completo</div>
+          <div style={{ fontFamily:'var(--font-head)', fontSize:20, fontWeight:800, color:'var(--navy)' }}>Resultados — {av.titulo}</div>
+          <div style={{ fontSize:12, color:'var(--slate-500)' }}>Dashboard pedagogico completo · Taxa de aprovacao: {taxaAprov}%</div>
         </div>
       </div>
 
-      {/* Stats cards */}
-      {metricas && (
-        <div className="stats-grid" style={{ marginBottom:'1.5rem' }}>
-          {[
-            { l:'Alunos',       v:metricas.total_alunos||0,      i:'[U]' },
-            { l:'Media geral',  v:(metricas.media_geral||0).toFixed(1), i:'[M]' },
-            { l:'Aprovados',    v:metricas.aprovados||0,          i:'[OK]' },
-            { l:'Reprovados',   v:metricas.reprovados||0,         i:'[X]' },
-          ].map(function(s) {
-            return (
-              <div key={s.l} className="stat-card">
-                <div className="stat-accent">{s.i}</div>
-                <div className="stat-label">{s.l}</div>
-                <div className="stat-value">{s.v}</div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* Metric cards */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))', gap:12, marginBottom:'1.5rem' }}>
+        <MetricCard icon={<IcoUsers/>}  label="Alunos"       value={totalAlunos} sub="avaliados"     iconBg="#eff6ff" iconColor="#2563eb"/>
+        <MetricCard icon={<IcoChart/>}  label="Media geral"  value={media}       sub="pontos"        iconBg="#f5f3ff" iconColor="#7c3aed"/>
+        <MetricCard icon={<IcoCheck/>}  label="Aprovados"    value={aprovados}   sub={taxaAprov+'%'} iconBg="#f0fdf4" iconColor="#059669"/>
+        <MetricCard icon={<IcoX/>}      label="Reprovados"   value={reprovados}  sub="abaixo da media" iconBg="#fef2f2" iconColor="#dc2626"/>
+      </div>
 
-      {/* Abas */}
-      <div style={{ display:'flex', gap:4, marginBottom:'1.5rem', background:'var(--slate-100)', borderRadius:10, padding:4 }}>
+      {/* Tab bar */}
+      <div style={{ display:'flex', gap:4, marginBottom:'1.5rem', background:'var(--slate-100)', borderRadius:12, padding:4 }}>
         {[
-          { k:'turma',   l:'Turma',      sub:'Notas dos alunos' },
-          { k:'questoes',l:'Por Questao', sub:'Analise por item' },
-          { k:'ia',      l:'Analise IA',  sub:'BNCC + TRI + IA' },
+          { k:'turma',    l:'Turma',       ico:<IcoUsers/>,  sub:'Notas individuais' },
+          { k:'questoes', l:'Por Questao', ico:<IcoChart/>,  sub:'Analise por item' },
+          { k:'ia',       l:'Analise IA',  ico:<IcoAI/>,     sub:'BNCC + TRI' },
         ].map(function(tab) {
           var active = aba === tab.k;
           return (
             <button key={tab.k} onClick={function(){ handleAba(tab.k); }}
-              style={{ flex:1, padding:'10px 8px', border:'none', borderRadius:8, cursor:'pointer', textAlign:'center', transition:'all .15s',
+              style={{ flex:1, padding:'10px 8px', border:'none', borderRadius:9, cursor:'pointer', textAlign:'center', transition:'all .15s',
                 background: active ? 'white' : 'transparent',
-                boxShadow: active ? '0 2px 8px rgba(0,0,0,.1)' : 'none',
+                boxShadow: active ? '0 2px 10px rgba(0,0,0,.1)' : 'none',
                 color: active ? 'var(--navy)' : 'var(--slate-500)',
               }}>
+              <div style={{ display:'flex', justifyContent:'center', marginBottom:3, color: active?'#2563eb':'inherit' }}>{tab.ico}</div>
               <div style={{ fontSize:13, fontWeight:active?700:500 }}>{tab.l}</div>
               <div style={{ fontSize:10, opacity:.7 }}>{tab.sub}</div>
             </button>
@@ -812,12 +858,33 @@ function ResultadosView({ av, onBack }) {
         })}
       </div>
 
-      {/* ABA: Turma */}
+      {/* TAB: Turma */}
       {aba === 'turma' && (
         <div className="card">
-          <div style={{ fontWeight:700, fontSize:14, color:'var(--navy)', marginBottom:'1rem' }}>
-            Desempenho Individual — Clique para ver detalhes
+          <div style={{ fontWeight:700, fontSize:14, color:'var(--navy)', marginBottom:'1rem', display:'flex', alignItems:'center', gap:8 }}>
+            <IcoUsers/> Desempenho por Aluno
           </div>
+
+          {resultados.length > 0 && (
+            <div style={{ marginBottom:'1.5rem', padding:'1rem', background:'var(--slate-50)', borderRadius:10, border:'1px solid var(--slate-200)' }}>
+              <div style={{ fontSize:12, fontWeight:600, color:'var(--slate-500)', marginBottom:10 }}>Grafico de Notas</div>
+              <MiniBarChart height={110} data={resultados.slice(0,20).map(function(r) {
+                var nota = r.melhor_nota || 0;
+                var aprov = r.aprovado || nota >= (av.nota_minima||6);
+                return {
+                  label: (r.nome||'?').split(' ')[0],
+                  value: Math.round(nota * 10),
+                  label2: nota.toFixed(1),
+                  color: aprov ? '#10b981' : '#ef4444',
+                };
+              })} />
+              <div style={{ display:'flex', gap:16, justifyContent:'center', marginTop:8, fontSize:11, color:'var(--slate-500)' }}>
+                <span style={{ display:'flex', gap:4, alignItems:'center' }}><span style={{ width:10, height:10, borderRadius:2, background:'#10b981', display:'inline-block' }}/> Aprovado</span>
+                <span style={{ display:'flex', gap:4, alignItems:'center' }}><span style={{ width:10, height:10, borderRadius:2, background:'#ef4444', display:'inline-block' }}/> Reprovado</span>
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <div style={{ textAlign:'center', padding:'2rem' }}><div className="spinner" style={{ margin:'0 auto' }}/></div>
           ) : resultados.length === 0 ? (
@@ -827,19 +894,18 @@ function ResultadosView({ av, onBack }) {
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
                 <thead>
                   <tr style={{ background:'var(--slate-50)', borderBottom:'2px solid var(--slate-200)' }}>
-                    {['#','Aluno','Melhor Nota','Status','Tentativas','Data'].map(function(h) {
-                      return <th key={h} style={{ padding:'10px 12px', textAlign:'left', fontWeight:700, color:'var(--slate-600)', fontSize:12 }}>{h}</th>;
+                    {['#','Aluno','Melhor Nota','Status','Tentativas','Data',''].map(function(h,i) {
+                      return <th key={i} style={{ padding:'10px 12px', textAlign:'left', fontWeight:700, color:'var(--slate-600)', fontSize:12 }}>{h}</th>;
                     })}
-                    <th style={{ padding:'10px 12px', fontSize:12, fontWeight:700, color:'var(--slate-600)' }}>Detalhe</th>
                   </tr>
                 </thead>
                 <tbody>
                   {resultados.map(function(r, i) {
                     var aprovado = r.aprovado || r.melhor_nota >= (av.nota_minima||6);
+                    var nota     = r.melhor_nota || 0;
                     var dataStr  = r.ultima_tentativa ? new Date(r.ultima_tentativa).toLocaleDateString('pt-BR') : '--';
-                    var barW     = Math.round((r.melhor_nota||0) / 10 * 100);
                     return (
-                      <tr key={r.aluno_id} style={{ borderBottom:'1px solid var(--slate-100)', background: i%2===0?'white':'var(--slate-50)' }}>
+                      <tr key={r.aluno_id} style={{ borderBottom:'1px solid var(--slate-100)', background:i%2===0?'white':'var(--slate-50)' }}>
                         <td style={{ padding:'10px 12px', color:'var(--slate-400)', fontSize:12 }}>{i+1}</td>
                         <td style={{ padding:'10px 12px' }}>
                           <div style={{ fontWeight:600, color:'var(--navy)' }}>{r.nome}</div>
@@ -847,24 +913,21 @@ function ResultadosView({ av, onBack }) {
                         </td>
                         <td style={{ padding:'10px 12px' }}>
                           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                            <span style={{ fontWeight:800, fontSize:15, color:aprovado?'#15803d':'#b91c1c', minWidth:32 }}>
-                              {(r.melhor_nota||0).toFixed(1)}
-                            </span>
-                            <div style={{ flex:1, height:6, background:'var(--slate-100)', borderRadius:99, overflow:'hidden', minWidth:60 }}>
-                              <div style={{ height:'100%', width:barW+'%', background:aprovado?'linear-gradient(90deg,#10b981,#059669)':'linear-gradient(90deg,#f87171,#dc2626)', borderRadius:99, transition:'width .4s' }} />
+                            <span style={{ fontWeight:800, fontSize:15, color:aprovado?'#15803d':'#b91c1c', minWidth:30 }}>{nota.toFixed(1)}</span>
+                            <div style={{ flex:1, height:6, background:'var(--slate-100)', borderRadius:99, overflow:'hidden', minWidth:50 }}>
+                              <div style={{ height:'100%', width:Math.round(nota*10)+'%', background:aprovado?'linear-gradient(90deg,#10b981,#059669)':'linear-gradient(90deg,#f87171,#dc2626)', borderRadius:99 }} />
                             </div>
                           </div>
                         </td>
                         <td style={{ padding:'10px 12px' }}>
-                          <span style={{ padding:'3px 10px', borderRadius:99, fontSize:11, fontWeight:700, background:aprovado?'#f0fdf4':'#fef2f2', color:aprovado?'#15803d':'#b91c1c', border:'1px solid '+(aprovado?'#86efac':'#fca5a5') }}>
-                            {aprovado ? 'Aprovado' : 'Reprovado'}
+                          <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'3px 10px', borderRadius:99, fontSize:11, fontWeight:700, background:aprovado?'#f0fdf4':'#fef2f2', color:aprovado?'#15803d':'#b91c1c', border:'1px solid '+(aprovado?'#86efac':'#fca5a5') }}>
+                            {aprovado ? <IcoCheck/> : <IcoX/>} {aprovado?'Aprovado':'Reprovado'}
                           </span>
                         </td>
                         <td style={{ padding:'10px 12px', color:'var(--slate-500)', fontSize:12 }}>{r.total_tentativas||1}x</td>
                         <td style={{ padding:'10px 12px', color:'var(--slate-400)', fontSize:12 }}>{dataStr}</td>
                         <td style={{ padding:'10px 12px' }}>
-                          <button onClick={function(){ setAlunoSel(r); }}
-                            style={{ padding:'5px 12px', background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:7, color:'#1d4ed8', cursor:'pointer', fontSize:12, fontWeight:600 }}>
+                          <button onClick={function(){ setAlunoSel(r); }} style={{ padding:'5px 12px', background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:7, color:'#1d4ed8', cursor:'pointer', fontSize:12, fontWeight:600, display:'inline-flex', alignItems:'center', gap:5 }}>
                             Ver detalhe
                           </button>
                         </td>
@@ -878,85 +941,111 @@ function ResultadosView({ av, onBack }) {
         </div>
       )}
 
-      {/* ABA: Por Questao */}
+      {/* TAB: Por Questao */}
       {aba === 'questoes' && (
         <div className="card">
-          <div style={{ fontWeight:700, fontSize:14, color:'var(--navy)', marginBottom:'1rem' }}>
-            Analise por Questao
+          <div style={{ fontWeight:700, fontSize:14, color:'var(--navy)', marginBottom:'1rem', display:'flex', alignItems:'center', gap:8 }}>
+            <IcoChart/> Analise por Questao
           </div>
+
           {loadingIA ? (
             <div style={{ textAlign:'center', padding:'2rem' }}><div className="spinner" style={{ margin:'0 auto' }}/></div>
           ) : questStats.length === 0 ? (
-            <div style={{ textAlign:'center', padding:'2rem', color:'var(--slate-400)' }}>Sem dados suficientes para analise.</div>
+            <div style={{ textAlign:'center', padding:'2rem', color:'var(--slate-400)' }}>Sem dados suficientes.</div>
           ) : (
-            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-              {questStats.map(function(q, i) {
-                var acertou = q.taxa_acerto >= 70;
-                var critica = q.taxa_acerto < 50;
-                var barColor = critica ? 'linear-gradient(90deg,#f87171,#dc2626)' : acertou ? 'linear-gradient(90deg,#10b981,#059669)' : 'linear-gradient(90deg,#fbbf24,#f59e0b)';
-                return (
-                  <div key={q.id} style={{ padding:'12px 14px', borderRadius:10, border:'1px solid '+(critica?'#fca5a5':acertou?'#86efac':'#fde68a'), background:critica?'#fef2f2':acertou?'#f0fdf4':'#fffbeb' }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6, alignItems:'flex-start', gap:8 }}>
-                      <span style={{ fontSize:12, color:'var(--slate-700)', flex:1 }}>
-                        <strong>Q{i+1}:</strong> {(q.enunciado||'').slice(0,100)}{q.enunciado && q.enunciado.length > 100 ? '...' : ''}
-                      </span>
-                      <span style={{ fontSize:13, fontWeight:800, color:critica?'#dc2626':acertou?'#059669':'#d97706', flexShrink:0 }}>
-                        {q.taxa_acerto}%
-                      </span>
-                    </div>
-                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                      <div style={{ flex:1, height:8, background:'var(--slate-100)', borderRadius:99, overflow:'hidden' }}>
-                        <div style={{ height:'100%', width:q.taxa_acerto+'%', background:barColor, borderRadius:99, transition:'width .4s' }} />
+            <div>
+              <div style={{ marginBottom:'1.5rem', padding:'1rem', background:'var(--slate-50)', borderRadius:10, border:'1px solid var(--slate-200)' }}>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--slate-500)', marginBottom:10 }}>Grafico de Acertos por Questao (%)</div>
+                <MiniBarChart height={110} data={questStats.map(function(q, i) {
+                  return { label:'Q'+(i+1), value:q.taxa_acerto, label2:q.taxa_acerto+'%', pct:true };
+                })} />
+                <div style={{ display:'flex', gap:16, justifyContent:'center', marginTop:8, fontSize:11, color:'var(--slate-500)' }}>
+                  <span style={{ display:'flex', gap:4, alignItems:'center' }}><span style={{ width:10, height:10, borderRadius:2, background:'#10b981', display:'inline-block' }}/> Bom (70%+)</span>
+                  <span style={{ display:'flex', gap:4, alignItems:'center' }}><span style={{ width:10, height:10, borderRadius:2, background:'#f59e0b', display:'inline-block' }}/> Medio</span>
+                  <span style={{ display:'flex', gap:4, alignItems:'center' }}><span style={{ width:10, height:10, borderRadius:2, background:'#ef4444', display:'inline-block' }}/> Critico (&lt;50%)</span>
+                </div>
+              </div>
+
+              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                {questStats.map(function(q, i) {
+                  var critica = q.taxa_acerto < 50;
+                  var boa     = q.taxa_acerto >= 70;
+                  var bg      = critica ? '#fef2f2' : boa ? '#f0fdf4' : '#fffbeb';
+                  var bd      = critica ? '#fca5a5' : boa ? '#86efac' : '#fde68a';
+                  var cor     = critica ? '#dc2626' : boa ? '#059669' : '#d97706';
+                  var barBg   = critica ? 'linear-gradient(90deg,#f87171,#dc2626)' : boa ? 'linear-gradient(90deg,#10b981,#059669)' : 'linear-gradient(90deg,#fbbf24,#f59e0b)';
+                  return (
+                    <div key={q.id} style={{ padding:'12px 14px', borderRadius:10, border:'1px solid '+bd, background:bg }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8, alignItems:'center', gap:8 }}>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:12, fontWeight:700, color:'var(--navy)', marginBottom:2 }}>Questao {i+1}</div>
+                          <div style={{ fontSize:12, color:'var(--slate-600)' }}>{(q.enunciado||'').slice(0,100)}{q.enunciado&&q.enunciado.length>100?'...':''}</div>
+                        </div>
+                        <div style={{ flexShrink:0, textAlign:'center' }}>
+                          <div style={{ fontSize:22, fontWeight:900, color:cor, lineHeight:1 }}>{q.taxa_acerto}%</div>
+                          <div style={{ fontSize:10, color:'var(--slate-400)' }}>{q.corretas}/{q.total} acertos</div>
+                        </div>
                       </div>
-                      <span style={{ fontSize:11, color:'var(--slate-500)', flexShrink:0 }}>
-                        {q.corretas}/{q.total} acertos
-                      </span>
-                    </div>
-                    {critica && (
-                      <div style={{ fontSize:11, color:'#b91c1c', marginTop:4, fontWeight:600 }}>
-                        [!] Questao critica — requer revisao do conteudo
+                      <div style={{ height:8, background:'var(--slate-100)', borderRadius:99, overflow:'hidden' }}>
+                        <div style={{ height:'100%', width:q.taxa_acerto+'%', background:barBg, borderRadius:99, transition:'width .4s' }} />
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                      {critica && (
+                        <div style={{ fontSize:11, color:'#b91c1c', marginTop:6, fontWeight:600, display:'flex', alignItems:'center', gap:5 }}>
+                          <IcoX/> Questao critica — requer revisao pedagogica urgente
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
       )}
 
-      {/* ABA: Analise IA */}
+      {/* TAB: Analise IA */}
       {aba === 'ia' && (
         <div className="card">
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem' }}>
-            <div style={{ fontWeight:700, fontSize:14, color:'var(--navy)' }}>Analise Pedagogica com IA</div>
-            <span style={{ fontSize:11, padding:'3px 10px', borderRadius:99, background:'#f5f3ff', color:'#6d28d9', border:'1px solid #ddd6fe', fontWeight:600 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem', flexWrap:'wrap', gap:8 }}>
+            <div style={{ fontWeight:700, fontSize:14, color:'var(--navy)', display:'flex', alignItems:'center', gap:8 }}>
+              <IcoAI/> Analise Pedagogica com IA
+            </div>
+            <span style={{ fontSize:11, padding:'4px 12px', borderRadius:99, background:'#f5f3ff', color:'#6d28d9', border:'1px solid #ddd6fe', fontWeight:600 }}>
               BNCC + TRI
             </span>
           </div>
+
           {loadingIA ? (
             <div style={{ textAlign:'center', padding:'3rem' }}>
               <div className="spinner" style={{ margin:'0 auto 12px' }} />
               <div style={{ fontSize:13, color:'var(--slate-500)' }}>Gerando analise pedagogica com IA...</div>
             </div>
           ) : !analiseIA ? (
-            <div style={{ textAlign:'center', padding:'2rem', color:'var(--slate-400)' }}>
-              <div style={{ fontSize:36, marginBottom:8 }}>[AI]</div>
-              <div style={{ marginBottom:12 }}>Clique para gerar a analise da turma.</div>
-              <button onClick={carregarAnalise} style={{ padding:'10px 24px', background:'linear-gradient(135deg,#6d28d9,#7c3aed)', color:'white', border:'none', borderRadius:10, fontWeight:700, cursor:'pointer', boxShadow:'0 3px 12px rgba(109,40,217,.35)' }}>
-                Gerar Analise com IA
+            <div style={{ textAlign:'center', padding:'2rem' }}>
+              <div style={{ width:64, height:64, borderRadius:'50%', background:'#f5f3ff', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', color:'#7c3aed' }}>
+                <IcoAI/>
+              </div>
+              <div style={{ fontWeight:600, color:'var(--navy)', marginBottom:6 }}>Analise Pedagogica Inteligente</div>
+              <div style={{ fontSize:13, color:'var(--slate-500)', marginBottom:'1.25rem', maxWidth:360, margin:'0 auto 1.25rem' }}>
+                Gera diagnostico da turma, competencias BNCC, pontos criticos e recomendacoes pedagogicas com IA.
+              </div>
+              <button onClick={carregarAnalise}
+                style={{ padding:'10px 24px', background:'linear-gradient(135deg,#6d28d9,#7c3aed)', color:'white', border:'none', borderRadius:10, fontWeight:700, cursor:'pointer', boxShadow:'0 3px 12px rgba(109,40,217,.35)', fontSize:13, display:'inline-flex', alignItems:'center', gap:8 }}>
+                <IcoAI/> Gerar Analise com IA
               </button>
             </div>
           ) : (
             <div>
-              <div style={{ padding:'12px 16px', background:'#f5f3ff', borderRadius:10, border:'1px solid #ddd6fe', marginBottom:'1rem', fontSize:12, color:'#6d28d9' }}>
-                Analise gerada automaticamente com base nos dados da avaliacao, BNCC e principios de TRI.
+              <div style={{ padding:'10px 14px', background:'#f5f3ff', borderRadius:10, border:'1px solid #ddd6fe', marginBottom:'1rem', fontSize:12, color:'#6d28d9', display:'flex', gap:8, alignItems:'center' }}>
+                <IcoAI/> Analise gerada com base nos dados da avaliacao, competencias BNCC e principios da TRI.
               </div>
               <div style={{ fontSize:13, lineHeight:1.9 }} dangerouslySetInnerHTML={{ __html: renderMd(analiseIA) }} />
-              <button onClick={function(){ setAnaliseIA(null); setQuestStats([]); carregarAnalise(); }}
-                style={{ marginTop:'1rem', padding:'7px 16px', background:'var(--slate-100)', border:'1px solid var(--slate-200)', borderRadius:8, cursor:'pointer', fontSize:12, color:'var(--slate-600)' }}>
-                Regenerar analise
-              </button>
+              <div style={{ marginTop:'1rem', display:'flex', justifyContent:'flex-end' }}>
+                <button onClick={function(){ setAnaliseIA(null); setQuestStats([]); carregarAnalise(); }}
+                  style={{ padding:'7px 16px', background:'white', border:'1.5px solid var(--slate-200)', borderRadius:8, cursor:'pointer', fontSize:12, color:'var(--slate-600)', display:'inline-flex', alignItems:'center', gap:6 }}>
+                  <IcoRefresh/> Regenerar analise
+                </button>
+              </div>
             </div>
           )}
         </div>
