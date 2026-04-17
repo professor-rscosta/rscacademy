@@ -177,7 +177,7 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
 
             <button onClick={onVoltar}
               style={{ width:'100%', padding:'9px', background:'white', border:'1.5px solid var(--slate-200)', borderRadius:8, color:'var(--slate-600)', fontSize:12, cursor:'pointer', fontWeight:500 }}>
-              <- Voltar às Avaliacaes
+              &#8592; Voltar
             </button>
           </div>
         </div>
@@ -729,7 +729,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
         <div style={{ fontSize:48, marginBottom:12 }}>⚠️</div>
         <div style={{ fontWeight:600, color:'var(--navy)', marginBottom:8 }}>Esta avaliacao nao tem questaes</div>
         <div style={{ fontSize:13, color:'var(--slate-500)', marginBottom:20 }}>O professor ainda nao adicionou questaes a esta avaliacao.</div>
-        <button onClick={() => setFase('lista')} style={{ padding:'10px 20px', background:'var(--navy)', color:'white', border:'none', borderRadius:8, cursor:'pointer', fontWeight:600 }}><- Voltar</button>
+        <button onClick={() => setFase('lista')} style={{ padding:'10px 20px', background:'var(--navy)', color:'white', border:'none', borderRadius:8, cursor:'pointer', fontWeight:600 }}>&#8592; Voltar</button>
       </div>
     );
 
@@ -794,7 +794,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
         <div style={{ display:'flex', gap:8, marginTop:'1rem' }}>
           <button onClick={() => setIdx(i => Math.max(0,i-1))} disabled={idx===0}
             style={{ padding:'10px 18px', border:'1.5px solid var(--slate-200)', borderRadius:8, background:'white', cursor:'pointer', fontSize:13, opacity:idx===0?0.45:1 }}>
-            <- Anterior
+            &#8592; Anterior
           </button>
           {idx < questoes.length - 1 ? (
             <button onClick={() => setIdx(i => i+1)}
