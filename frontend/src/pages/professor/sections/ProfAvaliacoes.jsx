@@ -607,8 +607,130 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
 
 
 // ── Modal Editar Avaliação ────────────────────────────────────
+// ── ResultadosView ─────────────────────────────────────────────
+function ResultadosView({ av, onBack }) {
+  const [tentativas, setTentativas] = useState([]);
+  const [loading, setLoading]       = useState(true);
+
+  const [stats, setStats]   = useState(null);
+
+  useEffect(function() {
+    api.get('/avaliacoes/' + av.id + '/resultados')
+      .then(function(r) {
+        setTentativas(r.data.resultados || []);
+        setStats(r.data.estatisticas || {});
+      })
+      .catch(function(e) { console.error(e); })
+      .finally(function() { setLoading(false); });
+  }, [av.id]);
+
+  var concluidas = tentativas; // API already returns only concluded, one per aluno (best)
+  var media      = stats ? (stats.media_geral || 0).toFixed(1) : '--';
+  var aprovados  = stats ? (stats.aprovados || 0) : 0;
+
+  return (
+    <div>
+      <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:'1.5rem', flexWrap:'wrap' }}>
+        <button onClick={onBack}
+          style={{ padding:'6px 14px', border:'1.5px solid var(--slate-200)', borderRadius:8, background:'white', cursor:'pointer', fontSize:13 }}>
+          &#8592; Voltar
+        </button>
+        <div>
+          <div className="page-title" style={{ marginBottom:0 }}>Resultados — {av.titulo}</div>
+          <div className="page-sub">{tentativas.length} aluno(s) avaliado(s) · Taxa de aprovação: {stats?(stats.taxa_aprovacao||0):0}%</div>
+        </div>
+      </div>
+
+      <div className="stats-grid" style={{ marginBottom:'1.5rem' }}>
+        {[
+          { l:'Alunos',      v:tentativas.length,      i:'👥' },
+          { l:'Aprovados',   v:aprovados,              i:'✅' },
+          { l:'Reprovados',  v:stats?(stats.reprovados||0):0, i:'📋' },
+          { l:'Média geral', v:media,                   i:'📊' },
+        ].map(function(s) {
+          return (
+            <div key={s.l} className="stat-card">
+              <div className="stat-accent">{s.i}</div>
+              <div className="stat-label">{s.l}</div>
+              <div className="stat-value">{s.v}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="card">
+        <div style={{ fontWeight:700, fontSize:14, color:'var(--navy)', marginBottom:'1rem' }}>
+          Detalhamento por Aluno
+        </div>
+        {loading ? (
+          <div style={{ textAlign:'center', padding:'2rem' }}>
+            <div className="spinner" style={{ margin:'0 auto' }} />
+          </div>
+        ) : concluidas.length === 0 ? (
+          <div style={{ textAlign:'center', padding:'2rem', color:'var(--slate-400)' }}>
+            <div style={{ fontSize:36, marginBottom:8 }}>📊</div>
+            <div>Nenhuma tentativa concluída ainda.</div>
+          </div>
+        ) : (
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+              <thead>
+                <tr style={{ background:'var(--slate-50)', borderBottom:'2px solid var(--slate-200)' }}>
+                  {['Aluno','Nota','Status','Tentativa','Data'].map(function(h) {
+                    return (
+                      <th key={h} style={{ padding:'10px 12px', textAlign:'left', fontWeight:700, color:'var(--slate-600)', fontSize:12 }}>
+                        {h}
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {concluidas.map(function(t, i) {
+                  var aprovado  = t.aprovado || (t.melhor_nota != null && t.melhor_nota >= (av.nota_minima||6));
+                  var dataStr   = t.ultima_tentativa ? new Date(t.ultima_tentativa).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '--';
+                  return (
+                    <tr key={t.id} style={{ borderBottom:'1px solid var(--slate-100)', background: i%2===0?'white':'var(--slate-50)' }}>
+                      <td style={{ padding:'10px 12px', color:'var(--navy)', fontWeight:500 }}>
+                        <div>{t.nome || 'Aluno #' + t.aluno_id}</div>
+                        {t.email && <div style={{ fontSize:11, color:'var(--slate-400)' }}>{t.email}</div>}
+                      </td>
+                      <td style={{ padding:'10px 12px' }}>
+                        <span style={{ fontWeight:800, fontSize:15, color: aprovado?'#15803d':'#b91c1c' }}>
+                          {t.melhor_nota != null ? t.melhor_nota.toFixed(1) : '--'}
+                        </span>
+                        <span style={{ fontSize:11, color:'var(--slate-400)' }}>/10</span>
+                      </td>
+                      <td style={{ padding:'10px 12px' }}>
+                        <span style={{ padding:'3px 10px', borderRadius:99, fontSize:11, fontWeight:700,
+                          background: aprovado?'#f0fdf4':'#fef2f2',
+                          color: aprovado?'#15803d':'#b91c1c',
+                          border: '1px solid '+(aprovado?'#86efac':'#fca5a5')
+                        }}>
+                          {aprovado ? 'Aprovado' : 'Reprovado'}
+                        </span>
+                      </td>
+                      <td style={{ padding:'10px 12px', color:'var(--slate-500)', fontSize:12 }}>
+                        {t.total_tentativas || 1}x
+                      </td>
+                      <td style={{ padding:'10px 12px', color:'var(--slate-400)', fontSize:12 }}>
+                        {dataStr}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 function EditAvaliacaoModal({ av, turmas, onClose, onSalvar }) {
-  const [form, setForm] = React.useState({
+  const [form, setForm] = useState({
     titulo:                av.titulo || '',
     descricao:             av.descricao || '',
     tempo_limite:          av.tempo_limite || 60,
@@ -618,7 +740,7 @@ function EditAvaliacaoModal({ av, turmas, onClose, onSalvar }) {
     encerra_em:            av.encerra_em    ? av.encerra_em.slice(0,16)    : '',
     turma_id:              av.turma_id || '',
   });
-  const [saving, setSaving] = React.useState(false);
+  const [saving, setSaving] = useState(false);
   const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
 
   const salvar = async () => {
