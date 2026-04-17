@@ -1,5 +1,5 @@
 /**
- * AlunoMateriais - Modulo de Materiais Didaticos
+ * AlunoMateriais - Modulo de Hub de Aprendizagem
  * Accordion por categoria + modo grade/lista + grupos por disciplina
  * SVG icons inline (100% ASCII, sem emoji no source)
  */
@@ -97,10 +97,10 @@ var IcoSearch = function() { return (
 
 /* Category definitions */
 var CATS = [
-  { key:'conteudos', label:'Conteudos das Aulas', Icon:IcoBook,  cor:'#7c3aed', bg:'#faf5ff', tipos:['pdf','imagem'],   desc:'Documentos, slides e arquivos' },
-  { key:'videos',    label:'Area de Videos',       Icon:IcoVideo, cor:'#dc2626', bg:'#fef2f2', tipos:['youtube'],         desc:'Videos por disciplina' },
-  { key:'links',     label:'Links e Referencias',  Icon:IcoLink,  cor:'#0284c7', bg:'#f0f9ff', tipos:['link'],            desc:'Sites, artigos e materiais complementares' },
-  { key:'textos',    label:'Textos e Notas',        Icon:IcoText,  cor:'#0f766e', bg:'#f0fdfa', tipos:['texto'],           desc:'Anotacoes e resumos' },
+  { key:'conteudos', label:'Conteudos da Disciplina', Icon:IcoBook,  cor:'#7c3aed', bg:'#faf5ff', tipos:['pdf','imagem'],   desc:'Conteudo formal da disciplina' },
+  { key:'videos',    label:'Videoaulas',       Icon:IcoVideo, cor:'#dc2626', bg:'#fef2f2', tipos:['youtube'],         desc:'Videoaulas e conteudos audiovisuais' },
+  { key:'links',     label:'Referencias Complementares',  Icon:IcoLink,  cor:'#0284c7', bg:'#f0f9ff', tipos:['link'],            desc:'Sites, artigos e materiais complementares' },
+  { key:'textos',    label:'Anotacoes da Aula',        Icon:IcoText,  cor:'#0f766e', bg:'#f0fdfa', tipos:['texto'],           desc:'Resumos e anotacoes de apoio ao estudo' },
 ];
 
 var TIPO_CFG = {
@@ -391,8 +391,8 @@ export default function AlunoMateriais() {
   return (
     <>
       <div className="page-header">
-        <div className="page-title">Materiais Didaticos</div>
-        <div className="page-sub">Conteudos organizados por categoria e disciplina</div>
+        <div className="page-title">Hub de Aprendizagem</div>
+        <div className="page-sub">Conteudos da sua disciplina organizados por contexto de aprendizagem</div>
       </div>
 
       {/* Toolbar */}
