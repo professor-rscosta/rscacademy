@@ -370,6 +370,17 @@ async function postDireto(path, payload) {
 }
 
 
+// Helper: render answer value as text
+function renderResposta(val, tipo, alternativas) {
+  if (val === null || val === undefined) return 'Sem resposta';
+  if (typeof val === 'boolean') return val ? 'Verdadeiro' : 'Falso';
+  if (typeof val === 'number' && alternativas) {
+    return String.fromCharCode(65 + val) + ') ' + alternativas[val];
+  }
+  if (Array.isArray(val) && alternativas) return val.map(function(i){ return String.fromCharCode(65+i)+') '+alternativas[i]; }).join(', ');
+  return String(val);
+}
+
 export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
   const { user }                = useAuth();
   const [avs, setAvs]           = useState([]);
@@ -509,16 +520,6 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
     const feedbackEmoji = taxa >= 80 ? 'otimo' : taxa >= 50 ? 'bom' : 'revisar';
     const feedbackMsg   = taxa >= 80 ? 'Excelente desempenho!' : taxa >= 50 ? 'Bom desempenho!' : 'Precisa revisar o conteudo.';
 
-    const renderResposta = (val, tipo, alternativas) => {
-      if (val === null || val === undefined) return <em style={{ opacity:.5 }}>Sem resposta</em>;
-      if (typeof val === 'boolean') return val ? 'Verdadeiro V' : 'Falso X';
-      if (typeof val === 'number' && alternativas) {
-        const letra = String.fromCharCode(65 + val);
-        return letra + ') ' + alternativas[val];
-      }
-      if (Array.isArray(val) && alternativas) return val.map(i => String.fromCharCode(65+i)+') '+alternativas[i]).join(', ');
-      return String(val);
-    };
 
     return (
       <>
