@@ -72,7 +72,7 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
       }
 
       const r = await api.post('/avaliacoes/tentativa/'+tentativa.id+'/concluir');
-      setAlert({ type:'success', msg:'✅ Enviado com sucesso!' });
+      setAlert({ type:'success', msg:'[OK] Enviado com sucesso!' });
       setTimeout(() => onConcluir(r.data), 1500);
     } catch(e) { setAlert({ type:'error', msg:e.response?.data?.error||'Erro ao enviar.' }); }
     setEnviando(false);
@@ -84,13 +84,13 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
     <div style={{ maxWidth:720, margin:'0 auto' }}>
       {/* Header da avaliacao */}
       <div style={{ background:'linear-gradient(135deg,var(--navy),var(--navy-mid))', borderRadius:16, padding:'1.5rem', color:'white', marginBottom:'1.25rem' }}>
-        <div style={{ fontSize:11, opacity:.5, textTransform:'uppercase', letterSpacing:1, marginBottom:6 }}>📤 Envio de Arquivo</div>
+        <div style={{ fontSize:11, opacity:.5, textTransform:'uppercase', letterSpacing:1, marginBottom:6 }}>[UP] Envio de Arquivo</div>
         <div style={{ fontFamily:'var(--font-head)', fontSize:22, fontWeight:700, marginBottom:8 }}>{av.titulo}</div>
         <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
-          {av.nota_minima && <span style={{ padding:'4px 12px', borderRadius:50, background:'rgba(255,255,255,.12)', fontSize:12 }}>✅ Min: {av.nota_minima}/10</span>}
+          {av.nota_minima && <span style={{ padding:'4px 12px', borderRadius:50, background:'rgba(255,255,255,.12)', fontSize:12 }}>[OK] Min: {av.nota_minima}/10</span>}
           {av.encerra_em && (
             <span style={{ padding:'4px 12px', borderRadius:50, background:prazoVencido?'rgba(239,68,68,.3)':'rgba(16,185,129,.2)', color:prazoVencido?'#fca5a5':'#34d399', fontSize:12, fontWeight:600 }}>
-              📅 Prazo: {new Date(av.encerra_em).toLocaleString('pt-BR')} {prazoVencido&&'(ENCERRADO)'}
+              [CAL] Prazo: {new Date(av.encerra_em).toLocaleString('pt-BR')} {prazoVencido&&'(ENCERRADO)'}
             </span>
           )}
         </div>
@@ -104,7 +104,7 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
         <div>
           {av.descricao && (
             <div className="card" style={{ marginBottom:'1rem' }}>
-              <div style={{ fontFamily:'var(--font-head)', fontSize:13, fontWeight:600, color:'var(--navy)', marginBottom:8 }}>📄 Instrucaes</div>
+              <div style={{ fontFamily:'var(--font-head)', fontSize:13, fontWeight:600, color:'var(--navy)', marginBottom:8 }}>[PDF] Instrucaes</div>
               <div style={{ fontSize:13, color:'var(--slate-700)', lineHeight:1.8, whiteSpace:'pre-wrap' }}>{av.descricao}</div>
             </div>
           )}
@@ -113,12 +113,12 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
           {(av.questoes_completas||[]).filter(q=>q.tipo==='upload_arquivo').map((q,i) => (
             <div key={q.id} className="card" style={{ marginBottom:'1rem' }}>
               <div style={{ fontFamily:'var(--font-head)', fontSize:13, fontWeight:600, color:'var(--navy)', marginBottom:6 }}>
-                ❓ Questao {i+1} {q.peso&&q.peso!==1?'· Peso '+q.peso:''}
+                [?] Questao {i+1} {q.peso&&q.peso!==1?'- Peso '+q.peso:''}
               </div>
               <div style={{ fontSize:14, color:'var(--slate-700)', lineHeight:1.7 }}>{q.enunciado}</div>
               {q.gabarito && (
                 <div style={{ marginTop:8, padding:'8px 12px', background:'#fffbeb', borderRadius:6, border:'1px solid #fcd34d', fontSize:12, color:'#92400e' }}>
-                  💡 Criterios: {q.gabarito}
+                  [i] Criterios: {q.gabarito}
                 </div>
               )}
             </div>
@@ -126,7 +126,7 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
 
           {(av.questoes_completas||[]).filter(q=>q.tipo!=='upload_arquivo').length > 0 && (
             <div style={{ padding:'10px 14px', background:'#fffbeb', borderRadius:8, border:'1px solid #fcd34d', fontSize:12, color:'#92400e' }}>
-              ⚠️ Esta avaliacao tambem contem {(av.questoes_completas||[]).filter(q=>q.tipo!=='upload_arquivo').length} questao(aes) de outros tipos. Volte para responder todas.
+              [!] Esta avaliacao tambem contem {(av.questoes_completas||[]).filter(q=>q.tipo!=='upload_arquivo').length} questao(aes) de outros tipos. Volte para responder todas.
             </div>
           )}
         </div>
@@ -134,7 +134,7 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
         {/* Direita: painel de entrega */}
         <div style={{ background:'white', border:'2px solid var(--slate-200)', borderRadius:16, overflow:'hidden', boxShadow:'0 4px 16px rgba(0,0,0,.08)', position:'sticky', top:16 }}>
           <div style={{ padding:'12px 16px', background:'var(--slate-50)', borderBottom:'1px solid var(--slate-100)', textAlign:'center' }}>
-            <div style={{ fontFamily:'var(--font-head)', fontSize:14, fontWeight:700, color:'var(--navy)' }}>📤 Sua Entrega</div>
+            <div style={{ fontFamily:'var(--font-head)', fontSize:14, fontWeight:700, color:'var(--navy)' }}>[UP] Sua Entrega</div>
           </div>
 
           <div style={{ padding:'1rem' }}>
@@ -146,21 +146,21 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
               style={{ border:'2px dashed var(--slate-200)', borderRadius:10, padding:'1.25rem', textAlign:'center', cursor:'pointer', marginBottom:10, background:'var(--slate-50)', transition:'all .15s' }}
               onMouseEnter={e => e.currentTarget.style.borderColor='var(--emerald)'}
               onMouseLeave={e => e.currentTarget.style.borderColor='var(--slate-200)'}>
-              <div style={{ fontSize:30, marginBottom:6 }}>📎</div>
+              <div style={{ fontSize:30, marginBottom:6 }}>[ARQ]</div>
               <div style={{ fontWeight:600, fontSize:13, color:'var(--slate-600)', marginBottom:2 }}>Adicionar arquivos</div>
-              <div style={{ fontSize:11, color:'var(--slate-400)' }}>PDF, imagens, ZIP, codigo · Max 10MB</div>
+              <div style={{ fontSize:11, color:'var(--slate-400)' }}>PDF, imagens, ZIP, codigo - Max 10MB</div>
               <input ref={fileRef} type="file" multiple id="av-file-upload" name="av-file-upload" style={{ display:'none' }} onChange={addArquivo} />
             </div>
 
             {/* Arquivos selecionados */}
             {arquivos.map((arq,i) => (
               <div key={i} style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 10px', background:'rgba(16,185,129,.05)', borderRadius:7, border:'1px solid rgba(16,185,129,.2)', marginBottom:4 }}>
-                <span style={{ fontSize:14 }}>{arq.tipo?.startsWith('image/')?'🖼️':'📎'}</span>
+                <span style={{ fontSize:14 }}>{arq.tipo?.startsWith('image/')?'[IMG]':'[ARQ]'}</span>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize:11, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color:'var(--navy)' }}>{arq.nome}</div>
                   <div style={{ fontSize:10, color:'var(--slate-400)' }}>{fmtSize(arq.tamanho)}</div>
                 </div>
-                <button onClick={()=>removerArq(i)} style={{ background:'#fef2f2', border:'none', color:'#b91c1c', borderRadius:5, cursor:'pointer', padding:'2px 7px', fontSize:11 }}>✕</button>
+                <button onClick={()=>removerArq(i)} style={{ background:'#fef2f2', border:'none', color:'#b91c1c', borderRadius:5, cursor:'pointer', padding:'2px 7px', fontSize:11 }}>?</button>
               </div>
             ))}
 
@@ -172,7 +172,7 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
 
             <button onClick={enviar} disabled={enviando||prazoVencido||(arquivos.length===0&&!comentario.trim())}
               style={{ width:'100%', padding:'12px', background:'linear-gradient(135deg,var(--emerald),var(--emerald-dark))', color:'white', border:'none', borderRadius:8, fontWeight:700, fontSize:14, cursor:'pointer', opacity:enviando||prazoVencido||(arquivos.length===0&&!comentario.trim())?0.5:1, boxShadow:'0 4px 14px rgba(16,185,129,.35)', marginBottom:8 }}>
-              {enviando ? '⏳ Enviando...' : '🚀 Enviar para o Professor'}
+              {enviando ? '[AGUARD] Enviando...' : '[ENVIAR] Enviar para o Professor'}
             </button>
 
             <button onClick={onVoltar}
@@ -211,7 +211,7 @@ function Cronometro({ segundos, onExpire }) {
       background: urgente ? '#fef2f2' : 'rgba(255,255,255,0.1)',
       border: urgente ? '2px solid #fca5a5' : '2px solid rgba(255,255,255,0.2)',
     }}>
-      <span style={{ fontSize:14 }}>{urgente ? '⚠️' : '⏱'}</span>
+      <span style={{ fontSize:14 }}>{urgente ? '[!]' : '[TEMPO]'}</span>
       <span style={{ fontFamily:'var(--font-head)', fontSize:15, fontWeight:700, color: urgente ? '#b91c1c' : 'white' }}>
         {String(m).padStart(2,'0')}:{String(s).padStart(2,'0')}
       </span>
@@ -227,7 +227,7 @@ function PendentesModal({ faltam, total, onContinuar, onEnviarMesmo }) {
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.6)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem', backdropFilter:'blur(3px)' }}>
       <div style={{ background:'white', borderRadius:20, width:'100%', maxWidth:440, boxShadow:'0 25px 60px rgba(0,0,0,.35)', overflow:'hidden', animation:'swAlert .25s cubic-bezier(.34,1.56,.64,1)' }}>
         <div style={{ background:'linear-gradient(135deg,#f59e0b,#d97706)', padding:'1.5rem', textAlign:'center' }}>
-          <div style={{ fontSize:48, marginBottom:6 }}>⚠️</div>
+          <div style={{ fontSize:48, marginBottom:6 }}>[!]</div>
           <div style={{ fontFamily:'var(--font-head)', fontSize:18, fontWeight:800, color:'white' }}>Questaes sem resposta</div>
         </div>
         <div style={{ padding:'1.5rem', textAlign:'center' }}>
@@ -263,9 +263,9 @@ function ConfirmModal({ onConfirm, onCancel, titulo, mensagem, submensagem, conf
 
         {/* - Banner superior com gradiente institucional - */}
         <div style={{ background:'linear-gradient(135deg,#1e3a5f 0%,#2563eb 60%,#1d4ed8 100%)', padding:'2rem 1.5rem 1.5rem', textAlign:'center', position:'relative' }}>
-          {/* Ícone medallion */}
+          {/* Icone medallion */}
           <div style={{ width:72, height:72, borderRadius:'50%', background:'rgba(255,255,255,.15)', border:'3px solid rgba(255,255,255,.3)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', backdropFilter:'blur(4px)', fontSize:34 }}>
-            🎓
+            [GRAD]
           </div>
           <div style={{ fontFamily:'var(--font-head)', fontSize:21, fontWeight:800, color:'white', letterSpacing:'-.3px', marginBottom:4 }}>
             {titulo}
@@ -301,7 +301,7 @@ function ConfirmModal({ onConfirm, onCancel, titulo, mensagem, submensagem, conf
 
           {/* Aviso de irrevogabilidade */}
           <div style={{ display:'flex', alignItems:'flex-start', gap:10, background:'#fffbeb', border:'1px solid #fde68a', borderRadius:12, padding:'10px 14px', marginBottom:'1.5rem', textAlign:'left' }}>
-            <span style={{ fontSize:18, flexShrink:0, marginTop:1 }}>⚠️</span>
+            <span style={{ fontSize:18, flexShrink:0, marginTop:1 }}>[!]</span>
             <div style={{ fontSize:13, color:'#92400e', lineHeight:1.6 }}>
               {submensagem || 'Apos o envio, nao sera possivel alterar suas respostas.'}
             </div>
@@ -343,7 +343,7 @@ function renderFeedback(text) {
   return text
     .replace(/## (.+)/g, '<div style="font-weight:800;font-size:14px;color:#1e3a5f;margin:12px 0 4px">$1</div>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/^[-•] (.+)/gm, '<li style="margin:2px 0;margin-left:14px;list-style:disc">$1</li>');
+    .replace(/^[--] (.+)/gm, '<li style="margin:2px 0;margin-left:14px;list-style:disc">$1</li>');
 }
 
 
@@ -529,7 +529,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
           <div style={{ position:'absolute', inset:0, opacity:.04, backgroundImage:'radial-gradient(circle,white 1px,transparent 1px)', backgroundSize:'20px 20px' }} />
           <div style={{ fontSize:48, marginBottom:6 }}>{feedbackEmoji}</div>
           <div style={{ fontFamily:'var(--font-head)', fontSize:24, fontWeight:800, marginBottom:4 }}>
-            {aprovado ? 'Avaliacao Concluida! 🎉' : 'Avaliacao Concluida'}
+            {aprovado ? 'Avaliacao Concluida! [PARABENS]' : 'Avaliacao Concluida'}
           </div>
           <div style={{ fontSize:13, opacity:.7, marginBottom:'1.25rem' }}>{avaliacao_titulo || avAtual?.titulo}</div>
           <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap', marginBottom:'1rem' }}>
@@ -537,7 +537,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
               { l:'Nota',        v: (nota||0).toFixed(1)+'/10' },
               { l:'Acertos',     v: corretas+'/'+totalQ },
               { l:'Taxa',        v: taxa+'%' },
-              { l:'XP Ganho',    v: '+'+(xp_ganho||0)+'⭐' },
+              { l:'XP Ganho',    v: '+'+(xp_ganho||0)+'[XP]' },
             ].map(s => (
               <div key={s.l} style={{ background:'rgba(255,255,255,.12)', borderRadius:10, padding:'10px 18px', minWidth:70, textAlign:'center' }}>
                 <div style={{ fontSize:10, opacity:.6, marginBottom:2, textTransform:'uppercase', letterSpacing:.5 }}>{s.l}</div>
@@ -549,17 +549,17 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
             background: aprovado ? 'rgba(16,185,129,.25)' : 'rgba(239,68,68,.25)',
             border: '1px solid '+(aprovado ? '#34d399' : '#f87171'),
           }}>
-            {aprovado ? '✅ Aprovado' : '❌ Reprovado'} · Minimo: {nota_minima||6}
+            {aprovado ? '[OK] Aprovado' : '[X] Reprovado'} - Minimo: {nota_minima||6}
           </div>
         </div>
 
-        {/* - INFORMAÇÕES GERAIS - */}
+        {/* - INFORMACOES GERAIS - */}
         <div style={{ background:'white', border:'1px solid var(--slate-200)', borderRadius:12, padding:'14px 18px', marginBottom:'1rem', display:'flex', flexWrap:'wrap', gap:'0.75rem', fontSize:13 }}>
-          <span>👤 <strong>{user?.nome || 'Aluno'}</strong></span>
+          <span>[U] <strong>{user?.nome || 'Aluno'}</strong></span>
           <span style={{ color:'var(--slate-300)' }}>|</span>
-          <span>📅 {dataStr}</span>
+          <span>[CAL] {dataStr}</span>
           <span style={{ color:'var(--slate-300)' }}>|</span>
-          <span>🕐 {horaStr}</span>
+          <span>[T] {horaStr}</span>
           <span style={{ marginLeft:'auto', fontWeight:700, color: taxa>=80?'#10b981':taxa>=50?'#f59e0b':'#ef4444' }}>
             {feedbackMsg}
           </span>
@@ -569,9 +569,9 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
         {feedback_geral && (
           <div style={{ background:'white', border:'1px solid #ddd6fe', borderRadius:12, padding:'16px 18px', marginBottom:'1rem' }}>
             <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
-              <span style={{ fontSize:20 }}>🤖</span>
+              <span style={{ fontSize:20 }}>[AI]</span>
               <div style={{ fontWeight:700, color:'#6d28d9', fontSize:14 }}>Feedback Pedagogico (IA)</div>
-              <span style={{ fontSize:11, padding:'2px 8px', borderRadius:99, background:'#f5f3ff', color:'#6d28d9', border:'1px solid #ddd6fe' }}>BNCC · TRI</span>
+              <span style={{ fontSize:11, padding:'2px 8px', borderRadius:99, background:'#f5f3ff', color:'#6d28d9', border:'1px solid #ddd6fe' }}>BNCC - TRI</span>
             </div>
             <div style={{ fontSize:13.5, color:'var(--slate-700)', lineHeight:1.8 }}
               dangerouslySetInnerHTML={{ __html: renderFeedback(feedback_geral) }}
@@ -582,7 +582,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
         {/* - MEDALHAS - */}
         {novas_medalhas?.length > 0 && (
           <div style={{ background:'linear-gradient(135deg,#fffbeb,#fef3c7)', border:'2px solid #fcd34d', borderRadius:12, padding:'14px 18px', marginBottom:'1rem' }}>
-            <div style={{ fontWeight:700, color:'#92400e', marginBottom:8 }}>🏆 Nova(s) Medalha(s) Desbloqueada(s)!</div>
+            <div style={{ fontWeight:700, color:'#92400e', marginBottom:8 }}>[TROFEU] Nova(s) Medalha(s) Desbloqueada(s)!</div>
             <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
               {novas_medalhas.map(m => (
                 <div key={m.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 14px', background:'white', borderRadius:9, border:'1px solid #fcd34d' }}>
@@ -597,14 +597,14 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
           </div>
         )}
 
-        {/* - DETALHAMENTO POR QUESTÃO - */}
+        {/* - DETALHAMENTO POR QUESTAO - */}
         {(resCorr||[]).length > 0 && (
           <div style={{ background:'white', border:'1px solid var(--slate-200)', borderRadius:12, overflow:'hidden', marginBottom:'1rem' }}>
             <div style={{ padding:'14px 18px', borderBottom:'1px solid var(--slate-100)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <div style={{ fontWeight:700, fontSize:15, color:'var(--navy)' }}>📝 Detalhamento por Questao</div>
+              <div style={{ fontWeight:700, fontSize:15, color:'var(--navy)' }}>[PROVA] Detalhamento por Questao</div>
               <div style={{ display:'flex', gap:12, fontSize:12 }}>
-                <span style={{ color:'#10b981', fontWeight:700 }}>✅ {corretas} acertos</span>
-                <span style={{ color:'#ef4444', fontWeight:700 }}>❌ {erros} erros</span>
+                <span style={{ color:'#10b981', fontWeight:700 }}>[OK] {corretas} acertos</span>
+                <span style={{ color:'#ef4444', fontWeight:700 }}>[X] {erros} erros</span>
               </div>
             </div>
 
@@ -636,12 +636,12 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
                     <div style={{ flex:1 }}>
                       <span style={{ fontSize:12, fontWeight:700,
                         color: pendente ? '#92400e' : acertou ? '#166534' : '#991b1b' }}>
-                        {pendente ? '⏳ Aguardando correcao' : acertou ? '✅ Correto' : '❌ Incorreto'}
+                        {pendente ? '[AGUARD] Aguardando correcao' : acertou ? '[OK] Correto' : '[X] Incorreto'}
                         {!pendente && <span style={{ fontWeight:400, opacity:.7, marginLeft:8 }}>({Math.round(score*100)}%)</span>}
                       </span>
                       {tipo && <span style={{ fontSize:10, marginLeft:10, padding:'1px 7px', borderRadius:99, background:'var(--slate-100)', color:'var(--slate-500)' }}>{tipo}</span>}
                     </div>
-                    {r.xp_ganho > 0 && <span style={{ fontSize:12, fontWeight:700, color:'#f59e0b' }}>⚡+{r.xp_ganho}</span>}
+                    {r.xp_ganho > 0 && <span style={{ fontSize:12, fontWeight:700, color:'#f59e0b' }}>[+]+{r.xp_ganho}</span>}
                   </div>
 
                   {/* Enunciado */}
@@ -657,7 +657,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
                         border: '1px solid '+(acertou ? '#a7f3d0' : '#fca5a5') }}>
                         <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:.5, marginBottom:3,
                           color: acertou ? '#166534' : '#991b1b' }}>
-                          {acertou ? '✅ Sua resposta (Correta)' : '❌ Sua resposta'}
+                          {acertou ? '[OK] Sua resposta (Correta)' : '[X] Sua resposta'}
                         </div>
                         <div style={{ fontSize:12, fontWeight:600, color: acertou ? '#166534' : '#991b1b' }}>
                           {renderResposta(r.resposta_aluno, tipo, alts)}
@@ -665,7 +665,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
                       </div>
                       {!acertou && gab !== null && gab !== undefined && (
                         <div style={{ padding:'8px 12px', borderRadius:8, background:'#dcfce7', border:'1px solid #a7f3d0' }}>
-                          <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:.5, marginBottom:3, color:'#166534' }}>✅ Resposta Correta</div>
+                          <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:.5, marginBottom:3, color:'#166534' }}>[OK] Resposta Correta</div>
                           <div style={{ fontSize:12, fontWeight:600, color:'#166534' }}>
                             {renderResposta(gab, tipo, alts)}
                           </div>
@@ -677,21 +677,21 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
                   {/* Explicacao */}
                   {explic && (
                     <div style={{ padding:'7px 12px', borderRadius:8, background:'#eff6ff', border:'1px solid #bfdbfe', fontSize:12, color:'#1d4ed8', marginBottom:6 }}>
-                      <strong>💡 Explicacao:</strong> {explic}
+                      <strong>[i] Explicacao:</strong> {explic}
                     </div>
                   )}
 
                   {/* Feedback IA por questao */}
                   {r.feedback_ia && (
                     <div style={{ padding:'7px 12px', borderRadius:8, background:'#f5f3ff', border:'1px solid #ddd6fe', fontSize:12, color:'#5b21b6' }}>
-                      <strong>🤖 Feedback:</strong> {r.feedback_ia}
+                      <strong>[AI] Feedback:</strong> {r.feedback_ia}
                     </div>
                   )}
 
                   {/* Feedback do professor */}
                   {r.feedback_prof && (
                     <div style={{ padding:'7px 12px', borderRadius:8, background:'#f0fdf4', border:'1px solid #a7f3d0', fontSize:12, color:'#166534', marginTop:4 }}>
-                      <strong>💬 Professor:</strong> {r.feedback_prof}
+                      <strong>[CHAT] Professor:</strong> {r.feedback_prof}
                     </div>
                   )}
 
@@ -706,7 +706,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
 
         <button onClick={() => { setFase('lista'); setResultado(null); }}
           style={{ width:'100%', padding:14, background:'var(--emerald)', color:'white', border:'none', borderRadius:10, fontWeight:700, fontSize:14, cursor:'pointer', boxShadow:'0 4px 12px rgba(16,185,129,.35)' }}>
-          Voltar às Avaliacaes
+          Voltar as Avaliacaes
         </button>
       </div>
     );
@@ -726,7 +726,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
 
     if (questoes.length === 0) return (
       <div style={{ textAlign:'center', padding:'4rem' }}>
-        <div style={{ fontSize:48, marginBottom:12 }}>⚠️</div>
+        <div style={{ fontSize:48, marginBottom:12 }}>[!]</div>
         <div style={{ fontWeight:600, color:'var(--navy)', marginBottom:8 }}>Esta avaliacao nao tem questaes</div>
         <div style={{ fontSize:13, color:'var(--slate-500)', marginBottom:20 }}>O professor ainda nao adicionou questaes a esta avaliacao.</div>
         <button onClick={() => setFase('lista')} style={{ padding:'10px 20px', background:'var(--navy)', color:'white', border:'none', borderRadius:8, cursor:'pointer', fontWeight:600 }}>&#8592; Voltar</button>
@@ -742,7 +742,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
             <div>
               <div style={{ fontFamily:'var(--font-head)', fontSize:14, fontWeight:600 }}>{avAtual.titulo}</div>
               <div style={{ fontSize:11, opacity:.6 }}>
-                Questao {idx+1} de {questoes.length} · {respondidas} respondida(s)
+                Questao {idx+1} de {questoes.length} - {respondidas} respondida(s)
               </div>
             </div>
             <Cronometro segundos={tempoSeg} onExpire={concluir} />
@@ -767,7 +767,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
               {questaoAtual.tipo?.replace(/_/g,' ')}
             </span>
             {respostas[questaoAtual.id] !== undefined && (
-              <span style={{ padding:'3px 10px', borderRadius:50, background:'#f0fdf4', color:'#15803d', fontSize:11, fontWeight:600 }}>✅ Respondida</span>
+              <span style={{ padding:'3px 10px', borderRadius:50, background:'#f0fdf4', color:'#15803d', fontSize:11, fontWeight:600 }}>[OK] Respondida</span>
             )}
           </div>
 
@@ -804,14 +804,14 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
           ) : (
             <button onClick={pedirConfirmar} disabled={submitting}
               style={{ flex:1, padding:'10px', background:'linear-gradient(135deg,var(--emerald),var(--emerald-dark))', color:'white', border:'none', borderRadius:8, fontWeight:700, fontSize:14, cursor:'pointer', opacity:submitting?0.7:1 }}>
-              {submitting ? '⏳ Enviando...' : '🚀 Finalizar ('+respondidas+'/'+questoes.length+')'}
+              {submitting ? '[AGUARD] Enviando...' : '[ENVIAR] Finalizar ('+respondidas+'/'+questoes.length+')'}
             </button>
           )}
         </div>
 
         {/* Navegacao rapida */}
         <div style={{ marginTop:'1rem', padding:12, background:'var(--slate-50)', borderRadius:8, border:'1px solid var(--slate-200)' }}>
-          <div style={{ fontSize:11, fontWeight:600, color:'var(--slate-500)', marginBottom:8 }}>NAVEGAÇÃO RÁPIDA</div>
+          <div style={{ fontSize:11, fontWeight:600, color:'var(--slate-500)', marginBottom:8 }}>NAVEGACAO RAPIDA</div>
           <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
             {questoes.map((q, i) => (
               <button key={i} onClick={() => setIdx(i)} style={{
@@ -864,7 +864,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
       {loading ? (
         <div style={{ textAlign:'center', padding:'3rem' }}><div className="spinner" style={{ margin:'0 auto' }} /></div>
       ) : avs.length === 0 ? (
-        <div className="card"><EmptyState icon="📝" title="Nenhuma avaliacao disponivel" sub="Seu professor publicara avaliacaes em breve" /></div>
+        <div className="card"><EmptyState icon="[PROVA]" title="Nenhuma avaliacao disponivel" sub="Seu professor publicara avaliacaes em breve" /></div>
       ) : (() => {
         // Agrupar por disciplina
         const porDisc = {};
@@ -883,7 +883,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
                       <div style={{ width:4, height:20, background:'var(--navy)', borderRadius:2 }}/>
                       <span style={{ fontFamily:'var(--font-head)', fontSize:14, fontWeight:700, color:'var(--navy)' }}>
-                        📚 {discNome}
+                        [DOC] {discNome}
                       </span>
                       <span style={{ fontSize:11, color:'var(--slate-400)' }}>({discAvs.length})</span>
                     </div>
@@ -902,17 +902,17 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
 
             // Status visual
             const statusCfg = bloqueada
-              ? { cor:'#94a3b8', bg:'#f1f5f9', borda:'#cbd5e1', icon:'🔒', label:'Bloqueada', detalhe:'Disponivel em: '+abertura.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) }
+              ? { cor:'#94a3b8', bg:'#f1f5f9', borda:'#cbd5e1', icon:'[BLOQ]', label:'Bloqueada', detalhe:'Disponivel em: '+abertura.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) }
               : encerrada
-              ? { cor:'#dc2626', bg:'#fef2f2', borda:'#fca5a5', icon:'🔴', label:'Encerrada',  detalhe:'Encerrou em: '+encerramento.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) }
-              : { cor:'#059669', bg:'#ecfdf5', borda:'#6ee7b7', icon:'🟢', label:'Disponivel', detalhe:encerramento?('Encerra: '+encerramento.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})):null };
+              ? { cor:'#dc2626', bg:'#fef2f2', borda:'#fca5a5', icon:'[ENC]', label:'Encerrada',  detalhe:'Encerrou em: '+encerramento.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) }
+              : { cor:'#059669', bg:'#ecfdf5', borda:'#6ee7b7', icon:'[DISP]', label:'Disponivel', detalhe:encerramento?('Encerra: '+encerramento.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})):null };
 
             const notaBorder = av.minha_nota!=null ? (av.minha_nota>=av.nota_minima?'var(--emerald)':'#f59e0b') : statusCfg.borda;
 
             return (
               <div key={av.id} className="card" style={{ borderLeft:'4px solid '+notaBorder, margin:0, opacity: bloqueada ? .75 : 1 }}>
                 <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
-                  <div style={{ fontSize:26, paddingTop:2 }}>{isEntrega?'📤':'📝'}</div>
+                  <div style={{ fontSize:26, paddingTop:2 }}>{isEntrega?'[UP]':'[PROVA]'}</div>
                   <div style={{ flex:1, minWidth:0 }}>
                     {/* Titulo + status badge */}
                     <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:5, flexWrap:'wrap' }}>
@@ -920,28 +920,28 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
                       <span style={{ padding:'2px 9px', borderRadius:50, background:statusCfg.bg, color:statusCfg.cor, fontSize:11, fontWeight:700, border:'1px solid '+statusCfg.borda, whiteSpace:'nowrap' }}>
                         {statusCfg.icon} {statusCfg.label}
                       </span>
-                      {isEntrega && <span style={{ padding:'2px 9px', borderRadius:50, background:'#f0f9ff', color:'#0284c7', fontSize:11, fontWeight:600, border:'1px solid #bae6fd' }}>📤 Arquivo</span>}
+                      {isEntrega && <span style={{ padding:'2px 9px', borderRadius:50, background:'#f0f9ff', color:'#0284c7', fontSize:11, fontWeight:600, border:'1px solid #bae6fd' }}>[UP] Arquivo</span>}
                     </div>
 
                     {av.descricao && <div style={{ fontSize:12, color:'var(--slate-500)', marginBottom:5 }}>{av.descricao}</div>}
 
                     {/* Info row */}
                     <div style={{ display:'flex', gap:10, fontSize:11, color:'var(--slate-400)', flexWrap:'wrap', marginBottom: (bloqueada||encerrada) ? 6 : 0 }}>
-                      {isEntrega ? <span>📎 Upload para correcao</span> : <span>❓ {numQ} questao(oes)</span>}
-                      {!isEntrega && <span>⏱ {av.tempo_limite}min</span>}
-                      <span>🔁 {av.tentativas_feitas||0}/{av.tentativas_permitidas} tentativa(s)</span>
+                      {isEntrega ? <span>[ARQ] Upload para correcao</span> : <span>[?] {numQ} questao(oes)</span>}
+                      {!isEntrega && <span>[TEMPO] {av.tempo_limite}min</span>}
+                      <span>[REP] {av.tentativas_feitas||0}/{av.tentativas_permitidas} tentativa(s)</span>
                       {av.minha_nota != null && <span style={{ fontWeight:700, color:av.minha_nota>=av.nota_minima?'var(--emerald-dark)':'var(--coral)' }}>Nota: {av.minha_nota.toFixed(1)}</span>}
                     </div>
 
                     {/* Data detalhe */}
                     {statusCfg.detalhe && (
                       <div style={{ fontSize:11, fontWeight:600, color:statusCfg.cor, marginTop:3 }}>
-                        {bloqueada ? '⏳' : encerrada ? '🚫' : '📅'} {statusCfg.detalhe}
+                        {bloqueada ? '[AGUARD]' : encerrada ? '[BLOQ]' : '[CAL]'} {statusCfg.detalhe}
                       </div>
                     )}
                     {abertura && disponivel && (
                       <div style={{ fontSize:10, color:'var(--slate-400)', marginTop:2 }}>
-                        📅 Aberta desde: {abertura.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+                        [CAL] Aberta desde: {abertura.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
                       </div>
                     )}
                   </div>
@@ -950,11 +950,11 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
                   <div style={{ flexShrink:0 }}>
                     {bloqueada ? (
                       <span style={{ padding:'7px 14px', borderRadius:8, background:'#f1f5f9', color:'#94a3b8', fontSize:12, fontWeight:600, border:'1px solid #e2e8f0', whiteSpace:'nowrap' }}>
-                        🔒 Bloqueada
+                        [BLOQ] Bloqueada
                       </span>
                     ) : encerrada ? (
                       <span style={{ padding:'7px 14px', borderRadius:8, background:'#fef2f2', color:'#b91c1c', fontSize:12, fontWeight:600, border:'1px solid #fca5a5', whiteSpace:'nowrap' }}>
-                        🔴 Encerrada
+                        [ENC] Encerrada
                       </span>
                     ) : esgotada ? (
                       <span style={{ padding:'7px 14px', borderRadius:8, background:'var(--slate-100)', color:'var(--slate-500)', fontSize:12, fontWeight:600, whiteSpace:'nowrap' }}>
