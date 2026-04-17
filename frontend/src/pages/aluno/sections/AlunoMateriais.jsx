@@ -16,6 +16,8 @@ const fmtSize = (b) => !b ? '' : b < 1048576 ? Math.round(b/1024)+'KB' : (b/1048
 // ── Renderizador de preview por tipo ─────────────────────────
 function MaterialCard({ m }) {
   const [expandido, setExpandido] = useState(false);
+  // Safety guard - if m is undefined/null, render nothing
+  if (!m || !m.tipo) return null;
 
   const ytId = (url) => extractYouTubeId(url);
   const cor = TIPO_COR[m.tipo] || 'var(--navy)';
@@ -109,11 +111,11 @@ function MaterialCard({ m }) {
               maxHeight: expandido ? 'none' : 80, overflow:'hidden', position:'relative',
             }}>
               {m.conteudo}
-              {!expandido && m.conteudo.length > 120 && (
+              {!expandido && (m.conteudo||"").length > 120 && (
                 <div style={{ position:'absolute', bottom:0, left:0, right:0, height:28, background:'linear-gradient(transparent, var(--slate-50))' }} />
               )}
             </div>
-            {m.conteudo.length > 120 && (
+            {(m.conteudo||"").length > 120 && (
               <button onClick={() => setExpandido(e => !e)}
                 style={{ marginTop:4, fontSize:11, color:'var(--sky)', background:'none', border:'none', cursor:'pointer', padding:0, fontWeight:600 }}>
                 {expandido ? '▲ Ver menos' : '▼ Ver mais'}
@@ -147,10 +149,12 @@ export default function AlunoMateriais() {
     api.get('/materiais').then(r => setMats(r.data.materiais || [])).catch(console.error).finally(() => setLoading(false));
   }, []);
 
-  const tipos    = [...new Set(materiais.map(m => m.tipo))];
-  const filtered = materiais.filter(m =>
+  // Defensive: ensure materiais is always an array
+  const safeMateriais = Array.isArray(materiais) ? materiais : [];
+  const tipos    = [...new Set(safeMateriais.map(function(m) { return m && m.tipo; }).filter(Boolean))];
+  const filtered = safeMateriais.filter(function(m) { return m && m.tipo; }).filter(m =>
     (!filtro || m.tipo === filtro) &&
-    (!busca  || m.titulo.toLowerCase().includes(busca.toLowerCase()) || m.descricao?.toLowerCase().includes(busca.toLowerCase()))
+    (!busca  || (m.titulo||'').toLowerCase().includes(busca.toLowerCase()) || (m.descricao||'').toLowerCase().includes(busca.toLowerCase()))
   );
 
   return (
@@ -170,7 +174,7 @@ export default function AlunoMateriais() {
         <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
           <button onClick={() => setFiltro('')}
             style={{ padding:'7px 14px', borderRadius:50, border:'1.5px solid '+(!filtro?'var(--emerald)':'var(--slate-200)'), background:!filtro?'rgba(16,185,129,.08)':'white', fontSize:12, cursor:'pointer', color:!filtro?'var(--emerald-dark)':'var(--slate-600)', fontWeight:!filtro?600:400 }}>
-            Todos ({materiais.length})
+            Todos ({safeMateriais.length})
           </button>
           {tipos.map(t => (
             <button key={t} onClick={() => setFiltro(filtro===t?'':t)}
@@ -185,7 +189,7 @@ export default function AlunoMateriais() {
         <div style={{ textAlign:'center', padding:'3rem' }}><div className="spinner" style={{ margin:'0 auto' }} /></div>
       ) : filtered.length === 0 ? (
         <div className="card">
-          <EmptyState icon="📁" title={materiais.length===0?"Nenhum material disponível":"Nenhum resultado"} sub={materiais.length===0?"Seus professores adicionarão materiais em breve":"Tente outra busca ou filtro"} />
+          <EmptyState icon="📁" title={safeMateriais.length===0?"Nenhum material disponível":"Nenhum resultado"} sub={safeMateriais.length===0?"Seus professores adicionarão materiais em breve":"Tente outra busca ou filtro"} />
         </div>
       ) : (
         <div className="material-grid">

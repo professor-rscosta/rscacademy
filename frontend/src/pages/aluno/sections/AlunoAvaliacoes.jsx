@@ -49,9 +49,15 @@ function Cronometro({ segundos, onExpire }) {
 }
 
 function renderResposta(val, tipo, alternativas) {
-  if (val === null || val === undefined) return 'Sem resposta';
+  if (val === null || val === undefined) return 'Nao respondida';
+  // Verdadeiro/Falso - multiple representations
+  if (tipo === 'verdadeiro_falso') {
+    if (val === true  || val === 1 || val === '1' || val === 'true')  return 'Verdadeiro';
+    if (val === false || val === 0 || val === '0' || val === 'false') return 'Falso';
+  }
   if (typeof val === 'boolean') return val ? 'Verdadeiro' : 'Falso';
-  if (typeof val === 'number' && alternativas) {
+  // Multiple choice - show letter + text
+  if (typeof val === 'number' && alternativas && alternativas[val] !== undefined) {
     return String.fromCharCode(65 + val) + ') ' + alternativas[val];
   }
   if (Array.isArray(val) && alternativas) {

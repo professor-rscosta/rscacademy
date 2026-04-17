@@ -91,7 +91,7 @@ function AtividadeDetalhe({ ativ: atividadeInicial, onBack }) {
     const files = Array.from(e.target.files);
     const MAX = 10*1024*1024;
     files.forEach(file => {
-      if (file.size > MAX) { alert('Arquivo '+file.name+' excede 10MB.'); return; }
+      if (file.size > MAX) { setAlert({ type:'error', msg:'Arquivo '+file.name+' excede 10MB. Reduza o tamanho.' }); return; }
       const reader = new FileReader();
       reader.onload = ev => setArqs(prev => [...prev, { nome:file.name, tipo:file.type, mimeType:file.type, base64:ev.target.result, tamanho:file.size }]);
       reader.readAsDataURL(file);
@@ -234,17 +234,16 @@ function AtividadeDetalhe({ ativ: atividadeInicial, onBack }) {
                 <>
                   {!jaEntregou ? (
                     <>
-                      {/* Drop zone */}
-                      <div
-                        onClick={() => fileRef.current?.click()}
-                        style={{ border:'2px dashed var(--slate-200)', borderRadius:10, padding:'1.25rem', textAlign:'center', cursor:'pointer', marginBottom:10, transition:'all .15s', background:'var(--slate-50)' }}
+                      {/* Drop zone - using label for maximum compatibility */}
+                      <label htmlFor="upload-ativ"
+                        style={{ display:'block', border:'2px dashed var(--slate-200)', borderRadius:10, padding:'1.25rem', textAlign:'center', cursor:'pointer', marginBottom:10, transition:'all .15s', background:'var(--slate-50)' }}
                         onMouseEnter={e => e.currentTarget.style.borderColor='var(--emerald)'}
                         onMouseLeave={e => e.currentTarget.style.borderColor='var(--slate-200)'}>
                         <div style={{ fontSize:32, marginBottom:6 }}>📤</div>
                         <div style={{ fontWeight:600, fontSize:13, color:'var(--slate-600)', marginBottom:2 }}>Adicionar arquivos</div>
-                        <div style={{ fontSize:11, color:'var(--slate-400)' }}>PDF, imagens, ZIP, código · Máx 10MB</div>
-                        <input ref={fileRef} type="file" multiple style={{ display:'none' }} onChange={addArquivo} />
-                      </div>
+                        <div style={{ fontSize:11, color:'var(--slate-400)' }}>PDF, Word, imagens, ZIP · Max 10MB</div>
+                        <input id="upload-ativ" ref={fileRef} type="file" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.zip,.rar" style={{ display:'none' }} onChange={addArquivo} />
+                      </label>
 
                       {/* Arquivos selecionados */}
                       {arquivos.length > 0 && (

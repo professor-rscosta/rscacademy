@@ -619,6 +619,20 @@ function IcoBack()    { return <svg width="14" height="14" viewBox="0 0 24 24" f
 function IcoRefresh() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>; }
 function IcoStar()    { return <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>; }
 
+// Format resposta for display - converts booleans/numbers to readable text
+function formatarResposta(valor, tipo) {
+  if (valor === null || valor === undefined) return 'Nao respondida';
+  if (tipo === 'verdadeiro_falso') {
+    if (valor === true  || valor === 1 || valor === '1' || valor === 'true')  return 'Verdadeiro';
+    if (valor === false || valor === 0 || valor === '0' || valor === 'false') return 'Falso';
+  }
+  if (typeof valor === 'boolean') return valor ? 'Verdadeiro' : 'Falso';
+  if (typeof valor === 'number' && (valor === 0 || valor === 1) && tipo === 'verdadeiro_falso') {
+    return valor === 1 ? 'Verdadeiro' : 'Falso';
+  }
+  return String(valor);
+}
+
 function renderMd(text) {
   if (!text) return '';
   return text
@@ -756,7 +770,7 @@ function AlunoDetalhe({ av, alunoId, alunoNome, onBack }) {
                     <div style={{ fontSize:12, color:'var(--slate-600)' }}>
                       <strong>Resposta do aluno:</strong>{' '}
                       <span style={{ fontWeight:600, color: acertou?'#15803d':'#b91c1c' }}>
-                        {resp !== null && resp !== undefined ? String(resp) : 'Nao respondida'}
+                        {resp !== null && resp !== undefined ? formatarResposta(resp, r.questao_tipo||qc.tipo) : 'Nao respondida'}
                       </span>
                     </div>
                   );
