@@ -199,7 +199,12 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
     return (
       <div style={{ maxWidth:700, margin:'0 auto' }}>
         <div style={{ background:'linear-gradient(135deg,var(--navy),#2d5a9e)', borderRadius:16, padding:'2rem', color:'white', marginBottom:'1.5rem', textAlign:'center' }}>
-          <div style={{ fontSize:56, marginBottom:8 }}>{aprovado ? '[OK]' : '[X]'}</div>
+          <div style={{ fontSize:56, marginBottom:8 }}>{aprovado
+              ? (
+                <svg width='56' height='56' viewBox='0 0 24 24' fill='none' stroke='#10b981' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><circle cx='12' cy='12' r='10'/><polyline points='9 12 11 14 15 10'/></svg>
+              ) : (
+                <svg width='56' height='56' viewBox='0 0 24 24' fill='none' stroke='#f87171' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><circle cx='12' cy='12' r='10'/><line x1='15' y1='9' x2='9' y2='15'/><line x1='9' y1='9' x2='15' y2='15'/></svg>
+              )}</div>
           <div style={{ fontFamily:'var(--font-head)', fontSize:24, fontWeight:800, marginBottom:4 }}>
             {resultado.avaliacao_titulo || avAtual && avAtual.titulo || 'Avaliacao'}
           </div>
@@ -257,7 +262,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
                 <div key={r.questao_id} style={{ padding:'12px', borderRadius:8, marginBottom:8, background:acertou?'#f0fdf4':'#fef2f2', border:'1px solid '+(acertou?'#86efac':'#fca5a5') }}>
                   <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
                     <span style={{ fontSize:12, fontWeight:600, color:'var(--slate-600)' }}>Questao {i+1}</span>
-                    <span style={{ fontSize:12, fontWeight:700, color:acertou?'#15803d':'#b91c1c' }}>{acertou ? '[OK] Correto' : '[X] Incorreto'}</span>
+                    <span style={{ fontSize:12, fontWeight:700, color:acertou?'#15803d':'#b91c1c' }}>{acertou ? acertou ? 'Correto' : 'Incorreto'}</span>
                   </div>
                   {q && <div style={{ fontSize:13, color:'var(--slate-700)', marginBottom:6 }}>{q.enunciado}</div>}
                   <div style={{ fontSize:12 }}>
@@ -344,7 +349,10 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
               {questaoAtual.tipo && questaoAtual.tipo.replace(/_/g,' ')}
             </span>
             {respostas[questaoAtual.id] !== undefined && (
-              <span style={{ padding:'3px 10px', borderRadius:50, background:'#f0fdf4', color:'#15803d', fontSize:11, fontWeight:600 }}>[OK] Respondida</span>
+              <span style={{ padding:'3px 10px', borderRadius:50, background:'#f0fdf4', color:'#15803d', fontSize:11, fontWeight:600, display:'flex', alignItems:'center', gap:4 }}>
+              <svg width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='#15803d' strokeWidth='3' strokeLinecap='round'><polyline points='20 6 9 17 4 12'/></svg>
+              Respondida
+            </span>
             )}
           </div>
 
@@ -369,19 +377,73 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
           )}
         </div>
 
-        <div style={{ display:'flex', gap:8, marginTop:'1rem' }}>
-          <button onClick={function() { setIdx(function(i) { return Math.max(0,i-1); }); }} disabled={idx===0}
-            style={{ padding:'10px 18px', border:'1.5px solid var(--slate-200)', borderRadius:8, background:'white', cursor:idx===0?'not-allowed':'pointer', color:'var(--slate-600)', fontSize:13, fontWeight:600, opacity:idx===0?.5:1 }}>
+        {/* -- Navigation bar -- */}
+        <div style={{ display:'flex', gap:8, marginTop:'1rem', alignItems:'stretch' }}>
+
+          {/* Anterior - secondary action */}
+          <button
+            onClick={function() { setIdx(function(i) { return Math.max(0,i-1); }); }}
+            disabled={idx===0}
+            style={{
+              padding:'12px 20px', border:'2px solid var(--slate-200)', borderRadius:10,
+              background:'white', cursor:idx===0?'not-allowed':'pointer',
+              color: idx===0 ? 'var(--slate-300)' : 'var(--slate-600)',
+              fontSize:13, fontWeight:600, display:'flex', alignItems:'center', gap:6,
+              transition:'all .15s', flexShrink:0,
+            }}
+            onMouseEnter={function(e){ if(idx>0){ e.currentTarget.style.borderColor='var(--slate-400)'; e.currentTarget.style.background='var(--slate-50)'; } }}
+            onMouseLeave={function(e){ e.currentTarget.style.borderColor='var(--slate-200)'; e.currentTarget.style.background='white'; }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
             Anterior
           </button>
-          <button onClick={function() { setIdx(function(i) { return Math.min(questoes.length-1,i+1); }); }} disabled={idx===questoes.length-1}
-            style={{ flex:1, padding:'10px', border:'1.5px solid var(--slate-200)', borderRadius:8, background:'white', cursor:idx===questoes.length-1?'not-allowed':'pointer', color:'var(--slate-600)', fontSize:13, fontWeight:600, opacity:idx===questoes.length-1?.5:1 }}>
-            Proxima
-          </button>
-          <button onClick={pedirConfirmar} disabled={submitting}
-            style={{ padding:'10px 22px', background:submitting?'var(--slate-200)':'linear-gradient(135deg,var(--emerald),var(--emerald-dark))', color:submitting?'var(--slate-400)':'white', border:'none', borderRadius:8, fontWeight:700, fontSize:13, cursor:submitting?'not-allowed':'pointer', boxShadow:submitting?'none':'0 3px 12px rgba(16,185,129,.4)' }}>
-            {submitting ? 'Enviando...' : 'Finalizar (' + respondidas + '/' + questoes.length + ')'}
-          </button>
+
+          {/* Proxima - primary action (only when NOT last question) */}
+          {idx < questoes.length - 1 && (
+            <button
+              onClick={function() { setIdx(function(i) { return Math.min(questoes.length-1,i+1); }); }}
+              style={{
+                flex:1, padding:'12px 20px', border:'none', borderRadius:10,
+                background:'linear-gradient(135deg,#2563eb,#1d4ed8)',
+                color:'white', cursor:'pointer',
+                fontSize:13, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+                boxShadow:'0 3px 12px rgba(37,99,235,.35)', transition:'all .15s',
+              }}
+              onMouseEnter={function(e){ e.currentTarget.style.transform='translateY(-1px)'; e.currentTarget.style.boxShadow='0 5px 16px rgba(37,99,235,.45)'; }}
+              onMouseLeave={function(e){ e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow='0 3px 12px rgba(37,99,235,.35)'; }}
+            >
+              Proxima questao
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          )}
+
+          {/* Finalizar - ONLY on last question */}
+          {idx === questoes.length - 1 && (
+            <button
+              onClick={pedirConfirmar}
+              disabled={submitting}
+              style={{
+                flex:1, padding:'12px 20px', border:'none', borderRadius:10,
+                background: submitting ? 'var(--slate-200)' : 'linear-gradient(135deg,#059669,#047857)',
+                color: submitting ? 'var(--slate-400)' : 'white',
+                cursor: submitting ? 'not-allowed' : 'pointer',
+                fontSize:14, fontWeight:800, display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+                boxShadow: submitting ? 'none' : '0 4px 14px rgba(5,150,105,.4)',
+                transition:'all .15s', letterSpacing:'.2px',
+              }}
+              onMouseEnter={function(e){ if(!submitting){ e.currentTarget.style.transform='translateY(-1px)'; e.currentTarget.style.boxShadow='0 6px 18px rgba(5,150,105,.5)'; } }}
+              onMouseLeave={function(e){ e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow=submitting?'none':'0 4px 14px rgba(5,150,105,.4)'; }}
+            >
+              {submitting ? (
+                'Enviando...'
+              ) : (
+                <>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
+                  Entregar Avaliacao ({respondidas}/{questoes.length})
+                </>
+              )}
+            </button>
+          )}
         </div>
 
         <div style={{ marginTop:'1rem', padding:12, background:'var(--slate-50)', borderRadius:8, border:'1px solid var(--slate-200)' }}>
@@ -405,16 +467,19 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
           <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.6)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem', backdropFilter:'blur(2px)' }}>
             <div style={{ background:'white', borderRadius:20, maxWidth:420, width:'100%', overflow:'hidden', boxShadow:'0 25px 60px rgba(0,0,0,.3)' }}>
               <div style={{ background:'linear-gradient(135deg,#f59e0b,#d97706)', padding:'1.5rem', textAlign:'center' }}>
-                <div style={{ fontSize:44, marginBottom:6 }}>[!]</div>
+                <div style={{ display:'flex', justifyContent:'center', marginBottom:10 }}>
+                <svg width='44' height='44' viewBox='0 0 24 24' fill='none' stroke='white' strokeWidth='1.8' strokeLinecap='round' strokeLinejoin='round'><path d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z'/><line x1='12' y1='9' x2='12' y2='13'/><line x1='12' y1='17' x2='12.01' y2='17'/></svg>
+              </div>
                 <div style={{ fontWeight:800, fontSize:18, color:'white' }}>Questoes sem resposta</div>
               </div>
               <div style={{ padding:'1.5rem', textAlign:'center' }}>
                 <p style={{ fontSize:15, color:'#334155', marginBottom:'1rem' }}>
                   Voce deixou <strong style={{ color:'#d97706' }}>{pendFaltam}</strong> questao(oes) sem resposta de {questoes.length}.
                 </p>
-                <div style={{ fontSize:13, background:'#fffbeb', border:'1px solid #fde68a', borderRadius:8, padding:'8px 14px', marginBottom:'1.25rem', color:'#92400e' }}>
-                  Questoes sem resposta serao marcadas como incorretas.
-                </div>
+                <div style={{ display:'flex', gap:8, alignItems:'flex-start', background:'#fffbeb', border:'1px solid #fde68a', borderRadius:8, padding:'8px 14px', marginBottom:'1.25rem', color:'#92400e', textAlign:'left' }}>
+                <svg width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='#d97706' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' style={{ flexShrink:0, marginTop:1 }}><path d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z'/><line x1='12' y1='9' x2='12' y2='13'/><line x1='12' y1='17' x2='12.01' y2='17'/></svg>
+                <span style={{ fontSize:13 }}>Questoes sem resposta serao marcadas como incorretas.</span>
+              </div>
                 <div style={{ display:'flex', gap:10 }}>
                   <button onClick={function() { setShowPend(false); }}
                     style={{ flex:1, padding:'12px', border:'2px solid var(--emerald)', borderRadius:10, background:'white', cursor:'pointer', fontSize:13, fontWeight:700, color:'var(--emerald-dark)' }}>
@@ -434,8 +499,8 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
           <div style={{ position:'fixed', inset:0, zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem', backdropFilter:'blur(4px)', background:'rgba(15,23,42,.7)' }}>
             <div style={{ background:'white', borderRadius:24, maxWidth:460, width:'100%', boxShadow:'0 32px 80px rgba(0,0,0,.45)', overflow:'hidden' }}>
               <div style={{ background:'linear-gradient(135deg,#1e3a5f,#2563eb)', padding:'2rem 1.5rem 1.5rem', textAlign:'center', position:'relative' }}>
-                <div style={{ width:72, height:72, borderRadius:'50%', background:'rgba(255,255,255,.15)', border:'3px solid rgba(255,255,255,.3)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', fontSize:28 }}>
-                  [G]
+                <div style={{ width:72, height:72, borderRadius:'50%', background:'rgba(255,255,255,.15)', border:'3px solid rgba(255,255,255,.3)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px' }}>
+                  <svg width='34' height='34' viewBox='0 0 24 24' fill='none' stroke='white' strokeWidth='1.8' strokeLinecap='round' strokeLinejoin='round'><path d='M22 10v6M2 10l10-5 10 5-10 5z'/><path d='M6 12v5c3 3 9 3 12 0v-5'/></svg>
                 </div>
                 <div style={{ fontFamily:'var(--font-head)', fontSize:21, fontWeight:800, color:'white', marginBottom:4 }}>Entregar Avaliacao</div>
                 <div style={{ fontSize:11, color:'rgba(255,255,255,.6)', textTransform:'uppercase', fontWeight:600 }}>RSC Academy</div>
@@ -457,7 +522,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
                   Voce esta prestes a entregar sua avaliacao.
                 </div>
                 <div style={{ display:'flex', alignItems:'flex-start', gap:10, background:'#fffbeb', border:'1px solid #fde68a', borderRadius:12, padding:'10px 14px', marginBottom:'1.5rem', textAlign:'left' }}>
-                  <span style={{ fontSize:18, flexShrink:0 }}>[!]</span>
+                  <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='#d97706' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' style={{ flexShrink:0, marginTop:1 }}><path d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z'/><line x1='12' y1='9' x2='12' y2='13'/><line x1='12' y1='17' x2='12.01' y2='17'/></svg>
                   <div style={{ fontSize:13, color:'#92400e', lineHeight:1.6 }}>
                     Apos o envio, nao sera possivel alterar suas respostas.
                   </div>
@@ -519,7 +584,10 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
             return (
               <div key={av.id} className="card" style={{ borderLeft:'4px solid '+borderCor, opacity:bloqueada?.8:1 }}>
                 <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
-                  <div style={{ fontSize:26, paddingTop:2 }}>{isEntrega ? '[UP]' : '[PROVA]'}</div>
+                  <div style={{ fontSize:26, paddingTop:2 }}>{isEntrega
+                    ? <svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#0284c7' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><path d='m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48'/></svg>
+                    : <svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#1d4ed8' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><polyline points='14 2 14 8 20 8'/><line x1='16' y1='13' x2='8' y2='13'/><line x1='16' y1='17' x2='8' y2='17'/><polyline points='10 9 9 9 8 9'/></svg>
+                  }</div>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:5, flexWrap:'wrap' }}>
                       <span style={{ fontFamily:'var(--font-head)', fontSize:15, fontWeight:600, color:'var(--navy)' }}>{av.titulo}</span>
