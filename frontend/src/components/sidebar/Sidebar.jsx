@@ -18,7 +18,7 @@ const MENUS = {
       {id:'atividades',  icon:'📋', label:'Atividades'},
     ]},
     { section:'Conteúdo',  items:[
-      {id:'materiais',   icon:'📁', label:'Materiais Didáticos'},
+      {id:'materiais',   icon:'📘', label:'Hub de Aprendizagem'},
       {id:'mural',       icon:'📌', label:'Mural de Avisos'},
       {id:'rag',         icon:'🧠', label:'Base RAG (IA)'},
       {id:'chatbot',     icon:'🤖', label:'Assistente IA'},
@@ -40,7 +40,7 @@ const MENUS = {
     { section:'Turmas',    items:[
       {id:'turmas',    icon:'🏫', label:'Minhas Turmas'},
       {id:'mural',     icon:'📌', label:'Mural de Avisos'},
-      {id:'materiais', icon:'📁', label:'Materiais Didáticos'},
+      {id:'materiais', icon:'📘', label:'Hub de Aprendizagem'},
       {id:'rag', icon:'🧠', label:'Base RAG (IA)'},
       {id:'chatbot', icon:'🤖', label:'Assistente IA'},
     ]},
@@ -53,7 +53,7 @@ const MENUS = {
       {id:'trilhas',     icon:'🗺️', label:'Trilhas & Desafios'},
       {id:'avaliacoes',  icon:'📝', label:'Avaliações'},
       {id:'atividades',  icon:'📋', label:'Atividades'},
-      {id:'materiais',   icon:'📁', label:'Materiais'},
+      {id:'materiais',   icon:'📘', label:'Hub de Aprendizagem'},
     ]},
     { section:'Comunidade', items:[
       {id:'mural',   icon:'📌', label:'Mural de Avisos'},

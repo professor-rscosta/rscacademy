@@ -321,28 +321,59 @@ tbody tr:hover td { background: var(--slate-50); }
   z-index: 299;
   backdrop-filter: blur(2px);
 }
+/* sidebar-shell: outer wrapper that slides on mobile */
+.sidebar-shell {
+  display: contents; /* desktop: transparent wrapper, sidebar flows normally */
+}
+
 @media (max-width: 768px) {
   .mobile-topbar { display: flex !important; }
   .sidebar-overlay.open { display: block !important; }
   .dash-shell {
     flex-direction: column !important;
   }
-  .sidebar {
+  .sidebar-shell {
+    display: block !important;
     position: fixed !important;
     left: -260px;
     top: 0;
     bottom: 0;
     z-index: 300;
-    transition: left .25s ease;
+    transition: left .28s cubic-bezier(.4,0,.2,1);
     width: 240px !important;
     height: 100vh !important;
-    overflow-y: auto;
-    box-shadow: 4px 0 20px rgba(0,0,0,.25);
+    overflow: hidden;
+    box-shadow: 4px 0 24px rgba(0,0,0,.30);
   }
-  .sidebar.open {
+  .sidebar-shell.open {
     left: 0 !important;
+  }
+  /* Inner <aside class="sidebar"> fills the shell on mobile */
+  .sidebar-shell .sidebar {
+    position: relative !important;
+    height: 100% !important;
+    width: 100% !important;
+    overflow-y: auto;
+    /* Ensure all items are visible - explicit white on navy */
+    background: var(--navy) !important;
+    color: white !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .sidebar-shell .sidebar-item {
+    color: rgba(255,255,255,0.72) !important;
+    font-size: 14px !important;
+    padding: 11px 14px !important;
+  }
+  .sidebar-shell .sidebar-item.active {
+    color: var(--emerald-light) !important;
+  }
+  .sidebar-shell .sidebar-section-label {
+    color: rgba(255,255,255,0.38) !important;
   }
   .dash-main {
     padding: 12px !important;
+    /* Take remaining height below mobile topbar */
+    flex: 1;
   }
 }

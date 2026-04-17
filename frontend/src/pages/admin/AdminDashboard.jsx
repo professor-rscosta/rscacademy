@@ -47,7 +47,7 @@ export default function AdminDashboard() {
   return (
     <div className="dash-shell">
       <div className={'sidebar-overlay'+(sidebarOpen?' open':'')} onClick={() => setSidebar(false)} />
-      <div className={'sidebar'+(sidebarOpen?' open':'')}><Sidebar active={active} setActive={navigate} /></div>
+      <div className={'sidebar-shell'+(sidebarOpen?' open':'')}><Sidebar active={active} setActive={navigate} /></div>
       <main className="dash-main">
         <div className="mobile-topbar">
           <button className="mobile-hamburger" onClick={() => setSidebar(o=>!o)} aria-label="Menu">
