@@ -262,7 +262,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
                 <div key={r.questao_id} style={{ padding:'12px', borderRadius:8, marginBottom:8, background:acertou?'#f0fdf4':'#fef2f2', border:'1px solid '+(acertou?'#86efac':'#fca5a5') }}>
                   <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
                     <span style={{ fontSize:12, fontWeight:600, color:'var(--slate-600)' }}>Questao {i+1}</span>
-                    <span style={{ fontSize:12, fontWeight:700, color:acertou?'#15803d':'#b91c1c' }}>{acertou ? acertou ? 'Correto' : 'Incorreto'}</span>
+                    <span style={{ fontSize:12, fontWeight:700, color:acertou?'#15803d':'#b91c1c' }}>{acertou ? 'Correto' : 'Incorreto'}</span>
                   </div>
                   {q && <div style={{ fontSize:13, color:'var(--slate-700)', marginBottom:6 }}>{q.enunciado}</div>}
                   <div style={{ fontSize:12 }}>
