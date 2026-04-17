@@ -97,10 +97,10 @@ var IcoSearch = function() { return (
 
 /* Category definitions */
 var CATS = [
-  { key:'conteudos', label:'Conteudos da Disciplina', Icon:IcoBook,  cor:'#7c3aed', bg:'#faf5ff', tipos:['pdf','imagem'],   desc:'Conteudo formal da disciplina' },
-  { key:'videos',    label:'Videoaulas',       Icon:IcoVideo, cor:'#dc2626', bg:'#fef2f2', tipos:['youtube'],         desc:'Videoaulas e conteudos audiovisuais' },
-  { key:'links',     label:'Referencias Complementares',  Icon:IcoLink,  cor:'#0284c7', bg:'#f0f9ff', tipos:['link'],            desc:'Sites, artigos e materiais complementares' },
-  { key:'textos',    label:'Anotacoes da Aula',        Icon:IcoText,  cor:'#0f766e', bg:'#f0fdfa', tipos:['texto'],           desc:'Resumos e anotacoes de apoio ao estudo' },
+  { key:'conteudos', label:'Conteúdos da Disciplina', Icon:IcoBook,  cor:'#7c3aed', bg:'#faf5ff', tipos:['pdf','imagem'],   desc:'Conteúdo formal da disciplina' },
+  { key:'videos',    label:'Videoaulas',       Icon:IcoVideo, cor:'#dc2626', bg:'#fef2f2', tipos:['youtube'],         desc:'Videoaulas e conteúdos audiovisuais' },
+  { key:'links',     label:'Referências Complementares de Estudo',  Icon:IcoLink,  cor:'#0284c7', bg:'#f0f9ff', tipos:['link'],            desc:'Sites, artigos e materiais complementares' },
+  { key:'textos',    label:'Resumo e Anotações da Aula',        Icon:IcoText,  cor:'#0f766e', bg:'#f0fdfa', tipos:['texto'],           desc:'Resumos e anotações de apoio ao estudo' },
 ];
 
 var TIPO_CFG = {

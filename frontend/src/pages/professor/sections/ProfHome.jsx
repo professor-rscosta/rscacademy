@@ -35,25 +35,31 @@ export default function ProfHome({ onNavigate }) {
     <>
       <WelcomeBanner
         greeting={'Olá, '+firstName+'! 👩‍🏫'}
-        sub={'Você tem '+stats.turmas+' turma(s) ativa(s) e '+stats.alunos+' aluno(s) matriculados.'}
+        sub={(function(){
+          var t = stats.turmas, a = stats.alunos;
+          if (t === 0 && a === 0) return 'Você não possui turmas ativas nem alunos matriculados.';
+          var turmaTexto = t === 1 ? 'turma ativa' : 'turmas ativas';
+          var alunoTexto = a === 1 ? 'aluno matriculado' : 'alunos matriculados';
+          return 'Você possui ' + t + ' ' + turmaTexto + ' e ' + a + ' ' + alunoTexto + '.';
+        })()}
         emoji="🧑‍🏫"
       />
 
       <div className="stats-grid">
         <StatCard label="Disciplinas" value={loading?'..':stats.disc}     icon="📚" accent="accent-sky" />
-        <StatCard label="Trilhas"     value={loading?'..':stats.trilhas}  icon="🗺️" accent="accent-green" />
-        <StatCard label="Questões"    value={loading?'..':stats.questoes} icon="❓" accent="accent-amber" />
-        <StatCard label="Alunos"      value={loading?'..':stats.alunos}   icon="👨‍🎓" accent="accent-coral" />
+        <StatCard label="Trilhas de Aprendizagem"     value={loading?'..':stats.trilhas}  icon="🗺️" accent="accent-green" />
+        <StatCard label="Banco de Questões"    value={loading?'..':stats.questoes} icon="❓" accent="accent-amber" />
+        <StatCard label="Alunos Matriculados"      value={loading?'..':stats.alunos}   icon="👨‍🎓" accent="accent-coral" />
       </div>
 
       <div className="quick-actions">
-        <QACard icon="📚" title="Nova Disciplina"     desc="Criar e configurar"    onClick={() => nav('disciplinas', 'criar')} />
-        <QACard icon="🗺️" title="Nova Trilha"         desc="Desafios gamificados"  onClick={() => nav('trilhas', 'criar')} />
-        <QACard icon="❓" title="Criar Questão c/ IA" desc="Geração com RAG + TRI" onClick={() => nav('questoes', 'criar')} />
-        <QACard icon="📝" title="Nova Avaliação"      desc="Provas e atividades"   onClick={() => nav('avaliacoes', 'criar')} />
-        <QACard icon="📋" title="Nova Atividade"      desc="Envio de arquivo"      onClick={() => nav('atividades', 'criar')} />
-        <QACard icon="🏫" title="Nova Turma"          desc="Matricular alunos"     onClick={() => nav('turmas', 'criar')} />
-        <QACard icon="📌" title="Publicar Aviso"      desc="Mural de turma"        onClick={() => nav('mural', 'criar')} />
+        <QACard icon="📚" title="Nova Disciplina"     desc="Criar e configurar disciplina"    onClick={() => nav('disciplinas', 'criar')} />
+        <QACard icon="🗺️" title="Nova Trilha"         desc="Trilha de aprendizagem gamificada"  onClick={() => nav('trilhas', 'criar')} />
+        <QACard icon="❓" title="Criar Questão c/ IA" desc="Gerar questão com IA (RAG + TRI)" onClick={() => nav('questoes', 'criar')} />
+        <QACard icon="📝" title="Nova Avaliação"      desc="Criar avaliação (provas e atividades)"   onClick={() => nav('avaliacoes', 'criar')} />
+        <QACard icon="📋" title="Nova Atividade"      desc="Enviar atividade (upload de arquivo)"      onClick={() => nav('atividades', 'criar')} />
+        <QACard icon="🏫" title="Nova Turma"          desc="Criar turma e matricular alunos"     onClick={() => nav('turmas', 'criar')} />
+        <QACard icon="📌" title="Publicar Aviso"      desc="Publicar aviso no mural da turma"        onClick={() => nav('mural', 'criar')} />
       </div>
     </>
   );
