@@ -98,7 +98,11 @@ export default function CriarQuestaoModal({ trilhas = [], disciplinas = [], tril
   const [modoConteudo, setMC]     = useState('manual');
   const [modoTri, setMT]          = useState('manual');
   const [iaTopico, setIaTopico]   = useState('');
-  const [iaNivel, setIaNivel]     = useState('intermediário');
+  const [iaNivel, setIaNivel]     = useState('intermediario');
+  const [iaBncc, setIaBncc]       = useState('');
+  const [iaTri, setIaTri]         = useState('2PL');
+  const [showHelp, setShowHelp]   = useState(false);
+  const [iaAjuda, setIaAjuda]     = useState(false);
   const [iaLoading, setIaLoading] = useState(false);
   const [iaGerado, setIaGerado]   = useState(false);
   const [saving, setSaving]       = useState(false);
@@ -118,16 +122,44 @@ export default function CriarQuestaoModal({ trilhas = [], disciplinas = [], tril
 
   // ── Gerar questão com IA ─────────────────────────────────────
   const gerarComIA = async () => {
-    if (!iaTopico.trim()) return setError('Informe o tópico da questão.');
+    if (!iaTopico.trim()) return setError('Informe o topico da questao.');
     setIaLoading(true); setError('');
     try {
-      const tags = form.rag_tags ? form.rag_tags.split(',').map(t=>t.trim()) : [];
-      const res = await api.post('/questoes/gerar', { tipo:tipo.id, topico:iaTopico, nivel:iaNivel, trilha_id:trilhaId, tags, habilidade_bncc:iaBncc, modelo_tri:iaTri });
+      const tags = form.rag_tags ? form.rag_tags.split(',').map(function(t){ return t.trim(); }) : [];
+      const payload = {
+        tipo: tipo.id,
+        topico: iaTopico,
+        nivel: iaNivel,
+        trilha_id: trilhaId,
+        tags: tags,
+        ids: [],
+        habilidade_bncc: iaBncc || '',
+        modelo_tri: iaTri || '2PL',
+        instrucoes_extras: [
+          'Voce e um especialista em avaliacao educacional, elaboracao de itens e Teoria de Resposta ao Item (TRI), com dominio da BNCC.',
+          iaBncc ? 'Alinhe a questao a habilidade BNCC: ' + iaBncc : 'Indique a habilidade BNCC mais adequada.',
+          'Modelo TRI: ' + (iaTri || '2PL') + '. Aplique principios de discriminacao, dificuldade progressiva e distratores plausíveis.',
+          'Crie distratores realistas (erros comuns do aluno). Varie o nivel cognitivo (lembrar, compreender, aplicar, analisar).',
+          'Contextualize com situacoes reais do cotidiano ou ambiente profissional.',
+        ].join(' '),
+      };
+      const res = await api.post('/questoes/gerar', payload);
       const q = res.data.questao_sugerida;
-      setForm(f => ({ ...f, enunciado:q.enunciado||'', alternativas:q.alternativas||f.alternativas, gabarito:q.gabarito??null, rag_tags: q.tags_sugeridas ? q.tags_sugeridas.join(', ') : f.rag_tags }));
+      setForm(function(f) {
+        return {
+          ...f,
+          enunciado: q.enunciado || '',
+          alternativas: q.alternativas || f.alternativas,
+          gabarito: q.gabarito != null ? q.gabarito : null,
+          rag_tags: q.tags_sugeridas ? q.tags_sugeridas.join(', ') : f.rag_tags,
+        };
+      });
       if (q.tri) setTri({ ...q.tri, status:'provisorio', total_respostas:0 });
+      if (q.habilidade_bncc && !iaBncc) setIaBncc(q.habilidade_bncc);
       setIaGerado(true);
-    } catch(e) { setError(e.response?.data?.error || 'Erro ao gerar. Configure ANTHROPIC_API_KEY no .env'); }
+    } catch(e) {
+      setError(e.response?.data?.error || 'Erro ao gerar questao. Verifique se ANTHROPIC_API_KEY esta configurada.');
+    }
     setIaLoading(false);
   };
 

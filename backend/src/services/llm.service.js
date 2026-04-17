@@ -53,7 +53,7 @@ async function callOpenAI({ system, messages, maxTokens = 1500, jsonMode = false
     temperature: 0.4,
     messages: [
       { role: 'system', content: system || 'Você é um assistente educacional.' },
-      ...messages.map(m => ({ role: m.role, content: m.content || '' })),
+      ...messages.map(function(m) { return { role: m.role, content: Array.isArray(m.content) ? m.content : (m.content || '') }; }),
     ],
   };
 
@@ -116,7 +116,17 @@ async function callGemini({ system, messages, maxTokens = 1500 }) {
   }
   for (const m of messages) {
     const role = m.role === 'assistant' ? 'model' : 'user';
-    contents.push({ role, parts: [{ text: m.content || '' }] });
+    if (Array.isArray(m.content)) {
+      // Multi-part content (text + image)
+      var parts = m.content.map(function(part) {
+        if (part.type === 'text') return { text: part.text || '' };
+        if (part.type === 'image') return { inlineData: { mimeType: part.source.media_type, data: part.source.data } };
+        return { text: '' };
+      });
+      contents.push({ role, parts });
+    } else {
+      contents.push({ role, parts: [{ text: m.content || '' }] });
+    }
   }
 
   const res = await fetch(url, {

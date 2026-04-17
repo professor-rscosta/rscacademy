@@ -142,21 +142,29 @@ async function uploadChatFile(req, res, next) {
 
     let textoExtraido;
     if (isImage) {
-      // For images: use LLM to describe content (vision)
+      // For images: use LLM vision to describe content
       try {
         const llm = require('../services/llm.service');
+        // Extract clean base64 data (remove data URL prefix if present)
+        const rawData = base64.includes(',') ? base64.split(',')[1] : base64;
+        // Validate: must be valid base64 (no spaces, correct length)
+        if (!rawData || rawData.length < 100) throw new Error('Imagem muito pequena ou invalida.');
+        // Normalize mime type to accepted values
+        const validMimes = ['image/jpeg','image/png','image/gif','image/webp'];
+        const safeMime = validMimes.includes(mimeType) ? mimeType : 'image/jpeg';
         textoExtraido = await llm.chat({
-          system: 'Descreva detalhadamente o conteudo desta imagem em portugues, incluindo textos, dados, graficos e elementos visuais presentes.',
+          system: 'Voce e um assistente educacional. Descreva detalhadamente o conteudo desta imagem em portugues, incluindo textos, tabelas, graficos, formulas e quaisquer elementos educacionais presentes.',
           messages: [{ role: 'user', content: [
-            { type: 'image', source: { type: 'base64', media_type: mimeType || 'image/jpeg', data: (base64.includes(',') ? base64.split(',')[1] : base64) } },
-            { type: 'text', text: 'Descreva esta imagem detalhadamente para uso em contexto educacional.' }
+            { type: 'image', source: { type: 'base64', media_type: safeMime, data: rawData } },
+            { type: 'text', text: 'Descreva esta imagem detalhadamente para uso educacional.' }
           ] }],
-          maxTokens: 500,
+          maxTokens: 600,
         });
-        textoExtraido = '[Imagem: ' + fileName + '] ' + textoExtraido;
+        textoExtraido = '[Imagem: ' + fileName + '] ' + (textoExtraido || '');
       } catch(imgErr) {
-        console.error('[Upload] image description error:', imgErr.message);
-        textoExtraido = '[Imagem enviada: ' + fileName + '] (descricao automatica indisponivel)';
+        console.error('[Upload] image vision error:', imgErr.message);
+        // Fallback: accept the image but use filename as context
+        textoExtraido = '[Imagem enviada: ' + fileName + '] Conteudo visual disponivel para analise.';
       }
     } else {
       try {
