@@ -122,9 +122,9 @@ export default function CriarQuestaoModal({ trilhas = [], disciplinas = [], tril
     setIaLoading(true); setError('');
     try {
       const tags = form.rag_tags ? form.rag_tags.split(',').map(t=>t.trim()) : [];
-      const res = await api.post('/questoes/gerar', { tipo:tipo.id, topico:iaTopico, nivel:iaNivel, trilha_id:trilhaId, tags });
+      const res = await api.post('/questoes/gerar', { tipo:tipo.id, topico:iaTopico, nivel:iaNivel, trilha_id:trilhaId, tags, habilidade_bncc:iaBncc, modelo_tri:iaTri });
       const q = res.data.questao_sugerida;
-      setForm(f => ({ ...f, enunciado:q.enunciado||'', alternativas:q.alternativas||f.alternativas, gabarito:q.gabarito??null }));
+      setForm(f => ({ ...f, enunciado:q.enunciado||'', alternativas:q.alternativas||f.alternativas, gabarito:q.gabarito??null, rag_tags: q.tags_sugeridas ? q.tags_sugeridas.join(', ') : f.rag_tags }));
       if (q.tri) setTri({ ...q.tri, status:'provisorio', total_respostas:0 });
       setIaGerado(true);
     } catch(e) { setError(e.response?.data?.error || 'Erro ao gerar. Configure ANTHROPIC_API_KEY no .env'); }
@@ -501,17 +501,77 @@ export default function CriarQuestaoModal({ trilhas = [], disciplinas = [], tril
               {/* Painel IA */}
               {modoConteudo==='ia' && (
                 <div style={{background:'var(--slate-50)',borderRadius:10,padding:14,marginBottom:14,border:'1px solid var(--slate-200)'}}>
-                  <div className="field"><label>Tópico</label><input value={iaTopico} onChange={e=>setIaTopico(e.target.value)} placeholder="ex: funções recursivas em Python" onKeyDown={e=>e.key==='Enter'&&gerarComIA()} /></div>
+                  {/* ─ Ajuda ─ */}
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+                    <div style={{fontSize:12,fontWeight:700,color:'var(--navy)'}}>Configurar geração com IA</div>
+                    <button type="button" onClick={()=>setIaAjuda(a=>!a)}
+                      style={{padding:'4px 12px',border:'1.5px solid #7c3aed',borderRadius:99,background:iaAjuda?'#7c3aed':'white',color:iaAjuda?'white':'#7c3aed',fontSize:11,fontWeight:700,cursor:'pointer'}}>
+                      {iaAjuda ? 'Fechar Ajuda' : '💡 Ajuda / Prompts'}
+                    </button>
+                  </div>
+
+                  {iaAjuda && (
+                    <div style={{background:'#faf5ff',border:'1px solid #ddd6fe',borderRadius:10,padding:14,marginBottom:12,fontSize:12,lineHeight:1.8}}>
+                      <div style={{fontWeight:800,color:'#6d28d9',marginBottom:8}}>📘 Guia de Prompt por Tipo de Questão</div>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                        {[
+                          {t:'Múltipla Escolha',ex:'Calcular porcentagem em situações reais de desconto em compras'},
+                          {t:'Verdadeiro/Falso',ex:'Afirmações sobre a Revolução Industrial e impacto no trabalho'},
+                          {t:'Dissertativa',ex:'Analise os impactos da IA no mercado de trabalho atual'},
+                          {t:'Preenchimento',ex:'Complete: a mitose é o processo de ___ celular com ___ células-filhas'},
+                          {t:'Associação',ex:'Relacione: linguagens de programação com seus paradigmas'},
+                          {t:'Ordenação',ex:'Ordene as etapas do ciclo do projeto ágil (Scrum)'},
+                        ].map(function(item) {
+                          return (
+                            <div key={item.t} style={{background:'white',borderRadius:7,padding:'8px 10px',border:'1px solid #e9d5ff',cursor:'pointer'}}
+                              onClick={function(){ setIaTopico(item.ex); }}>
+                              <div style={{fontWeight:700,color:'#6d28d9',fontSize:11,marginBottom:3}}>{item.t}</div>
+                              <div style={{color:'#475569',fontSize:11}}>{item.ex}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div style={{marginTop:10,padding:'8px 10px',background:'#eff6ff',borderRadius:7,border:'1px solid #bfdbfe'}}>
+                        <div style={{fontWeight:700,color:'#1d4ed8',fontSize:11,marginBottom:4}}>BNCC — Exemplo de habilidades</div>
+                        <div style={{color:'#475569',fontSize:11}}>EM13MAT101 · EM13CNT201 · EF09CI01 · EM13LP01 · EM13CHS101</div>
+                        <div style={{marginTop:6,fontWeight:700,color:'#1d4ed8',fontSize:11,marginBottom:3}}>TRI — Modelos disponíveis</div>
+                        <div style={{color:'#475569',fontSize:11}}>1PL (1 parâmetro) · 2PL (2 parâmetros) · 3PL (3 parâmetros + chute) · GRM (politômico)</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ─ Campos ─ */}
+                  <div className="field"><label>Tópico / Contexto *</label>
+                    <input value={iaTopico} onChange={e=>setIaTopico(e.target.value)}
+                      placeholder="ex: funções recursivas em Python com aplicação prática"
+                      onKeyDown={e=>e.key==='Enter'&&gerarComIA()} />
+                  </div>
                   <div className="form-row">
                     <div className="field"><label>Dificuldade</label>
                       <select value={iaNivel} onChange={e=>setIaNivel(e.target.value)}>
                         <option>fácil</option><option>intermediário</option><option>difícil</option><option>muito difícil</option>
                       </select>
                     </div>
-                    <div className="field"><label>Tags RAG</label><input value={form.rag_tags} onChange={setV('rag_tags')} placeholder="python, algoritmos" /></div>
+                    <div className="field"><label>Habilidade BNCC</label>
+                      <input value={iaBncc} onChange={e=>setIaBncc(e.target.value)} placeholder="ex: EM13MAT101" />
+                    </div>
                   </div>
-                  <button type="button" onClick={gerarComIA} disabled={iaLoading} style={{padding:'9px 18px',background:'var(--navy)',color:'white',border:'none',borderRadius:8,fontWeight:600,fontSize:13,cursor:'pointer',opacity:iaLoading?0.7:1}}>
-                    {iaLoading?'🤖 Gerando...':'🤖 Gerar Questão'}
+                  <div className="form-row">
+                    <div className="field"><label>Modelo TRI</label>
+                      <select value={iaTri} onChange={e=>setIaTri(e.target.value)}>
+                        <option value="1PL">1PL — 1 parâmetro</option>
+                        <option value="2PL">2PL — Discriminação + Dificuldade</option>
+                        <option value="3PL">3PL — + Acerto ao acaso</option>
+                        <option value="GRM">GRM — Politômico</option>
+                      </select>
+                    </div>
+                    <div className="field"><label>Tags RAG</label>
+                      <input value={form.rag_tags} onChange={setV('rag_tags')} placeholder="matematica, funcoes" />
+                    </div>
+                  </div>
+                  <button type="button" onClick={gerarComIA} disabled={iaLoading}
+                    style={{padding:'10px 20px',background:'linear-gradient(135deg,#6d28d9,#7c3aed)',color:'white',border:'none',borderRadius:8,fontWeight:700,fontSize:13,cursor:'pointer',opacity:iaLoading?0.7:1,boxShadow:'0 3px 10px rgba(109,40,217,.35)'}}>
+                    {iaLoading ? '🤖 Gerando com IA...' : '🤖 Gerar Questão (BNCC + TRI)'}
                   </button>
                   {iaGerado && <span style={{marginLeft:10,fontSize:12,color:'var(--emerald-dark)',fontWeight:600}}>✅ Questão gerada! Revise abaixo.</span>}
                 </div>

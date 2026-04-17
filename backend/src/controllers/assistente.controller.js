@@ -136,19 +136,42 @@ async function uploadChatFile(req, res, next) {
 
     // Extrair texto
     const ragSvc = require('../services/rag.service');
+    // Handle image files specially - describe them via AI instead of text extraction
+    const ext = (fileName || '').split('.').pop().toLowerCase();
+    const isImage = ['jpg','jpeg','png','gif','webp','bmp'].includes(ext) || (mimeType||'').startsWith('image/');
+
     let textoExtraido;
-    try {
-      textoExtraido = await ragSvc.extractTextFromBase64(base64, mimeType, fileName);
-    } catch(extractErr) {
-      console.error('[Upload] extract error:', extractErr.message);
-      return res.status(422).json({ error: 'Falha ao extrair texto: ' + extractErr.message });
+    if (isImage) {
+      // For images: use LLM to describe content (vision)
+      try {
+        const llm = require('../services/llm.service');
+        textoExtraido = await llm.chat({
+          system: 'Descreva detalhadamente o conteudo desta imagem em portugues, incluindo textos, dados, graficos e elementos visuais presentes.',
+          messages: [{ role: 'user', content: [
+            { type: 'image', source: { type: 'base64', media_type: mimeType || 'image/jpeg', data: (base64.includes(',') ? base64.split(',')[1] : base64) } },
+            { type: 'text', text: 'Descreva esta imagem detalhadamente para uso em contexto educacional.' }
+          ] }],
+          maxTokens: 500,
+        });
+        textoExtraido = '[Imagem: ' + fileName + '] ' + textoExtraido;
+      } catch(imgErr) {
+        console.error('[Upload] image description error:', imgErr.message);
+        textoExtraido = '[Imagem enviada: ' + fileName + '] (descricao automatica indisponivel)';
+      }
+    } else {
+      try {
+        textoExtraido = await ragSvc.extractTextFromBase64(base64, mimeType, fileName);
+      } catch(extractErr) {
+        console.error('[Upload] extract error:', extractErr.message);
+        textoExtraido = '';
+      }
     }
 
     const textoLimpo = (textoExtraido || '').trim();
-    console.log('[Upload] texto extraído:', textoLimpo.length, 'chars');
-    if (textoLimpo.length < 50) {
+    console.log('[Upload] texto extraido:', textoLimpo.length, 'chars');
+    if (textoLimpo.length < 20 && !isImage) {
       return res.status(400).json({
-        error: 'Não foi possível extrair texto deste arquivo. Use PDF com texto selecionável, DOCX ou TXT.',
+        error: 'Nao foi possivel extrair texto deste arquivo. Use PDF com texto selecionavel, DOCX ou TXT.',
         chars_extraidos: textoLimpo.length,
       });
     }

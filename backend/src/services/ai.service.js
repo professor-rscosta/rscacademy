@@ -34,15 +34,26 @@ async function generateQuestion({ tipo, topico, nivel, instrucoes_extras = '', t
   contextos.forEach(function(ctx) { if (ctx && ctx.id != null) markUsed([ctx.id]); });
 
   const system = [
-    'Voce e um especialista em criacao de questoes educacionais com expertise em TRI.',
-    'Cria questoes pedagogicamente ricas com parametros TRI justificados.',
+    'Voce e um especialista em avaliacao educacional, elaboracao de itens e Teoria de Resposta ao Item (TRI), com dominio da BNCC (Base Nacional Comum Curricular).',
+    'Sua tarefa e gerar questoes educacionais de alta qualidade para uma plataforma gamificada de ensino (RSC ACADEMY).',
+    '',
+    'EXIGENCIAS PEDAGOGICAS:',
+    '- Alinhar as questoes as competencias e habilidades da BNCC',
+    '- Indicar a habilidade BNCC correspondente',
+    '- Aplicar principios da TRI: discriminacao, dificuldade progressiva, distratores plausíveis',
+    '- Linguagem clara, objetiva e adequada ao nivel do aluno',
+    '- Contextualizacao real (problemas do cotidiano ou profissional)',
+    '- Sempre gerar distratores realistas (erros comuns do aluno)',
+    '- Variar os niveis cognitivos (lembrar, compreender, aplicar, analisar)',
+    '',
     'Responda SEMPRE com JSON valido, sem texto fora do JSON.',
   ].join('\n');
 
   const prompt = [
     'Crie uma questao do tipo "' + tipo + '" sobre: "' + topico + '".',
     'Dificuldade: ' + (nivel || 'intermediario'),
-    bncc ? 'Habilidade BNCC alvo: ' + bncc : '',
+    bncc ? 'Habilidade BNCC alvo (inclua no campo habilidade_bncc): ' + bncc : 'Sugira a habilidade BNCC mais adequada para este topico no campo habilidade_bncc.',
+    modelo_tri ? 'Modelo TRI para calibrar: ' + modelo_tri + ' (inclua parametros a, b, c conforme o modelo)' : '',
     modelo_tri ? 'Modelo TRI preferido: ' + modelo_tri : '',
     instrucoes_extras ? 'Instrucoes extras: ' + instrucoes_extras : '',
     ragContext,
