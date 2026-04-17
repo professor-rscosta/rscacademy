@@ -86,14 +86,31 @@ async function remove(req, res, next) {
 
 async function gerarComIA(req, res, next) {
   try {
-    const { tipo, topico, nivel, trilha_id, instrucoes_extras, tags } = req.body;
-    if (!tipo || !topico) return res.status(400).json({ error: 'tipo e topico são obrigatórios.' });
+    const tipo   = req.body.tipo || '';
+    const topico = req.body.topico || '';
+    const nivel  = req.body.nivel || 'medio';
+    const trilha_id         = req.body.trilha_id || null;
+    const instrucoes_extras = req.body.instrucoes_extras || '';
+    const tags   = Array.isArray(req.body.tags) ? req.body.tags : [];
+    const ids    = Array.isArray(req.body.ids)  ? req.body.ids  : [];
+    const bncc   = req.body.habilidade_bncc || '';
+    const modelo_tri = req.body.modelo_tri || '2PL';
 
-    const result = await aiService.generateQuestion({ tipo, topico, nivel, instrucoes_extras, tags: tags || [] });
+    if (!tipo || !topico) {
+      return res.status(400).json({ error: 'Campos obrigatorios: tipo e topico.' });
+    }
+
+    const result = await aiService.generateQuestion({
+      tipo, topico, nivel, instrucoes_extras,
+      tags, ids, bncc, modelo_tri, trilha_id,
+    });
     res.json({ questao_sugerida: result });
   } catch (err) {
-    if (err.message.includes('ANTHROPIC_API_KEY')) return res.status(503).json({ error: err.message });
-    next(err);
+    console.error('[gerarComIA] Erro:', err.message, err.stack && err.stack.split('\n')[1]);
+    if (err.message && err.message.includes('ANTHROPIC_API_KEY')) {
+      return res.status(503).json({ error: 'Servico de IA indisponivel. Verifique a chave da API.' });
+    }
+    res.status(500).json({ error: 'Erro ao gerar questao: ' + (err.message || 'Erro desconhecido.') });
   }
 }
 

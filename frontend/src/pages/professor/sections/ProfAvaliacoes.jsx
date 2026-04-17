@@ -733,6 +733,9 @@ function AlunoDetalhe({ av, alunoId, alunoNome, onBack }) {
         <div style={{ fontWeight:700, fontSize:14, color:'var(--navy)', marginBottom:'1rem' }}>Detalhamento por Questao</div>
         {resps.map(function(r, i) {
           var qc = questComp.find(function(x) { return x.id === r.questao_id || x.questao_id === r.questao_id; }) || {};
+          // Also use inline questao data from backend response if questComp doesn't have it
+          var enunciado = qc.enunciado || r.questao_enunciado || '';
+          var gabarito  = qc.gabarito !== undefined ? qc.gabarito : r.questao_gabarito;
           var acertou = (r.score || 0) >= 0.8 || r.is_correct;
           return (
             <div key={r.questao_id || i} style={{ padding:'12px 14px', borderRadius:10, marginBottom:8, background:acertou?'#f0fdf4':'#fef2f2', border:'1px solid '+(acertou?'#86efac':'#fca5a5'), display:'flex', gap:12, alignItems:'flex-start' }}>
@@ -744,8 +747,20 @@ function AlunoDetalhe({ av, alunoId, alunoNome, onBack }) {
                   <span style={{ fontSize:12, fontWeight:700, color:'var(--slate-600)' }}>Questao {i+1}</span>
                   <span style={{ fontSize:11, color:acertou?'#15803d':'#b91c1c', fontWeight:700 }}>{Math.round((r.score||0)*100)}%</span>
                 </div>
-                {qc.enunciado && <div style={{ fontSize:13, color:'var(--slate-700)', marginBottom:5 }}>{qc.enunciado}</div>}
-                <div style={{ fontSize:12, color:'var(--slate-600)' }}><strong>Resposta:</strong> {r.resposta_aluno !== undefined ? String(r.resposta_aluno) : '--'}</div>
+                {enunciado && <div style={{ fontSize:13, color:'var(--slate-700)', marginBottom:5 }}>{enunciado}</div>}
+                <div style={{ fontSize:12, color:'var(--slate-600)' }}>{/* Try all possible field names for resposta_aluno */}
+                {(function() {
+                  var resp = r.resposta_aluno !== undefined && r.resposta_aluno !== null ? r.resposta_aluno : null;
+                  if (resp === null && r.resposta !== undefined) resp = r.resposta;
+                  return (
+                    <div style={{ fontSize:12, color:'var(--slate-600)' }}>
+                      <strong>Resposta do aluno:</strong>{' '}
+                      <span style={{ fontWeight:600, color: acertou?'#15803d':'#b91c1c' }}>
+                        {resp !== null && resp !== undefined ? String(resp) : 'Nao respondida'}
+                      </span>
+                    </div>
+                  );
+                })()}</div>
                 {!acertou && qc.gabarito !== undefined && (
                   <div style={{ fontSize:12, color:'#15803d', marginTop:3 }}><strong>Correta:</strong> {String(qc.gabarito)}</div>
                 )}

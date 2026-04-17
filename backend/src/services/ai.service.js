@@ -26,7 +26,7 @@ const TIPO_CONFIG = {
 };
 
 // ── FUNCAO 1: Gerar questao completa ─────────────────────────
-async function generateQuestion({ tipo, topico, nivel, instrucoes_extras = '', tags = [] }) {
+async function generateQuestion({ tipo, topico, nivel, instrucoes_extras = '', tags = [], ids = [], bncc = '', modelo_tri = '' }) {
   const cfg = TIPO_CONFIG[tipo] || TIPO_CONFIG.multipla_escolha;
 
   const contextos = retrieveContext(topico, tags, 2);
@@ -42,6 +42,8 @@ async function generateQuestion({ tipo, topico, nivel, instrucoes_extras = '', t
   const prompt = [
     'Crie uma questao do tipo "' + tipo + '" sobre: "' + topico + '".',
     'Dificuldade: ' + (nivel || 'intermediario'),
+    bncc ? 'Habilidade BNCC alvo: ' + bncc : '',
+    modelo_tri ? 'Modelo TRI preferido: ' + modelo_tri : '',
     instrucoes_extras ? 'Instrucoes extras: ' + instrucoes_extras : '',
     ragContext,
     'Instrucoes para o tipo ' + tipo + ': ' + cfg.instrucao,
@@ -58,6 +60,7 @@ async function generateQuestion({ tipo, topico, nivel, instrucoes_extras = '', t
     '    "a": 1.0, "b": 0.0, "c": 0.0,',
     '    "justificativa": "por que esses parametros"',
     '  },',
+    '  "habilidade_bncc": "' + (bncc || 'EM13XXX000') + '",',
     '  "tags_sugeridas": ["tag1", "tag2"]',
     '}',
     '',

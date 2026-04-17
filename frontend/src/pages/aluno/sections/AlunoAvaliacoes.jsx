@@ -266,7 +266,10 @@ export default function AlunoAvaliações({ initialAvaliacaoId, onReady }) {
                   </div>
                   {q && <div style={{ fontSize:13, color:'var(--slate-700)', marginBottom:6 }}>{q.enunciado}</div>}
                   <div style={{ fontSize:12 }}>
-                    <strong>Sua resposta:</strong> {renderResposta(r.resposta_aluno, tipo, alts)}
+                    <strong>Sua resposta:</strong>{' '}
+                    {(r.resposta_aluno !== null && r.resposta_aluno !== undefined)
+                      ? renderResposta(r.resposta_aluno, tipo, alts)
+                      : <em style={{ color:'var(--slate-400)' }}>Nao respondida</em>}
                   </div>
                   {!acertou && q && q.gabarito != null && (
                     <div style={{ fontSize:12, color:'#15803d', marginTop:4 }}>

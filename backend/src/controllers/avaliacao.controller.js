@@ -370,9 +370,17 @@ async function concluir(req, res, next) {
       console.log('[Avaliacao] Feedback IA falhou:', feedErr.message);
     }
 
+    // Save both: corrigidas (score/is_correct) + raw respostas (resposta_aluno preserved)
+    const respostasRaw = tentativa.respostas || [];
+    const respostasComRespostasAluno = respostasCorrigidas.map(function(rc) {
+      const raw = respostasRaw.find(function(r) { return r.questao_id === rc.questao_id; });
+      return Object.assign({}, rc, { resposta_aluno: raw ? raw.resposta : null });
+    });
     avaliacaoRepo.updateTentativa(tentativa.id, {
       status: 'concluida', nota, aprovado, pontos_brutos: pontosBrutos, peso_total: pesoTotal,
-      respostas: respostasCorrigidas, concluida_em: new Date().toISOString(),
+      respostas_corrigidas: respostasComRespostasAluno,
+      respostas: respostasRaw,
+      concluida_em: new Date().toISOString(),
       xp_ganho: xpGanho, feedback_geral: feedbackGeral,
     });
 
@@ -727,7 +735,25 @@ async function detalheAluno(req, res, next) {
     if (tentativas.length === 0) return res.status(404).json({ error: 'Nenhuma tentativa encontrada.' });
     const tentativa = tentativas[0]; // most recent
     const user = userRepo.findById(alunoId);
-    res.json({ aluno: user, avaliacao: av, tentativa });
+
+    // Enrich respostas_corrigidas with questao data and resposta_aluno
+    const respsBase = tentativa.respostas_corrigidas || tentativa.respostas || [];
+    const rawResps  = tentativa.respostas || [];
+    const respostasCompletas = respsBase.map(function(rc) {
+      const q   = questaoRepo.findById(rc.questao_id);
+      const raw = rawResps.find(function(r) { return r.questao_id === rc.questao_id; });
+      return Object.assign({}, rc, {
+        resposta_aluno:       rc.resposta_aluno != null ? rc.resposta_aluno : (raw ? raw.resposta : null),
+        questao_enunciado:    q ? q.enunciado : '',
+        questao_tipo:         q ? q.tipo : '',
+        questao_gabarito:     q ? q.gabarito : null,
+        questao_alternativas: q ? q.alternativas : null,
+        questao_explicacao:   q ? (q.explicacao || '') : '',
+      });
+    });
+    const tentativaCompleta = Object.assign({}, tentativa, { respostas_corrigidas: respostasCompletas });
+
+    res.json({ aluno: user, avaliacao: av, tentativa: tentativaCompleta });
   } catch(e) { next(e); }
 }
 
