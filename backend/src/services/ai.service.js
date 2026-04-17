@@ -31,7 +31,7 @@ async function generateQuestion({ tipo, topico, nivel, instrucoes_extras = '', t
 
   const contextos = retrieveContext(topico, tags, 2);
   const ragContext = formatContextForPrompt(contextos);
-  contextos.forEach(c => markUsed(c.id));
+  contextos.forEach(function(ctx) { if (ctx && ctx.id != null) markUsed([ctx.id]); });
 
   const system = [
     'Voce e um especialista em criacao de questoes educacionais com expertise em TRI.',

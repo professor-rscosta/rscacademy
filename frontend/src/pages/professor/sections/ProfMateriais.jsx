@@ -7,6 +7,17 @@ import api from '../../../hooks/useApi';
 import { useAuth } from '../../../context/AuthContext';
 import { Modal, EmptyState } from '../../../components/ui';
 
+// Inline YouTube ID extractor
+function extractYouTubeId(url) {
+  if (!url || typeof url !== 'string') return null;
+  var clean = url.trim();
+  var m = clean.match(/[?&]v=([a-zA-Z0-9_-]{11})/) ||
+          clean.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/) ||
+          clean.match(/youtube\.com\/(?:embed|shorts|live)\/([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+
 const TIPOS = [
   { id:'link',    icon:'🔗', label:'Link',         desc:'URL externa' },
   { id:'youtube', icon:'▶️', label:'YouTube',      desc:'Vídeo embed' },
