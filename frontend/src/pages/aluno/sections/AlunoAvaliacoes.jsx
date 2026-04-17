@@ -40,7 +40,17 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
     if (arquivos.length === 0 && !comentario.trim()) {
       setAlert({ type:'error', msg:'Adicione pelo menos um arquivo ou comentário.' }); return;
     }
-    if (!window.confirm('Confirmar envio? Você poderá cancelar antes do professor corrigir.')) return;
+    // Confirmação inline via confirmAlert helper
+    const confirmado = await new Promise(res => {
+      var o = document.createElement('div');
+      o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(2px)';
+      o.innerHTML='<div style="background:white;border-radius:20px;max-width:420px;width:100%;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,.3)"><div style="background:linear-gradient(135deg,#3b82f6,#1d4ed8);padding:1.5rem;text-align:center"><div style="font-size:46px;margin-bottom:6px">&#128228;</div><div style="font-weight:800;font-size:18px;color:white">Confirmar Envio</div></div><div style="padding:1.5rem;text-align:center"><p style="color:#475569;font-size:14px;margin:0 0 1.25rem;line-height:1.7">Tem certeza que deseja enviar seu trabalho?<br><span style="font-size:12px;color:#64748b">Voce podera cancelar antes do professor corrigir.</span></p><div style="display:flex;gap:10px"><button id="cc" style="flex:1;padding:11px;border:2px solid #e2e8f0;border-radius:10px;background:white;cursor:pointer;font-size:13px;font-weight:600;color:#64748b">Cancelar</button><button id="co" style="flex:2;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:white;cursor:pointer;font-size:14px;font-weight:700">Sim, enviar</button></div></div></div>';
+      document.body.appendChild(o);
+      o.querySelector('#cc').onclick=function(){ o.remove(); res(false); };
+      o.querySelector('#co').onclick=function(){ o.remove(); res(true); };
+      o.onclick=function(e){ if(e.target===o){ o.remove(); res(false); } };
+    });
+    if (!confirmado) return;
     setEnviando(true);
     try {
       // Salvar arquivos e comentário na resposta da avaliação (questão de upload_arquivo se houver)
@@ -139,7 +149,7 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
               <div style={{ fontSize:30, marginBottom:6 }}>📎</div>
               <div style={{ fontWeight:600, fontSize:13, color:'var(--slate-600)', marginBottom:2 }}>Adicionar arquivos</div>
               <div style={{ fontSize:11, color:'var(--slate-400)' }}>PDF, imagens, ZIP, código · Máx 10MB</div>
-              <input ref={fileRef} type="file" multiple style={{ display:'none' }} onChange={addArquivo} />
+              <input ref={fileRef} type="file" multiple id="av-file-upload" name="av-file-upload" style={{ display:'none' }} onChange={addArquivo} />
             </div>
 
             {/* Arquivos selecionados */}
@@ -209,6 +219,41 @@ function Cronometro({ segundos, onExpire }) {
   );
 }
 
+
+
+// ── Modal Questões Pendentes ──────────────────────────────────
+function PendentesModal({ faltam, total, onContinuar, onEnviarMesmo }) {
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.6)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem', backdropFilter:'blur(3px)' }}>
+      <div style={{ background:'white', borderRadius:20, width:'100%', maxWidth:440, boxShadow:'0 25px 60px rgba(0,0,0,.35)', overflow:'hidden', animation:'swAlert .25s cubic-bezier(.34,1.56,.64,1)' }}>
+        <div style={{ background:'linear-gradient(135deg,#f59e0b,#d97706)', padding:'1.5rem', textAlign:'center' }}>
+          <div style={{ fontSize:48, marginBottom:6 }}>⚠️</div>
+          <div style={{ fontFamily:'var(--font-head)', fontSize:18, fontWeight:800, color:'white' }}>Questões sem resposta</div>
+        </div>
+        <div style={{ padding:'1.5rem', textAlign:'center' }}>
+          <div style={{ fontSize:15, color:'var(--slate-700)', marginBottom:8 }}>
+            Você deixou <strong style={{ color:'#d97706' }}>{faltam} questão{faltam > 1 ? 'ões' : ''}</strong> sem resposta
+            de um total de <strong>{total}</strong>.
+          </div>
+          <div style={{ fontSize:13, color:'var(--slate-500)', background:'#fffbeb', border:'1px solid #fde68a', borderRadius:8, padding:'8px 14px', marginBottom:'1.5rem', lineHeight:1.6 }}>
+            Questões sem resposta serão marcadas como <strong>incorretas</strong> automaticamente.
+          </div>
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={onContinuar} style={{ flex:1, padding:'12px 0', border:'2px solid var(--emerald)', borderRadius:10, background:'white', cursor:'pointer', fontSize:13, fontWeight:700, color:'var(--emerald-dark)', transition:'all .15s' }}
+              onMouseEnter={e=>e.currentTarget.style.background='#f0fdf4'}
+              onMouseLeave={e=>e.currentTarget.style.background='white'}
+            >
+              Responder agora
+            </button>
+            <button onClick={onEnviarMesmo} style={{ flex:1, padding:'12px 0', border:'none', borderRadius:10, background:'linear-gradient(135deg,#f59e0b,#d97706)', color:'white', cursor:'pointer', fontSize:13, fontWeight:700, boxShadow:'0 4px 14px rgba(245,158,11,.4)' }}>
+              Enviar mesmo assim
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── SweetAlert-style Modal ───────────────────────────────────
 function ConfirmModal({ onConfirm, onCancel, titulo, mensagem, submensagem, confirmLabel, cancelLabel }) {
@@ -297,6 +342,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
   const [submitting, setSubmitting] = useState(false);
   const [resultado, setResultado] = useState(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showPendentes, setShowPend] = useState({ show:false, faltam:0 });
   const [tempoSeg, setTempoSeg] = useState(null);
 
   useEffect(() => { load(); }, []);
@@ -368,7 +414,8 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
     const respondidas = Object.keys(respostas).length;
     if (respondidas < questoes.length) {
       const faltam = questoes.length - respondidas;
-      if (!window.confirm(`Atenção: ${faltam} questão(ões) sem resposta. Deseja enviar mesmo assim?`)) return;
+      setShowPend({ show: true, faltam });
+      return;
     }
     setShowConfirm(true);
   };
@@ -432,6 +479,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
     };
 
     return (
+      <>
       <div style={{ maxWidth:680, margin:'0 auto' }}>
 
         {/* ── HERO ── */}
@@ -644,6 +692,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
     );
 
     return (
+      <>
       <div style={{ maxWidth:680, margin:'0 auto' }}>
         {/* HUD */}
         <div style={{ background:'linear-gradient(135deg,var(--navy),var(--navy-mid))', borderRadius:14, padding:'1rem 1.25rem', marginBottom:'1rem', color:'white' }}>
@@ -735,6 +784,28 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
           </div>
         </div>
       </div>
+
+      {/* modais dentro do fazendo */}
+      {showPendentes.show && (
+        <PendentesModal
+          faltam={showPendentes.faltam}
+          total={questoes.length}
+          onContinuar={() => setShowPend({ show:false, faltam:0 })}
+          onEnviarMesmo={() => { setShowPend({ show:false, faltam:0 }); setShowConfirm(true); }}
+        />
+      )}
+      {showConfirm && (
+        <ConfirmModal
+          titulo="Finalizar Avaliação"
+          mensagem="Tem certeza que deseja enviar suas respostas?"
+          submensagem="⚠️ Após o envio, não será possível alterar."
+          confirmLabel="✅ Sim, finalizar"
+          cancelLabel="❌ Cancelar"
+          onConfirm={concluir}
+          onCancel={() => setShowConfirm(false)}
+        />
+      )}
+    </>
     );
   }
 
@@ -855,26 +926,15 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
               </div>
             );
           })}
-          </div>
+                  </div>
                 </div>
+              </div>
               );
             })}
           </div>
         );
       })()}
 
-      {/* ── Modal de confirmação de envio (SweetAlert-style) ── */}
-      {showConfirm && (
-        <ConfirmModal
-          titulo="Finalizar Avaliação"
-          mensagem="Tem certeza que deseja enviar suas respostas?"
-          submensagem="⚠️ Após o envio, não será possível alterar."
-          confirmLabel="✅ Sim, finalizar"
-          cancelLabel="❌ Cancelar"
-          onConfirm={concluir}
-          onCancel={() => setShowConfirm(false)}
-        />
-      )}
     </>
   );
 }
