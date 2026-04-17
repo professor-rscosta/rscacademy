@@ -989,3 +989,622 @@ export default function ProfAvaliacoes({ autoCreate } = {}) {
     </>
   );
 }
+// -- ResultadosView - Relatorio completo para professor --
+function renderMd(text) {
+  if (!text) return '';
+  return text
+    .replace(/^## (.+)$/gm, '<h3 style="font-size:14px;font-weight:800;color:#1e3a5f;margin:16px 0 8px;padding-bottom:5px;border-bottom:2px solid #3b82f6">$1</h3>')
+    .replace(/^### (.+)$/gm, '<h4 style="font-size:13px;font-weight:700;color:#1e3a5f;margin:12px 0 6px">$1</h4>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^[-*] (.+)$/gm, '<li style="margin:4px 0 4px 16px;list-style:disc">$1</li>')
+    .replace(/\n\n/g, '<br/><br/>').replace(/\n/g, '<br/>');
+}
+
+function AlunoDetalhe({ av, alunoId, alunoNome, onBack }) {
+  const [data, setData]   = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(function() {
+    api.get('/avaliacoes/' + av.id + '/detalhe-aluno/' + alunoId)
+      .then(function(r) { setData(r.data); })
+      .catch(function() {})
+      .finally(function() { setLoading(false); });
+  }, [av.id, alunoId]);
+
+  if (loading) return <div style={{ textAlign:'center', padding:'3rem' }}><div className="spinner" style={{ margin:'0 auto' }}/></div>;
+  if (!data) return <div className="card"><div style={{ color:'var(--coral)' }}>Dados nao encontrados.</div></div>;
+
+  var t   = data.tentativa;
+  var stats = t.estatisticas || {};
+  var resps = t.respostas_corrigidas || t.respostas || [];
+  var questoesComp = av.questoes_completas || [];
+  var corretas = stats.corretas || 0;
+  var total    = stats.total_questoes || resps.length;
+  var taxa     = stats.taxa_acerto || 0;
+  var dataHora = t.concluida_em ? new Date(t.concluida_em).toLocaleString('pt-BR') : '--';
+
+  return (
+    <div>
+      <button onClick={onBack} style={{ padding:'6px 14px', border:'1.5px solid var(--slate-200)', borderRadius:8, background:'white', cursor:'pointer', fontSize:13, marginBottom:'1.5rem' }}>
+        &#8592; Voltar aos Resultados
+      </button>
+
+      {/* Header aluno */}
+      <div style={{ background:'linear-gradient(135deg,var(--navy),#2d5a9e)', borderRadius:14, padding:'1.5rem', color:'white', marginBottom:'1.5rem' }}>
+        <div style={{ fontSize:13, opacity:.6, marginBottom:4 }}>Relatorio Individual</div>
+        <div style={{ fontFamily:'var(--font-head)', fontSize:22, fontWeight:800, marginBottom:8 }}>{data.aluno && data.aluno.nome || alunoNome}</div>
+        <div style={{ display:'flex', flexWrap:'wrap', gap:16, fontSize:13 }}>
+          <span>Avaliacao: {av.titulo}</span>
+          <span>Data: {dataHora}</span>
+          <span>Nota: <strong style={{ fontSize:18 }}>{t.nota != null ? t.nota.toFixed(1) : '--'}/10</strong></span>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="stats-grid" style={{ marginBottom:'1.5rem' }}>
+        {[
+          { l:'Questoes',  v:total,             i:'[?]' },
+          { l:'Acertos',   v:corretas,           i:'[OK]', c:'#059669' },
+          { l:'Erros',     v:total - corretas,   i:'[X]',  c:'#dc2626' },
+          { l:'Taxa',      v:Math.round(taxa)+'%', i:'[%]' },
+        ].map(function(s) {
+          return (
+            <div key={s.l} className="stat-card">
+              <div className="stat-accent">{s.i}</div>
+              <div className="stat-label">{s.l}</div>
+              <div className="stat-value" style={{ color:s.c||'var(--navy)' }}>{s.v}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Detalhamento */}
+      <div className="card" style={{ marginBottom:'1.5rem' }}>
+        <div style={{ fontWeight:700, fontSize:14, color:'var(--navy)', marginBottom:'1rem' }}>Detalhamento por Questao</div>
+        {resps.map(function(r, i) {
+          var qc   = questoesComp.find(function(x) { return x.id === r.questao_id || x.questao_id === r.questao_id; });
+          var q    = qc || {};
+          var acertou = (r.score || 0) >= 0.8 || r.is_correct;
+          return (
+            <div key={r.questao_id || i} style={{ padding:'12px 14px', borderRadius:10, marginBottom:8, background:acertou?'#f0fdf4':'#fef2f2', border:'1px solid '+(acertou?'#86efac':'#fca5a5') }}>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                <span style={{ fontSize:12, fontWeight:700, color:'var(--slate-600)' }}>Questao {i+1}</span>
+                <span style={{ fontSize:12, fontWeight:700, padding:'2px 10px', borderRadius:99, background:acertou?'#dcfce7':'#fee2e2', color:acertou?'#15803d':'#b91c1c' }}>
+                  {acertou ? '&#10003; Correto' : '&#10007; Incorreto'}
+                </span>
+              </div>
+              {q.enunciado && <div style={{ fontSize:13, color:'var(--slate-700)', marginBottom:6 }}>{q.enunciado}</div>}
+              <div style={{ fontSize:12, color:'var(--slate-600)' }}>
+                <strong>Resposta do aluno:</strong> {r.resposta_aluno !== undefined ? String(r.resposta_aluno) : '--'}
+              </div>
+              {!acertou && q.gabarito !== undefined && (
+                <div style={{ fontSize:12, color:'#15803d', marginTop:3 }}>
+                  <strong>Resposta correta:</strong> {String(q.gabarito)}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Feedback IA */}
+      {t.feedback_geral && (
+        <div className="card" style={{ borderLeft:'4px solid var(--sky)' }}>
+          <div style={{ fontWeight:700, fontSize:14, color:'var(--navy)', marginBottom:10 }}>Feedback Pedagogico (IA)</div>
+          <div style={{ fontSize:13, lineHeight:1.8 }} dangerouslySetInnerHTML={{ __html: renderMd(t.feedback_geral) }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ResultadosView({ av, onBack }) {
+  const [resultados, setResultados]   = useState([]);
+  const [questStats, setQuestStats]   = useState([]);
+  const [analiseIA, setAnaliseIA]     = useState(null);
+  const [metricas, setMetricas]       = useState(null);
+  const [loading, setLoading]         = useState(true);
+  const [loadingIA, setLoadingIA]     = useState(false);
+  const [aba, setAba]                 = useState('turma');
+  const [alunoSel, setAlunoSel]       = useState(null);
+
+  useEffect(function() {
+    api.get('/avaliacoes/' + av.id + '/resultados')
+      .then(function(r) {
+        setResultados(r.data.resultados || []);
+        setMetricas(r.data.estatisticas || {});
+      })
+      .catch(function(e) { console.error(e); })
+      .finally(function() { setLoading(false); });
+  }, [av.id]);
+
+  var carregarAnalise = function() {
+    if (analiseIA || loadingIA) return;
+    setLoadingIA(true);
+    api.get('/avaliacoes/' + av.id + '/analise-turma')
+      .then(function(r) {
+        setQuestStats(r.data.questoes_stats || []);
+        setAnaliseIA(r.data.analise_ia || null);
+      })
+      .catch(function(e) { console.error(e); })
+      .finally(function() { setLoadingIA(false); });
+  };
+
+  var handleAba = function(a) {
+    setAba(a);
+    if (a === 'ia' || a === 'questoes') carregarAnalise();
+  };
+
+  if (alunoSel) {
+    return <AlunoDetalhe av={av} alunoId={alunoSel.aluno_id} alunoNome={alunoSel.nome} onBack={function(){ setAlunoSel(null); }} />;
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:'1.5rem', flexWrap:'wrap' }}>
+        <button onClick={onBack} style={{ padding:'6px 14px', border:'1.5px solid var(--slate-200)', borderRadius:8, background:'white', cursor:'pointer', fontSize:13 }}>
+          &#8592; Voltar
+        </button>
+        <div>
+          <div className="page-title" style={{ marginBottom:0 }}>Resultados — {av.titulo}</div>
+          <div className="page-sub">Modulo de analise pedagogica completo</div>
+        </div>
+      </div>
+
+      {/* Stats cards */}
+      {metricas && (
+        <div className="stats-grid" style={{ marginBottom:'1.5rem' }}>
+          {[
+            { l:'Alunos',       v:metricas.total_alunos||0,      i:'[U]' },
+            { l:'Media geral',  v:(metricas.media_geral||0).toFixed(1), i:'[M]' },
+            { l:'Aprovados',    v:metricas.aprovados||0,          i:'[OK]' },
+            { l:'Reprovados',   v:metricas.reprovados||0,         i:'[X]' },
+          ].map(function(s) {
+            return (
+              <div key={s.l} className="stat-card">
+                <div className="stat-accent">{s.i}</div>
+                <div className="stat-label">{s.l}</div>
+                <div className="stat-value">{s.v}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Abas */}
+      <div style={{ display:'flex', gap:4, marginBottom:'1.5rem', background:'var(--slate-100)', borderRadius:10, padding:4 }}>
+        {[
+          { k:'turma',   l:'Turma',      sub:'Notas dos alunos' },
+          { k:'questoes',l:'Por Questao', sub:'Analise por item' },
+          { k:'ia',      l:'Analise IA',  sub:'BNCC + TRI + IA' },
+        ].map(function(tab) {
+          var active = aba === tab.k;
+          return (
+            <button key={tab.k} onClick={function(){ handleAba(tab.k); }}
+              style={{ flex:1, padding:'10px 8px', border:'none', borderRadius:8, cursor:'pointer', textAlign:'center', transition:'all .15s',
+                background: active ? 'white' : 'transparent',
+                boxShadow: active ? '0 2px 8px rgba(0,0,0,.1)' : 'none',
+                color: active ? 'var(--navy)' : 'var(--slate-500)',
+              }}>
+              <div style={{ fontSize:13, fontWeight:active?700:500 }}>{tab.l}</div>
+              <div style={{ fontSize:10, opacity:.7 }}>{tab.sub}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ABA: Turma */}
+      {aba === 'turma' && (
+        <div className="card">
+          <div style={{ fontWeight:700, fontSize:14, color:'var(--navy)', marginBottom:'1rem' }}>
+            Desempenho Individual — Clique para ver detalhes
+          </div>
+          {loading ? (
+            <div style={{ textAlign:'center', padding:'2rem' }}><div className="spinner" style={{ margin:'0 auto' }}/></div>
+          ) : resultados.length === 0 ? (
+            <div style={{ textAlign:'center', padding:'2rem', color:'var(--slate-400)' }}>Nenhuma tentativa concluida ainda.</div>
+          ) : (
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+                <thead>
+                  <tr style={{ background:'var(--slate-50)', borderBottom:'2px solid var(--slate-200)' }}>
+                    {['#','Aluno','Melhor Nota','Status','Tentativas','Data'].map(function(h) {
+                      return <th key={h} style={{ padding:'10px 12px', textAlign:'left', fontWeight:700, color:'var(--slate-600)', fontSize:12 }}>{h}</th>;
+                    })}
+                    <th style={{ padding:'10px 12px', fontSize:12, fontWeight:700, color:'var(--slate-600)' }}>Detalhe</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {resultados.map(function(r, i) {
+                    var aprovado = r.aprovado || r.melhor_nota >= (av.nota_minima||6);
+                    var dataStr  = r.ultima_tentativa ? new Date(r.ultima_tentativa).toLocaleDateString('pt-BR') : '--';
+                    var barW     = Math.round((r.melhor_nota||0) / 10 * 100);
+                    return (
+                      <tr key={r.aluno_id} style={{ borderBottom:'1px solid var(--slate-100)', background: i%2===0?'white':'var(--slate-50)' }}>
+                        <td style={{ padding:'10px 12px', color:'var(--slate-400)', fontSize:12 }}>{i+1}</td>
+                        <td style={{ padding:'10px 12px' }}>
+                          <div style={{ fontWeight:600, color:'var(--navy)' }}>{r.nome}</div>
+                          {r.email && <div style={{ fontSize:11, color:'var(--slate-400)' }}>{r.email}</div>}
+                        </td>
+                        <td style={{ padding:'10px 12px' }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                            <span style={{ fontWeight:800, fontSize:15, color:aprovado?'#15803d':'#b91c1c', minWidth:32 }}>
+                              {(r.melhor_nota||0).toFixed(1)}
+                            </span>
+                            <div style={{ flex:1, height:6, background:'var(--slate-100)', borderRadius:99, overflow:'hidden', minWidth:60 }}>
+                              <div style={{ height:'100%', width:barW+'%', background:aprovado?'linear-gradient(90deg,#10b981,#059669)':'linear-gradient(90deg,#f87171,#dc2626)', borderRadius:99, transition:'width .4s' }} />
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ padding:'10px 12px' }}>
+                          <span style={{ padding:'3px 10px', borderRadius:99, fontSize:11, fontWeight:700, background:aprovado?'#f0fdf4':'#fef2f2', color:aprovado?'#15803d':'#b91c1c', border:'1px solid '+(aprovado?'#86efac':'#fca5a5') }}>
+                            {aprovado ? 'Aprovado' : 'Reprovado'}
+                          </span>
+                        </td>
+                        <td style={{ padding:'10px 12px', color:'var(--slate-500)', fontSize:12 }}>{r.total_tentativas||1}x</td>
+                        <td style={{ padding:'10px 12px', color:'var(--slate-400)', fontSize:12 }}>{dataStr}</td>
+                        <td style={{ padding:'10px 12px' }}>
+                          <button onClick={function(){ setAlunoSel(r); }}
+                            style={{ padding:'5px 12px', background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:7, color:'#1d4ed8', cursor:'pointer', fontSize:12, fontWeight:600 }}>
+                            Ver detalhe
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ABA: Por Questao */}
+      {aba === 'questoes' && (
+        <div className="card">
+          <div style={{ fontWeight:700, fontSize:14, color:'var(--navy)', marginBottom:'1rem' }}>
+            Analise por Questao
+          </div>
+          {loadingIA ? (
+            <div style={{ textAlign:'center', padding:'2rem' }}><div className="spinner" style={{ margin:'0 auto' }}/></div>
+          ) : questStats.length === 0 ? (
+            <div style={{ textAlign:'center', padding:'2rem', color:'var(--slate-400)' }}>Sem dados suficientes para analise.</div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {questStats.map(function(q, i) {
+                var acertou = q.taxa_acerto >= 70;
+                var critica = q.taxa_acerto < 50;
+                var barColor = critica ? 'linear-gradient(90deg,#f87171,#dc2626)' : acertou ? 'linear-gradient(90deg,#10b981,#059669)' : 'linear-gradient(90deg,#fbbf24,#f59e0b)';
+                return (
+                  <div key={q.id} style={{ padding:'12px 14px', borderRadius:10, border:'1px solid '+(critica?'#fca5a5':acertou?'#86efac':'#fde68a'), background:critica?'#fef2f2':acertou?'#f0fdf4':'#fffbeb' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6, alignItems:'flex-start', gap:8 }}>
+                      <span style={{ fontSize:12, color:'var(--slate-700)', flex:1 }}>
+                        <strong>Q{i+1}:</strong> {(q.enunciado||'').slice(0,100)}{q.enunciado && q.enunciado.length > 100 ? '...' : ''}
+                      </span>
+                      <span style={{ fontSize:13, fontWeight:800, color:critica?'#dc2626':acertou?'#059669':'#d97706', flexShrink:0 }}>
+                        {q.taxa_acerto}%
+                      </span>
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <div style={{ flex:1, height:8, background:'var(--slate-100)', borderRadius:99, overflow:'hidden' }}>
+                        <div style={{ height:'100%', width:q.taxa_acerto+'%', background:barColor, borderRadius:99, transition:'width .4s' }} />
+                      </div>
+                      <span style={{ fontSize:11, color:'var(--slate-500)', flexShrink:0 }}>
+                        {q.corretas}/{q.total} acertos
+                      </span>
+                    </div>
+                    {critica && (
+                      <div style={{ fontSize:11, color:'#b91c1c', marginTop:4, fontWeight:600 }}>
+                        [!] Questao critica — requer revisao do conteudo
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ABA: Analise IA */}
+      {aba === 'ia' && (
+        <div className="card">
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem' }}>
+            <div style={{ fontWeight:700, fontSize:14, color:'var(--navy)' }}>Analise Pedagogica com IA</div>
+            <span style={{ fontSize:11, padding:'3px 10px', borderRadius:99, background:'#f5f3ff', color:'#6d28d9', border:'1px solid #ddd6fe', fontWeight:600 }}>
+              BNCC + TRI
+            </span>
+          </div>
+          {loadingIA ? (
+            <div style={{ textAlign:'center', padding:'3rem' }}>
+              <div className="spinner" style={{ margin:'0 auto 12px' }} />
+              <div style={{ fontSize:13, color:'var(--slate-500)' }}>Gerando analise pedagogica com IA...</div>
+            </div>
+          ) : !analiseIA ? (
+            <div style={{ textAlign:'center', padding:'2rem', color:'var(--slate-400)' }}>
+              <div style={{ fontSize:36, marginBottom:8 }}>[AI]</div>
+              <div style={{ marginBottom:12 }}>Clique para gerar a analise da turma.</div>
+              <button onClick={carregarAnalise} style={{ padding:'10px 24px', background:'linear-gradient(135deg,#6d28d9,#7c3aed)', color:'white', border:'none', borderRadius:10, fontWeight:700, cursor:'pointer', boxShadow:'0 3px 12px rgba(109,40,217,.35)' }}>
+                Gerar Analise com IA
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div style={{ padding:'12px 16px', background:'#f5f3ff', borderRadius:10, border:'1px solid #ddd6fe', marginBottom:'1rem', fontSize:12, color:'#6d28d9' }}>
+                Analise gerada automaticamente com base nos dados da avaliacao, BNCC e principios de TRI.
+              </div>
+              <div style={{ fontSize:13, lineHeight:1.9 }} dangerouslySetInnerHTML={{ __html: renderMd(analiseIA) }} />
+              <button onClick={function(){ setAnaliseIA(null); setQuestStats([]); carregarAnalise(); }}
+                style={{ marginTop:'1rem', padding:'7px 16px', background:'var(--slate-100)', border:'1px solid var(--slate-200)', borderRadius:8, cursor:'pointer', fontSize:12, color:'var(--slate-600)' }}>
+                Regenerar analise
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function EditAvaliacaoModal({ av, turmas, onClose, onSalvar }) {
+  const [form, setForm] = useState({
+    titulo:                av.titulo || '',
+    descricao:             av.descricao || '',
+    tempo_limite:          av.tempo_limite || 60,
+    tentativas_permitidas: av.tentativas_permitidas || 1,
+    nota_minima:           av.nota_minima || 6,
+    disponivel_em:         av.disponivel_em ? av.disponivel_em.slice(0,16) : '',
+    encerra_em:            av.encerra_em    ? av.encerra_em.slice(0,16)    : '',
+    turma_id:              av.turma_id || '',
+  });
+  const [saving, setSaving] = useState(false);
+  const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
+
+  const salvar = async () => {
+    if (!form.titulo.trim()) { alert('Titulo obrigatorio.'); return; }
+    setSaving(true);
+    try {
+      const payload = {
+        ...form,
+        tempo_limite:          Number(form.tempo_limite),
+        tentativas_permitidas: Number(form.tentativas_permitidas),
+        nota_minima:           Number(form.nota_minima),
+        disponivel_em:         form.disponivel_em ? new Date(form.disponivel_em).toISOString() : null,
+        encerra_em:            form.encerra_em    ? new Date(form.encerra_em).toISOString()    : null,
+        turma_id:              form.turma_id ? Number(form.turma_id) : null,
+      };
+      const r = await api.put('/avaliacoes/' + av.id, payload);
+      onSalvar(r.data.avaliacao || { ...av, ...payload });
+      showToast('Avaliacao atualizada!', 'success');
+    } catch(e) {
+      showToast('Erro: ' + (e.response?.data?.error || e.message), 'error');
+    }
+    setSaving(false);
+  };
+
+  const inp = (label, k, type, extra) => (
+    <div className="field">
+      <label>{label}</label>
+      <input type={type||'text'} value={form[k]} onChange={set(k)} {...(extra||{})}
+        style={{ padding:'8px 12px', border:'1.5px solid var(--slate-200)', borderRadius:8, fontSize:13, outline:'none', width:'100%', boxSizing:'border-box' }}
+        onFocus={e=>e.target.style.borderColor='var(--emerald)'}
+        onBlur={e=>e.target.style.borderColor='var(--slate-200)'}
+      />
+    </div>
+  );
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.55)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem', backdropFilter:'blur(2px)' }}>
+      <div style={{ background:'white', borderRadius:16, width:'100%', maxWidth:520, maxHeight:'92vh', overflow:'auto', boxShadow:'0 25px 60px rgba(0,0,0,.3)' }}>
+        {/* Header */}
+        <div style={{ background:'linear-gradient(135deg,var(--navy),#2d5a9e)', padding:'1rem 1.25rem', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, zIndex:1 }}>
+          <span style={{ fontFamily:'var(--font-head)', fontSize:16, fontWeight:700, color:'white' }}>Editar Avaliacao</span>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'white', fontSize:20, cursor:'pointer', opacity:.7 }}>&#x2715;</button>
+        </div>
+
+        <div style={{ padding:'1.25rem', display:'flex', flexDirection:'column', gap:'0.75rem' }}>
+          {/* Titulo */}
+          <div className="field">
+            <label>Titulo *</label>
+            <input value={form.titulo} onChange={set('titulo')} placeholder="Nome da avaliacao"
+              style={{ padding:'8px 12px', border:'1.5px solid var(--slate-200)', borderRadius:8, fontSize:13, outline:'none', width:'100%', boxSizing:'border-box' }}
+              onFocus={e=>e.target.style.borderColor='var(--emerald)'} onBlur={e=>e.target.style.borderColor='var(--slate-200)'}/>
+          </div>
+
+          {/* Descricao */}
+          <div className="field">
+            <label>Descricao</label>
+            <textarea value={form.descricao} onChange={set('descricao')} rows={3}
+              style={{ padding:'8px 12px', border:'1.5px solid var(--slate-200)', borderRadius:8, fontSize:13, outline:'none', width:'100%', boxSizing:'border-box', resize:'vertical', fontFamily:'var(--font-body)' }}
+              onFocus={e=>e.target.style.borderColor='var(--emerald)'} onBlur={e=>e.target.style.borderColor='var(--slate-200)'}/>
+          </div>
+
+          {/* Grid de numericos */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
+            {inp('Tempo (min)', 'tempo_limite', 'number', { min:1, max:300 })}
+            {inp('Tentativas', 'tentativas_permitidas', 'number', { min:1, max:10 })}
+            {inp('Nota minima', 'nota_minima', 'number', { min:0, max:10, step:0.5 })}
+          </div>
+
+          {/* Datas */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+            <div className="field">
+              <label>Abertura</label>
+              <input type="datetime-local" value={form.disponivel_em} onChange={set('disponivel_em')}
+                style={{ padding:'8px 12px', border:'1.5px solid var(--slate-200)', borderRadius:8, fontSize:13, outline:'none', width:'100%', boxSizing:'border-box' }}
+                onFocus={e=>e.target.style.borderColor='var(--emerald)'} onBlur={e=>e.target.style.borderColor='var(--slate-200)'}/>
+            </div>
+            <div className="field">
+              <label>Encerramento</label>
+              <input type="datetime-local" value={form.encerra_em} onChange={set('encerra_em')}
+                style={{ padding:'8px 12px', border:'1.5px solid var(--slate-200)', borderRadius:8, fontSize:13, outline:'none', width:'100%', boxSizing:'border-box' }}
+                onFocus={e=>e.target.style.borderColor='var(--emerald)'} onBlur={e=>e.target.style.borderColor='var(--slate-200)'}/>
+            </div>
+          </div>
+
+          {/* Turma */}
+          {turmas.length > 0 && (
+            <div className="field">
+              <label>Turma</label>
+              <select value={form.turma_id} onChange={set('turma_id')}
+                style={{ padding:'8px 12px', border:'1.5px solid var(--slate-200)', borderRadius:8, fontSize:13, outline:'none', width:'100%', boxSizing:'border-box' }}>
+                <option value="">Sem turma especifica</option>
+                {turmas.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Botoes */}
+          <div style={{ display:'flex', gap:10, marginTop:'0.5rem' }}>
+            <button onClick={onClose} style={{ flex:1, padding:'11px 0', border:'2px solid var(--slate-200)', borderRadius:10, background:'white', cursor:'pointer', fontSize:13, fontWeight:600, color:'var(--slate-600)' }}>
+              Cancelar
+            </button>
+            <button onClick={salvar} disabled={saving} style={{ flex:2, padding:'11px 0', border:'none', borderRadius:10, background:'linear-gradient(135deg,var(--emerald),var(--emerald-dark))', color:'white', cursor:'pointer', fontSize:14, fontWeight:700, boxShadow:'0 4px 14px rgba(16,185,129,.3)' }}>
+              {saving ? 'Salvando...' : 'Salvar Alteracoes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+export default function ProfAvaliacoes({ autoCreate } = {}) {
+  const { user } = useAuth();
+  const [avs, setAvs]           = useState([]);
+  const [turmas, setTurmas]     = useState([]);
+  const [questoesDisp, setQs]   = useState([]);
+  const [disciplinas, setDiscs]  = useState([]);
+  const [trilhas, setTrilhas]   = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [showCriar, setShowCriar] = useState(false);
+  const [viewResultados, setViewRes] = useState(null);
+  const [editAv, setEditAv] = useState(null);
+  const [editQuestoes, setEditQ]    = useState(null);
+
+  const load = async () => {
+    try {
+      const [avRes, tRes, qRes, trRes, dRes] = await Promise.all([
+        api.get('/avaliacoes?professor_id='+user.id),
+        api.get('/turmas?professor_id='+user.id),
+        api.get('/questoes?professor_id='+user.id),
+        api.get('/trilhas?professor_id='+user.id),
+        api.get('/disciplinas'),
+      ]);
+      setDiscs(dRes.data.disciplinas || []);
+      setAvs(avRes.data.avaliacoes || []);
+      setTurmas(tRes.data.turmas || []);
+      const trilhasMap = {};
+      const trList = trRes.data.trilhas || [];
+      trList.forEach(t=>{ trilhasMap[t.id]=t.nome; });
+      setTrilhas(trList);
+      setQs((qRes.data.questoes||[]).map(q=>({ ...q, trilha_nome: q.trilha_id?(trilhasMap[q.trilha_id]||'Trilha'):'' })));
+    } catch(e){ console.error(e); }
+    setLoading(false);
+  };
+
+  useEffect(()=>{ load(); },[]);
+
+  useEffect(() => { if (autoCreate) setShowCriar(true); }, [autoCreate]);
+
+  const handlePublicar = async (id) => {
+    try { await api.patch('/avaliacoes/'+id+'/publicar'); setAvs(p=>p.map(a=>a.id===id?{...a,status:'publicada'}:a)); }
+    catch(e){ alert(e.response?.data?.error||'Erro.'); }
+  };
+
+  const handleDelete = (id) => {
+    confirmAlert('Excluir Avaliacao', 'Esta acao nao pode ser desfeita. Deseja excluir esta avaliacao?', async () => {
+      try {
+        await api.delete('/avaliacoes/'+id);
+        setAvs(p=>p.filter(a=>a.id!==id));
+        showToast('Avaliacao excluida com sucesso!', 'success');
+      } catch(e) { showToast('Erro ao excluir avaliacao.', 'error'); }
+    });
+  };
+
+  const handleUpdateAv = (updated) => {
+    setAvs(p => p.map(a => a.id===updated.id ? updated : a));
+  };
+  const handleEditAv = (updated) => {
+    handleUpdateAv(updated);
+    setEditAv(null);
+  };
+
+  if (viewResultados) return <ResultadosView av={viewResultados} onBack={()=>setViewRes(null)} />;
+  if (editQuestoes)   return <GerenciarQuestoes av={editQuestoes} questoesDisp={questoesDisp} trilhas={trilhas} disciplinas={disciplinas} onBack={()=>setEditQ(null)} onUpdate={up=>{ handleUpdateAv(up); setEditQ(up); }} />;
+
+  return (
+    <>
+      <div className="page-header">
+        <div className="page-title">Avaliações</div>
+        <div className="page-sub">Crie provas, trabalhos e quizzes com correção automática por IA</div>
+      </div>
+
+      <div className="stats-grid" style={{ marginBottom:'1.5rem' }}>
+        <StatCard label="Total"      value={avs.length}                            icon="📝" accent="accent-sky" />
+        <StatCard label="Publicadas" value={avs.filter(a=>a.status==='publicada').length} icon="🚀" accent="accent-green" />
+        <StatCard label="Rascunhos"  value={avs.filter(a=>a.status==='rascunho').length}  icon="💾" accent="accent-amber" />
+        <StatCard label="Questões"   value={questoesDisp.length}                   icon="❓" accent="accent-coral" />
+      </div>
+
+      <div className="card">
+        <div className="section-header">
+          <span style={{ fontSize:13,color:'var(--slate-500)' }}>{avs.length} avaliação(ões)</span>
+          <button className="btn-create" onClick={()=>setShowCriar(true)}>+ Nova Avaliação</button>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign:'center',padding:'2rem' }}><div className="spinner" style={{ margin:'0 auto' }} /></div>
+        ) : avs.length===0 ? (
+          <EmptyState icon="📝" title="Nenhuma avaliação criada" sub="Clique em '+ Nova Avaliação' para começar" />
+        ) : (
+          <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+            {avs.map(av => {
+              const cfg = STATUS_CFG[av.status] || STATUS_CFG.rascunho;
+              const numQ = av.total_questoes ?? (Array.isArray(av.questoes)?av.questoes.length:0);
+              return (
+                <div key={av.id} style={{ border:'1px solid var(--slate-200)',borderRadius:10,overflow:'hidden' }}>
+                  <div style={{ display:'flex',alignItems:'flex-start',gap:12,padding:'12px 14px' }}>
+                    <div style={{ width:44,height:44,borderRadius:10,background:'var(--slate-100)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,flexShrink:0 }}>
+                      {TIPOS_AV.find(t=>t.id===av.tipo)?.icon||'📝'}
+                    </div>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <div style={{ display:'flex',gap:8,alignItems:'center',marginBottom:4,flexWrap:'wrap' }}>
+                        <span style={{ fontWeight:600,fontSize:14,color:'var(--navy)' }}>{av.titulo}</span>
+                        <span style={{ padding:'2px 9px',borderRadius:50,fontSize:11,fontWeight:600,background:cfg.bg,color:cfg.cor }}>{cfg.label}</span>
+                        {numQ===0 && <span style={{ padding:'2px 9px',borderRadius:50,fontSize:11,background:'#fffbeb',color:'#92400e',border:'1px solid #fcd34d' }}>⚠️ Sem questões</span>}
+                      </div>
+                      {av.descricao&&<div style={{ fontSize:12,color:'var(--slate-500)',marginBottom:4 }}>{av.descricao}</div>}
+                      <div style={{ display:'flex',gap:10,fontSize:11,color:'var(--slate-400)',flexWrap:'wrap' }}>
+                        <span>❓ {numQ} questão(ões)</span>
+                        <span>⏱ {av.tempo_limite}min</span>
+                        <span>🔁 {av.tentativas_permitidas}x</span>
+                        <span>✅ Mín:{av.nota_minima}</span>
+                        {turmas.find(t=>t.id===av.turma_id)&&<span>🏫 {turmas.find(t=>t.id===av.turma_id)?.nome}</span>}
+                        {av.disponivel_em&&<span>Abertura: {new Date(av.disponivel_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</span>}
+                        {av.encerra_em&&<span>Encerra: {new Date(av.encerra_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</span>}
+                      </div>
+                    </div>
+                    <div style={{ display:'flex',gap:6,flexShrink:0,flexWrap:'wrap' }}>
+                      <button className="btn-sm" style={{ background:'rgba(99,102,241,.1)',color:'#4f46e5',border:'1px solid rgba(99,102,241,.3)' }} onClick={()=>setEditQ(av)}>Questoes</button>
+                      <button className="btn-sm" style={{ background:'#eff6ff',color:'#1d4ed8',border:'1px solid #bfdbfe' }} onClick={()=>setEditAv(av)}>Editar</button>
+                      <button className="btn-sm btn-view" onClick={()=>setViewRes(av)}>Resultados</button>
+                      {av.status==='rascunho'&&<button className="btn-sm btn-approve" onClick={()=>handlePublicar(av.id)}>Publicar</button>}
+                      <button className="btn-sm btn-danger" onClick={()=>handleDelete(av.id)}>Excluir</button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {showCriar && <ModalCriar turmas={turmas} questoesDisp={questoesDisp} onClose={()=>setShowCriar(false)} onSalvar={nova=>setAvs(p=>[nova,...p])} />}
+      {editAv && <EditAvaliacaoModal av={editAv} turmas={turmas} onClose={()=>setEditAv(null)} onSalvar={handleEditAv} />}
+    </>
+  );
+}

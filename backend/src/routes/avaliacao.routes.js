@@ -13,6 +13,8 @@ r.post('/responder',   authorize('aluno'), c.responderQuestao);
 r.post('/responder-batch', authorize('aluno'), c.responderBatch);
 r.post('/tentativa/:tentativa_id/concluir', authorize('aluno'), c.concluir);
 r.get('/:id/resultados', authorize('professor','admin'), c.resultados);
+r.get('/:id/analise-turma', authorize('professor','admin'), c.analiseTurma);
+r.get('/:id/detalhe-aluno/:alunoId', authorize('professor','admin'), c.detalheAluno);
 r.get('/:id/entregas',                    authorize('professor','admin'), c.listarEntregas);
 r.post('/:id/clonar',                     authorize('professor','admin'), c.clonar);
 r.post('/:id/turmas',                     authorize('professor','admin'), c.vincularTurmas);

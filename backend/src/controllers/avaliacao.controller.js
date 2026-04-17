@@ -601,7 +601,137 @@ async function finalizar(req, res, next) {
   return concluir(req, res, next);
 }
 
-module.exports = { list, getById, create, update, remove, publicar, iniciar, responderQuestao, responderBatch, concluir, finalizar, resultados, minhasTentativas, listarEntregas, corrigirManual, clonar, vincularTurmas, turmasDaAvaliacao };
+
+// ── ANÁLISE DA TURMA com IA ───────────────────────────────────
+async function analiseTurma(req, res, next) {
+  try {
+    const av = avaliacaoRepo.findById(req.params.id);
+    if (!av) return res.status(404).json({ error: 'Avaliação não encontrada.' });
+
+    const questaoRepo = require('../repositories/questao.repository');
+    const todasTentativas = avaliacaoRepo.findTentativasByAvalia(av.id).filter(t => t.status === 'concluida');
+    const questoesConfig  = av.questoes || [];
+
+    // Per-question stats
+    const porQuestao = {};
+    questoesConfig.forEach(qc => {
+      const q = questaoRepo.findById(qc.questao_id);
+      if (!q) return;
+      porQuestao[qc.questao_id] = {
+        id: qc.questao_id, enunciado: q.enunciado, tipo: q.tipo,
+        total: 0, corretas: 0, erradas: 0, taxa_acerto: 0,
+      };
+    });
+
+    // Process all answers
+    todasTentativas.forEach(t => {
+      (t.respostas_corrigidas || t.respostas || []).forEach(r => {
+        if (!porQuestao[r.questao_id]) return;
+        porQuestao[r.questao_id].total += 1;
+        if (r.score >= 0.8 || r.is_correct) {
+          porQuestao[r.questao_id].corretas += 1;
+        } else {
+          porQuestao[r.questao_id].erradas += 1;
+        }
+      });
+    });
+
+    // Calculate taxa for each question
+    Object.values(porQuestao).forEach(q => {
+      q.taxa_acerto = q.total > 0 ? Math.round(q.corretas / q.total * 100) : 0;
+    });
+
+    const questoesStats = Object.values(porQuestao).sort((a,b) => a.taxa_acerto - b.taxa_acerto);
+    const notas = todasTentativas.map(t => t.nota || 0);
+    const media = notas.length ? Math.round(notas.reduce((a,b)=>a+b,0)/notas.length*100)/100 : 0;
+    const maior = notas.length ? Math.max(...notas) : 0;
+    const menor = notas.length ? Math.min(...notas) : 0;
+
+    // Generate AI analysis
+    let analiseIA = null;
+    const llm = require('../services/llm.service');
+    try {
+      const questoesCriticas = questoesStats.filter(q => q.taxa_acerto < 50);
+      const questoesBoas     = questoesStats.filter(q => q.taxa_acerto >= 70);
+      const promptTurma = [
+        'Você é um especialista em pedagogia, BNCC e análise de avaliações educacionais.',
+        'Analise os dados da turma e gere um relatório pedagógico estruturado para o professor.',
+        '',
+        `Avaliação: ${av.titulo}`,
+        `Total de alunos: ${todasTentativas.length}`,
+        `Média da turma: ${media}/10`,
+        `Maior nota: ${maior} | Menor nota: ${menor}`,
+        `Taxa de aprovação: ${todasTentativas.length > 0 ? Math.round(todasTentativas.filter(t=>t.aprovado).length/todasTentativas.length*100) : 0}%`,
+        '',
+        'Questões com maior dificuldade (< 50% acertos):',
+        ...questoesCriticas.slice(0,5).map(q => `- "${q.enunciado?.slice(0,80)}" → ${q.taxa_acerto}% de acertos`),
+        '',
+        'Questões dominadas (>= 70% acertos):',
+        ...questoesBoas.slice(0,3).map(q => `- "${q.enunciado?.slice(0,80)}" → ${q.taxa_acerto}% de acertos`),
+        '',
+        'Gere um relatório pedagógico com exatamente estas seções (use markdown):',
+        '## 📊 Diagnóstico da Turma',
+        '(Avaliação geral do desempenho coletivo em 2-3 frases)',
+        '',
+        '## 🎯 Competências (BNCC)',
+        '(Habilidades que a turma demonstrou e as que precisam de reforço)',
+        '',
+        '## ⚠️ Pontos Críticos',
+        '(Conteúdos com maior índice de erro e possíveis causas)',
+        '',
+        '## 💡 Recomendações Pedagógicas',
+        '(3-4 estratégias concretas de ensino baseadas nos dados)',
+        '',
+        '## 📚 Sugestões Práticas',
+        '(Atividades, metodologias ativas e recursos para revisão)',
+        '',
+        'Tom: técnico, objetivo e baseado em evidências pedagógicas. Máximo 400 palavras.',
+      ].join('\n');
+
+      analiseIA = await llm.chat({
+        system: 'Você é um especialista em avaliação educacional, BNCC e metodologias de ensino.',
+        messages: [{ role: 'user', content: promptTurma }],
+        maxTokens: 800,
+      });
+    } catch(e) {
+      console.error('[ResultadosTurma] IA error:', e.message);
+      analiseIA = 'Análise IA temporariamente indisponível.';
+    }
+
+    res.json({
+      avaliacao: av,
+      questoes_stats: questoesStats,
+      analise_ia: analiseIA,
+      metricas: {
+        total_alunos: todasTentativas.length,
+        media_geral: media,
+        maior_nota: maior,
+        menor_nota: menor,
+        aprovados: todasTentativas.filter(t=>t.aprovado).length,
+        reprovados: todasTentativas.filter(t=>!t.aprovado).length,
+        taxa_aprovacao: todasTentativas.length > 0 ? Math.round(todasTentativas.filter(t=>t.aprovado).length/todasTentativas.length*100) : 0,
+      },
+    });
+  } catch(e) { next(e); }
+}
+
+// ── DETALHE INDIVIDUAL DO ALUNO (professor view) ──────────────
+async function detalheAluno(req, res, next) {
+  try {
+    const av = avaliacaoRepo.findById(req.params.id);
+    if (!av) return res.status(404).json({ error: 'Avaliação não encontrada.' });
+    const alunoId = Number(req.params.alunoId);
+    const tentativas = avaliacaoRepo.findTentativasByAvalia(av.id)
+      .filter(t => t.aluno_id === alunoId && t.status === 'concluida')
+      .sort((a,b) => new Date(b.concluida_em) - new Date(a.concluida_em));
+    if (tentativas.length === 0) return res.status(404).json({ error: 'Nenhuma tentativa encontrada.' });
+    const tentativa = tentativas[0]; // most recent
+    const user = userRepo.findById(alunoId);
+    res.json({ aluno: user, avaliacao: av, tentativa });
+  } catch(e) { next(e); }
+}
+
+module.exports = { list, getById, create, update, remove, publicar, iniciar, responderQuestao, responderBatch, concluir, finalizar, resultados, analiseTurma, detalheAluno, minhasTentativas, listarEntregas, corrigirManual, clonar, vincularTurmas, turmasDaAvaliacao };
 
 // ── Listar entregas de upload para o professor corrigir ────────
 async function listarEntregas(req, res, next) {
