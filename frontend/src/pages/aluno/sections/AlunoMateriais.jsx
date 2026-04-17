@@ -2,7 +2,15 @@
  * AlunoMateriais — exibe materiais com preview/download de arquivos
  */
 import { useState, useEffect } from 'react';
-import { extractYouTubeId } from '../../../utils/youtube.js';
+// Inline YouTube ID extractor (no external dependency)
+function extractYouTubeId(url) {
+  if (!url || typeof url !== 'string') return null;
+  var clean = url.trim();
+  var m = clean.match(/[?&]v=([a-zA-Z0-9_-]{11})/) ||
+          clean.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/) ||
+          clean.match(/youtube\.com\/(?:embed|shorts|live)\/([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
 import api from '../../../hooks/useApi';
 import { EmptyState } from '../../../components/ui';
 
