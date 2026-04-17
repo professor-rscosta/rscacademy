@@ -14,7 +14,7 @@ const TIPO_COMP = {
   associacao: Associacao, ordenacao: Ordenacao, upload_arquivo: UploadArquivo,
 };
 
-// ── Fase de Upload dedicada (tipo: entrega) ───────────────────
+// - Fase de Upload dedicada (tipo: entrega) -
 function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
   const [arquivos, setArquivos] = useState([]);
   const [comentario, setCom]    = useState('');
@@ -38,9 +38,9 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
 
   const enviar = async () => {
     if (arquivos.length === 0 && !comentario.trim()) {
-      setAlert({ type:'error', msg:'Adicione pelo menos um arquivo ou comentário.' }); return;
+      setAlert({ type:'error', msg:'Adicione pelo menos um arquivo ou comentario.' }); return;
     }
-    // Confirmação inline via confirmAlert helper
+    // Confirma--o inline via confirmAlert helper
     const confirmado = await new Promise(res => {
       var o = document.createElement('div');
       o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(2px)';
@@ -53,7 +53,7 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
     if (!confirmado) return;
     setEnviando(true);
     try {
-      // Salvar arquivos e comentário na resposta da avaliação (questão de upload_arquivo se houver)
+      // Salvar arquivos e coment-rio na resposta da avalia--o (quest-o de upload_arquivo se houver)
       const questoesUpload = av.questoes_completas?.filter(q => q.tipo === 'upload_arquivo') || [];
       const respostaPayload = JSON.stringify({ arquivos, comentario });
 
@@ -65,9 +65,9 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
         });
       }
 
-      // Se não tem questão de upload, salvar como comentário geral
+      // Se n-o tem quest-o de upload, salvar como coment-rio geral
       if (questoesUpload.length === 0) {
-        // Criar uma resposta virtual para o relatório
+        // Criar uma resposta virtual para o relat-rio
         await api.post('/avaliacoes/responder', { tentativa_id: tentativa.id, questao_id: 0, resposta: respostaPayload }).catch(() => {});
       }
 
@@ -82,12 +82,12 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
 
   return (
     <div style={{ maxWidth:720, margin:'0 auto' }}>
-      {/* Header da avaliação */}
+      {/* Header da avaliacao */}
       <div style={{ background:'linear-gradient(135deg,var(--navy),var(--navy-mid))', borderRadius:16, padding:'1.5rem', color:'white', marginBottom:'1.25rem' }}>
         <div style={{ fontSize:11, opacity:.5, textTransform:'uppercase', letterSpacing:1, marginBottom:6 }}>📤 Envio de Arquivo</div>
         <div style={{ fontFamily:'var(--font-head)', fontSize:22, fontWeight:700, marginBottom:8 }}>{av.titulo}</div>
         <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
-          {av.nota_minima && <span style={{ padding:'4px 12px', borderRadius:50, background:'rgba(255,255,255,.12)', fontSize:12 }}>✅ Mín: {av.nota_minima}/10</span>}
+          {av.nota_minima && <span style={{ padding:'4px 12px', borderRadius:50, background:'rgba(255,255,255,.12)', fontSize:12 }}>✅ Min: {av.nota_minima}/10</span>}
           {av.encerra_em && (
             <span style={{ padding:'4px 12px', borderRadius:50, background:prazoVencido?'rgba(239,68,68,.3)':'rgba(16,185,129,.2)', color:prazoVencido?'#fca5a5':'#34d399', fontSize:12, fontWeight:600 }}>
               📅 Prazo: {new Date(av.encerra_em).toLocaleString('pt-BR')} {prazoVencido&&'(ENCERRADO)'}
@@ -100,25 +100,25 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
 
       <div style={{ display:'grid', gridTemplateColumns:'1fr 320px', gap:'1.25rem', alignItems:'start' }}>
 
-        {/* Esquerda: descrição da avaliação */}
+        {/* Esquerda: descricao da avaliacao */}
         <div>
           {av.descricao && (
             <div className="card" style={{ marginBottom:'1rem' }}>
-              <div style={{ fontFamily:'var(--font-head)', fontSize:13, fontWeight:600, color:'var(--navy)', marginBottom:8 }}>📄 Instruções</div>
+              <div style={{ fontFamily:'var(--font-head)', fontSize:13, fontWeight:600, color:'var(--navy)', marginBottom:8 }}>📄 Instrucaes</div>
               <div style={{ fontSize:13, color:'var(--slate-700)', lineHeight:1.8, whiteSpace:'pre-wrap' }}>{av.descricao}</div>
             </div>
           )}
 
-          {/* Questões de upload com enunciado */}
+          {/* Questaes de upload com enunciado */}
           {(av.questoes_completas||[]).filter(q=>q.tipo==='upload_arquivo').map((q,i) => (
             <div key={q.id} className="card" style={{ marginBottom:'1rem' }}>
               <div style={{ fontFamily:'var(--font-head)', fontSize:13, fontWeight:600, color:'var(--navy)', marginBottom:6 }}>
-                ❓ Questão {i+1} {q.peso&&q.peso!==1?'· Peso '+q.peso:''}
+                ❓ Questao {i+1} {q.peso&&q.peso!==1?'· Peso '+q.peso:''}
               </div>
               <div style={{ fontSize:14, color:'var(--slate-700)', lineHeight:1.7 }}>{q.enunciado}</div>
               {q.gabarito && (
                 <div style={{ marginTop:8, padding:'8px 12px', background:'#fffbeb', borderRadius:6, border:'1px solid #fcd34d', fontSize:12, color:'#92400e' }}>
-                  💡 Critérios: {q.gabarito}
+                  💡 Criterios: {q.gabarito}
                 </div>
               )}
             </div>
@@ -126,7 +126,7 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
 
           {(av.questoes_completas||[]).filter(q=>q.tipo!=='upload_arquivo').length > 0 && (
             <div style={{ padding:'10px 14px', background:'#fffbeb', borderRadius:8, border:'1px solid #fcd34d', fontSize:12, color:'#92400e' }}>
-              ⚠️ Esta avaliação também contém {(av.questoes_completas||[]).filter(q=>q.tipo!=='upload_arquivo').length} questão(ões) de outros tipos. Volte para responder todas.
+              ⚠️ Esta avaliacao tambem contem {(av.questoes_completas||[]).filter(q=>q.tipo!=='upload_arquivo').length} questao(aes) de outros tipos. Volte para responder todas.
             </div>
           )}
         </div>
@@ -148,7 +148,7 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
               onMouseLeave={e => e.currentTarget.style.borderColor='var(--slate-200)'}>
               <div style={{ fontSize:30, marginBottom:6 }}>📎</div>
               <div style={{ fontWeight:600, fontSize:13, color:'var(--slate-600)', marginBottom:2 }}>Adicionar arquivos</div>
-              <div style={{ fontSize:11, color:'var(--slate-400)' }}>PDF, imagens, ZIP, código · Máx 10MB</div>
+              <div style={{ fontSize:11, color:'var(--slate-400)' }}>PDF, imagens, ZIP, codigo · Max 10MB</div>
               <input ref={fileRef} type="file" multiple id="av-file-upload" name="av-file-upload" style={{ display:'none' }} onChange={addArquivo} />
             </div>
 
@@ -164,9 +164,9 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
               </div>
             ))}
 
-            {/* Comentário */}
+            {/* Comentario */}
             <textarea rows={3} value={comentario} onChange={e=>setCom(e.target.value)}
-              placeholder="Observações para o professor (opcional)..."
+              placeholder="Observacaes para o professor (opcional)..."
               style={{ width:'100%', padding:'8px 12px', border:'1.5px solid var(--slate-200)', borderRadius:8, fontFamily:'var(--font-body)', fontSize:12, resize:'none', outline:'none', marginBottom:10, boxSizing:'border-box' }}
               onFocus={e=>e.target.style.borderColor='var(--emerald)'} onBlur={e=>e.target.style.borderColor='var(--slate-200)'} />
 
@@ -177,7 +177,7 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
 
             <button onClick={onVoltar}
               style={{ width:'100%', padding:'9px', background:'white', border:'1.5px solid var(--slate-200)', borderRadius:8, color:'var(--slate-600)', fontSize:12, cursor:'pointer', fontWeight:500 }}>
-              ← Voltar às Avaliações
+              <- Voltar às Avaliacaes
             </button>
           </div>
         </div>
@@ -186,7 +186,7 @@ function UploadEntregaFase({ av, tentativa, onConcluir, onVoltar }) {
   );
 }
 
-// ── Cronômetro regressivo ─────────────────────────────────────
+// - Cron-metro regressivo -
 function Cronometro({ segundos, onExpire }) {
   const [restante, setRestante] = useState(segundos || 0);
   const ref = useRef(null);
@@ -221,22 +221,22 @@ function Cronometro({ segundos, onExpire }) {
 
 
 
-// ── Modal Questões Pendentes ──────────────────────────────────
+// - Modal Quest-es Pendentes -
 function PendentesModal({ faltam, total, onContinuar, onEnviarMesmo }) {
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.6)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem', backdropFilter:'blur(3px)' }}>
       <div style={{ background:'white', borderRadius:20, width:'100%', maxWidth:440, boxShadow:'0 25px 60px rgba(0,0,0,.35)', overflow:'hidden', animation:'swAlert .25s cubic-bezier(.34,1.56,.64,1)' }}>
         <div style={{ background:'linear-gradient(135deg,#f59e0b,#d97706)', padding:'1.5rem', textAlign:'center' }}>
           <div style={{ fontSize:48, marginBottom:6 }}>⚠️</div>
-          <div style={{ fontFamily:'var(--font-head)', fontSize:18, fontWeight:800, color:'white' }}>Questões sem resposta</div>
+          <div style={{ fontFamily:'var(--font-head)', fontSize:18, fontWeight:800, color:'white' }}>Questaes sem resposta</div>
         </div>
         <div style={{ padding:'1.5rem', textAlign:'center' }}>
           <div style={{ fontSize:15, color:'var(--slate-700)', marginBottom:8 }}>
-            Você deixou <strong style={{ color:'#d97706' }}>{faltam} questão{faltam > 1 ? 'ões' : ''}</strong> sem resposta
+            Voce deixou <strong style={{ color:'#d97706' }}>{faltam} questao{faltam > 1 ? 'aes' : ''}</strong> sem resposta
             de um total de <strong>{total}</strong>.
           </div>
           <div style={{ fontSize:13, color:'var(--slate-500)', background:'#fffbeb', border:'1px solid #fde68a', borderRadius:8, padding:'8px 14px', marginBottom:'1.5rem', lineHeight:1.6 }}>
-            Questões sem resposta serão marcadas como <strong>incorretas</strong> automaticamente.
+            Questaes sem resposta serao marcadas como <strong>incorretas</strong> automaticamente.
           </div>
           <div style={{ display:'flex', gap:10 }}>
             <button onClick={onContinuar} style={{ flex:1, padding:'12px 0', border:'2px solid var(--emerald)', borderRadius:10, background:'white', cursor:'pointer', fontSize:13, fontWeight:700, color:'var(--emerald-dark)', transition:'all .15s' }}
@@ -255,13 +255,13 @@ function PendentesModal({ faltam, total, onContinuar, onEnviarMesmo }) {
   );
 }
 
-// ── SweetAlert-style Modal ───────────────────────────────────
+// - SweetAlert-style Modal -
 function ConfirmModal({ onConfirm, onCancel, titulo, mensagem, submensagem, confirmLabel, cancelLabel, respondidas, total }) {
   return (
     <div style={{ position:'fixed', inset:0, zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem', backdropFilter:'blur(4px)', background:'rgba(15,23,42,.7)' }}>
       <div style={{ background:'white', borderRadius:24, width:'100%', maxWidth:460, boxShadow:'0 32px 80px rgba(0,0,0,.45)', overflow:'hidden', animation:'swAlert .3s cubic-bezier(.34,1.56,.64,1)' }}>
 
-        {/* ── Banner superior com gradiente institucional ── */}
+        {/* - Banner superior com gradiente institucional - */}
         <div style={{ background:'linear-gradient(135deg,#1e3a5f 0%,#2563eb 60%,#1d4ed8 100%)', padding:'2rem 1.5rem 1.5rem', textAlign:'center', position:'relative' }}>
           {/* Ícone medallion */}
           <div style={{ width:72, height:72, borderRadius:'50%', background:'rgba(255,255,255,.15)', border:'3px solid rgba(255,255,255,.3)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', backdropFilter:'blur(4px)', fontSize:34 }}>
@@ -277,14 +277,14 @@ function ConfirmModal({ onConfirm, onCancel, titulo, mensagem, submensagem, conf
           <div style={{ position:'absolute', bottom:-1, left:0, right:0, height:24, background:'white', clipPath:'ellipse(55% 100% at 50% 100%)' }} />
         </div>
 
-        {/* ── Corpo ── */}
+        {/* - Corpo - */}
         <div style={{ padding:'1.75rem 1.75rem 1.5rem', textAlign:'center' }}>
 
           {/* Progresso respondido */}
           {respondidas !== undefined && total > 0 && (
             <div style={{ marginBottom:'1.25rem' }}>
               <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, fontWeight:600, color:'#475569', marginBottom:6 }}>
-                <span>Questões respondidas</span>
+                <span>Questaes respondidas</span>
                 <span style={{ color: respondidas===total ? '#059669' : '#f59e0b', fontWeight:700 }}>
                   {respondidas}/{total}
                 </span>
@@ -303,11 +303,11 @@ function ConfirmModal({ onConfirm, onCancel, titulo, mensagem, submensagem, conf
           <div style={{ display:'flex', alignItems:'flex-start', gap:10, background:'#fffbeb', border:'1px solid #fde68a', borderRadius:12, padding:'10px 14px', marginBottom:'1.5rem', textAlign:'left' }}>
             <span style={{ fontSize:18, flexShrink:0, marginTop:1 }}>⚠️</span>
             <div style={{ fontSize:13, color:'#92400e', lineHeight:1.6 }}>
-              {submensagem || 'Após o envio, não será possível alterar suas respostas.'}
+              {submensagem || 'Apos o envio, nao sera possivel alterar suas respostas.'}
             </div>
           </div>
 
-          {/* Botões */}
+          {/* Botaes */}
           <div style={{ display:'flex', gap:10 }}>
             <button onClick={onCancel}
               style={{ flex:1, padding:'13px 0', border:'2px solid #e2e8f0', borderRadius:12, background:'white', cursor:'pointer', fontSize:13, fontWeight:700, color:'#64748b', letterSpacing:'.2px', transition:'all .15s' }}
@@ -321,7 +321,7 @@ function ConfirmModal({ onConfirm, onCancel, titulo, mensagem, submensagem, conf
               onMouseEnter={e=>{ e.currentTarget.style.transform='translateY(-1px)'; e.currentTarget.style.boxShadow='0 8px 24px rgba(37,99,235,.55)'; }}
               onMouseLeave={e=>{ e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow='0 6px 20px rgba(37,99,235,.45)'; }}
             >
-              {confirmLabel || 'Entregar Avaliação'}
+              {confirmLabel || 'Entregar Avaliacao'}
             </button>
           </div>
 
@@ -337,7 +337,7 @@ function ConfirmModal({ onConfirm, onCancel, titulo, mensagem, submensagem, conf
 }
 
 
-// ── Markdown simples para feedback IA ────────────────────────
+// - Markdown simples para feedback IA -
 function renderFeedback(text) {
   if (!text) return '';
   return text
@@ -347,7 +347,7 @@ function renderFeedback(text) {
 }
 
 
-// ── Chamada direta à API (bypassa proxies de antivírus) ──────
+// - Chamada direta - API (bypassa proxies de antiv-rus) -
 async function postDireto(path, payload) {
   const token = localStorage.getItem('rsc_token') || '';
   const url   = window.location.origin + '/api' + path;
@@ -423,7 +423,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
       setTempoSeg(r.data.tempo_restante_segundos || null);
       setIdx(0);
       setRespostas({});
-      // tipo entrega → tela de upload dedicada (estilo Atividades)
+      // tipo entrega - tela de upload dedicada (estilo Atividades)
       const tipoFinal = av.tipo || r.data.avaliacao?.tipo;
       setFase(tipoFinal === 'entrega' ? 'upload' : 'fazendo');
     } catch(e) {
@@ -440,7 +440,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
     }
   };
 
-  // Salvar resposta LOCALMENTE (sem API por questão - evita bloqueio Kaspersky)
+  // Salvar resposta LOCALMENTE (sem API por quest-o - evita bloqueio Kaspersky)
   const salvarResposta = (qid, resp) => {
     setRespostas(prev => ({ ...prev, [qid]: resp }));
     // Persiste no localStorage como backup
@@ -471,7 +471,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
         resposta: typeof resp === 'object' && resp !== null ? JSON.stringify(resp) : resp,
       }));
 
-      // UM ÚNICO request com respostas + concluir
+      // UM -NICO request com respostas + concluir
       // Backend aceita respostas inline e calcula tudo de uma vez
       const data = await postDireto(
         '/avaliacoes/tentativa/' + tentativaAtual.id + '/concluir',
@@ -496,7 +496,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
     setSubmitting(false);
   };
 
-    // ── RESULTADO ─────────────────────────────────────────────────
+    // - RESULTADO -
   if (fase === 'resultado' && resultado) {
     const { nota, aprovado, xp_ganho, nota_minima, estatisticas, feedback_geral, novas_medalhas, respostas: resCorr, avaliacao_titulo, concluida_em } = resultado;
     const corretas  = estatisticas?.corretas || 0;
@@ -506,12 +506,12 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
     const dataHora  = concluida_em ? new Date(concluida_em) : new Date();
     const dataStr   = dataHora.toLocaleDateString('pt-BR');
     const horaStr   = dataHora.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
-    const feedbackEmoji = taxa >= 80 ? '🎉' : taxa >= 50 ? '👍' : '📚';
-    const feedbackMsg   = taxa >= 80 ? 'Excelente desempenho!' : taxa >= 50 ? 'Bom desempenho!' : 'Precisa revisar o conteúdo.';
+    const feedbackEmoji = taxa >= 80 ? 'otimo' : taxa >= 50 ? 'bom' : 'revisar';
+    const feedbackMsg   = taxa >= 80 ? 'Excelente desempenho!' : taxa >= 50 ? 'Bom desempenho!' : 'Precisa revisar o conteudo.';
 
     const renderResposta = (val, tipo, alternativas) => {
       if (val === null || val === undefined) return <em style={{ opacity:.5 }}>Sem resposta</em>;
-      if (typeof val === 'boolean') return val ? 'Verdadeiro ✓' : 'Falso ✗';
+      if (typeof val === 'boolean') return val ? 'Verdadeiro V' : 'Falso X';
       if (typeof val === 'number' && alternativas) {
         const letra = String.fromCharCode(65 + val);
         return letra + ') ' + alternativas[val];
@@ -524,12 +524,12 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
       <>
       <div style={{ maxWidth:680, margin:'0 auto' }}>
 
-        {/* ── HERO ── */}
+        {/* - HERO - */}
         <div style={{ background:'linear-gradient(135deg,var(--navy),#2d5a9e)', borderRadius:16, padding:'1.75rem 2rem', color:'white', marginBottom:'1rem', textAlign:'center', position:'relative', overflow:'hidden' }}>
           <div style={{ position:'absolute', inset:0, opacity:.04, backgroundImage:'radial-gradient(circle,white 1px,transparent 1px)', backgroundSize:'20px 20px' }} />
           <div style={{ fontSize:48, marginBottom:6 }}>{feedbackEmoji}</div>
           <div style={{ fontFamily:'var(--font-head)', fontSize:24, fontWeight:800, marginBottom:4 }}>
-            {aprovado ? 'Avaliação Concluída! 🎉' : 'Avaliação Concluída'}
+            {aprovado ? 'Avaliacao Concluida! 🎉' : 'Avaliacao Concluida'}
           </div>
           <div style={{ fontSize:13, opacity:.7, marginBottom:'1.25rem' }}>{avaliacao_titulo || avAtual?.titulo}</div>
           <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap', marginBottom:'1rem' }}>
@@ -549,11 +549,11 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
             background: aprovado ? 'rgba(16,185,129,.25)' : 'rgba(239,68,68,.25)',
             border: '1px solid '+(aprovado ? '#34d399' : '#f87171'),
           }}>
-            {aprovado ? '✅ Aprovado' : '❌ Reprovado'} · Mínimo: {nota_minima||6}
+            {aprovado ? '✅ Aprovado' : '❌ Reprovado'} · Minimo: {nota_minima||6}
           </div>
         </div>
 
-        {/* ── INFORMAÇÕES GERAIS ── */}
+        {/* - INFORMAÇÕES GERAIS - */}
         <div style={{ background:'white', border:'1px solid var(--slate-200)', borderRadius:12, padding:'14px 18px', marginBottom:'1rem', display:'flex', flexWrap:'wrap', gap:'0.75rem', fontSize:13 }}>
           <span>👤 <strong>{user?.nome || 'Aluno'}</strong></span>
           <span style={{ color:'var(--slate-300)' }}>|</span>
@@ -565,12 +565,12 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
           </span>
         </div>
 
-        {/* ── FEEDBACK IA ── */}
+        {/* - FEEDBACK IA - */}
         {feedback_geral && (
           <div style={{ background:'white', border:'1px solid #ddd6fe', borderRadius:12, padding:'16px 18px', marginBottom:'1rem' }}>
             <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
               <span style={{ fontSize:20 }}>🤖</span>
-              <div style={{ fontWeight:700, color:'#6d28d9', fontSize:14 }}>Feedback Pedagógico (IA)</div>
+              <div style={{ fontWeight:700, color:'#6d28d9', fontSize:14 }}>Feedback Pedagogico (IA)</div>
               <span style={{ fontSize:11, padding:'2px 8px', borderRadius:99, background:'#f5f3ff', color:'#6d28d9', border:'1px solid #ddd6fe' }}>BNCC · TRI</span>
             </div>
             <div style={{ fontSize:13.5, color:'var(--slate-700)', lineHeight:1.8 }}
@@ -579,7 +579,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
           </div>
         )}
 
-        {/* ── MEDALHAS ── */}
+        {/* - MEDALHAS - */}
         {novas_medalhas?.length > 0 && (
           <div style={{ background:'linear-gradient(135deg,#fffbeb,#fef3c7)', border:'2px solid #fcd34d', borderRadius:12, padding:'14px 18px', marginBottom:'1rem' }}>
             <div style={{ fontWeight:700, color:'#92400e', marginBottom:8 }}>🏆 Nova(s) Medalha(s) Desbloqueada(s)!</div>
@@ -597,11 +597,11 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
           </div>
         )}
 
-        {/* ── DETALHAMENTO POR QUESTÃO ── */}
+        {/* - DETALHAMENTO POR QUESTÃO - */}
         {(resCorr||[]).length > 0 && (
           <div style={{ background:'white', border:'1px solid var(--slate-200)', borderRadius:12, overflow:'hidden', marginBottom:'1rem' }}>
             <div style={{ padding:'14px 18px', borderBottom:'1px solid var(--slate-100)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <div style={{ fontWeight:700, fontSize:15, color:'var(--navy)' }}>📝 Detalhamento por Questão</div>
+              <div style={{ fontWeight:700, fontSize:15, color:'var(--navy)' }}>📝 Detalhamento por Questao</div>
               <div style={{ display:'flex', gap:12, fontSize:12 }}>
                 <span style={{ color:'#10b981', fontWeight:700 }}>✅ {corretas} acertos</span>
                 <span style={{ color:'#ef4444', fontWeight:700 }}>❌ {erros} erros</span>
@@ -610,7 +610,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
 
             {resCorr.map((r, i) => {
               const qMeta  = questoes.find(q => q.id === r.questao_id);
-              const enunc  = r.questao_enunciado || qMeta?.enunciado || 'Questão ' + (i+1);
+              const enunc  = r.questao_enunciado || qMeta?.enunciado || 'Questao ' + (i+1);
               const tipo   = r.questao_tipo     || qMeta?.tipo;
               const gab    = r.questao_gabarito ?? qMeta?.gabarito;
               const alts   = r.questao_alternativas || qMeta?.alternativas;
@@ -626,7 +626,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
                   borderBottom: i < resCorr.length-1 ? '1px solid var(--slate-100)' : 'none',
                   background: pendente ? '#fffbeb' : acertou ? '#fafff8' : '#fffafa',
                 }}>
-                  {/* Número + resultado */}
+                  {/* Numero + resultado */}
                   <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
                     <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
                       background: pendente ? '#f59e0b' : acertou ? '#10b981' : '#ef4444',
@@ -636,7 +636,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
                     <div style={{ flex:1 }}>
                       <span style={{ fontSize:12, fontWeight:700,
                         color: pendente ? '#92400e' : acertou ? '#166534' : '#991b1b' }}>
-                        {pendente ? '⏳ Aguardando correção' : acertou ? '✅ Correto' : '❌ Incorreto'}
+                        {pendente ? '⏳ Aguardando correcao' : acertou ? '✅ Correto' : '❌ Incorreto'}
                         {!pendente && <span style={{ fontWeight:400, opacity:.7, marginLeft:8 }}>({Math.round(score*100)}%)</span>}
                       </span>
                       {tipo && <span style={{ fontSize:10, marginLeft:10, padding:'1px 7px', borderRadius:99, background:'var(--slate-100)', color:'var(--slate-500)' }}>{tipo}</span>}
@@ -646,7 +646,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
 
                   {/* Enunciado */}
                   <div style={{ fontSize:13, color:'var(--slate-700)', lineHeight:1.6, background:'var(--slate-50)', padding:'8px 12px', borderRadius:8, marginBottom:8 }}>
-                    <strong>Questão:</strong> {enunc}
+                    <strong>Questao:</strong> {enunc}
                   </div>
 
                   {/* Resposta aluno vs gabarito */}
@@ -674,14 +674,14 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
                     </div>
                   )}
 
-                  {/* Explicação */}
+                  {/* Explicacao */}
                   {explic && (
                     <div style={{ padding:'7px 12px', borderRadius:8, background:'#eff6ff', border:'1px solid #bfdbfe', fontSize:12, color:'#1d4ed8', marginBottom:6 }}>
-                      <strong>💡 Explicação:</strong> {explic}
+                      <strong>💡 Explicacao:</strong> {explic}
                     </div>
                   )}
 
-                  {/* Feedback IA por questão */}
+                  {/* Feedback IA por questao */}
                   {r.feedback_ia && (
                     <div style={{ padding:'7px 12px', borderRadius:8, background:'#f5f3ff', border:'1px solid #ddd6fe', fontSize:12, color:'#5b21b6' }}>
                       <strong>🤖 Feedback:</strong> {r.feedback_ia}
@@ -696,7 +696,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
                   )}
 
                   {pendente && (
-                    <div style={{ fontSize:11, color:'#92400e', fontStyle:'italic' }}>O professor irá corrigir sua entrega em breve.</div>
+                    <div style={{ fontSize:11, color:'#92400e', fontStyle:'italic' }}>O professor ira corrigir sua entrega em breve.</div>
                   )}
                 </div>
               );
@@ -706,18 +706,18 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
 
         <button onClick={() => { setFase('lista'); setResultado(null); }}
           style={{ width:'100%', padding:14, background:'var(--emerald)', color:'white', border:'none', borderRadius:10, fontWeight:700, fontSize:14, cursor:'pointer', boxShadow:'0 4px 12px rgba(16,185,129,.35)' }}>
-          Voltar às Avaliações
+          Voltar às Avaliacaes
         </button>
       </div>
     );
   }
 
-  // ── UPLOAD (tipo entrega — estilo Google Sala de Aula) ────────
+  // - UPLOAD (tipo entrega - estilo Google Sala de Aula) -
   if (fase === 'upload' && avAtual) {
     return <UploadEntregaFase av={avAtual} tentativa={tentativaAtual} onConcluir={(res) => { setResultado(res); setFase('resultado'); load(); }} onVoltar={() => setFase('lista')} />;
   }
 
-  // ── FAZENDO ───────────────────────────────────────────────────
+  // - FAZENDO -
   if (fase === 'fazendo' && avAtual) {
     const questaoAtual = questoes[idx];
     const Comp = questaoAtual ? TIPO_COMP[questaoAtual.tipo] : null;
@@ -727,9 +727,9 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
     if (questoes.length === 0) return (
       <div style={{ textAlign:'center', padding:'4rem' }}>
         <div style={{ fontSize:48, marginBottom:12 }}>⚠️</div>
-        <div style={{ fontWeight:600, color:'var(--navy)', marginBottom:8 }}>Esta avaliação não tem questões</div>
-        <div style={{ fontSize:13, color:'var(--slate-500)', marginBottom:20 }}>O professor ainda não adicionou questões a esta avaliação.</div>
-        <button onClick={() => setFase('lista')} style={{ padding:'10px 20px', background:'var(--navy)', color:'white', border:'none', borderRadius:8, cursor:'pointer', fontWeight:600 }}>← Voltar</button>
+        <div style={{ fontWeight:600, color:'var(--navy)', marginBottom:8 }}>Esta avaliacao nao tem questaes</div>
+        <div style={{ fontSize:13, color:'var(--slate-500)', marginBottom:20 }}>O professor ainda nao adicionou questaes a esta avaliacao.</div>
+        <button onClick={() => setFase('lista')} style={{ padding:'10px 20px', background:'var(--navy)', color:'white', border:'none', borderRadius:8, cursor:'pointer', fontWeight:600 }}><- Voltar</button>
       </div>
     );
 
@@ -742,7 +742,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
             <div>
               <div style={{ fontFamily:'var(--font-head)', fontSize:14, fontWeight:600 }}>{avAtual.titulo}</div>
               <div style={{ fontSize:11, opacity:.6 }}>
-                Questão {idx+1} de {questoes.length} · {respondidas} respondida(s)
+                Questao {idx+1} de {questoes.length} · {respondidas} respondida(s)
               </div>
             </div>
             <Cronometro segundos={tempoSeg} onExpire={concluir} />
@@ -757,7 +757,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
           </div>
         </div>
 
-        {/* Card da questão */}
+        {/* Card da questao */}
         <div className="card">
           <div style={{ display:'flex', gap:6, marginBottom:12, flexWrap:'wrap', alignItems:'center' }}>
             <span style={{ padding:'3px 10px', borderRadius:50, background:'rgba(245,158,11,0.1)', color:'#92400e', fontSize:11, fontWeight:600 }}>
@@ -790,16 +790,16 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
           )}
         </div>
 
-        {/* Navegação */}
+        {/* Navegacao */}
         <div style={{ display:'flex', gap:8, marginTop:'1rem' }}>
           <button onClick={() => setIdx(i => Math.max(0,i-1))} disabled={idx===0}
             style={{ padding:'10px 18px', border:'1.5px solid var(--slate-200)', borderRadius:8, background:'white', cursor:'pointer', fontSize:13, opacity:idx===0?0.45:1 }}>
-            ← Anterior
+            <- Anterior
           </button>
           {idx < questoes.length - 1 ? (
             <button onClick={() => setIdx(i => i+1)}
               style={{ flex:1, padding:'10px', background:'var(--navy)', color:'white', border:'none', borderRadius:8, fontWeight:600, fontSize:13, cursor:'pointer' }}>
-              Próxima →
+              Proxima ->
             </button>
           ) : (
             <button onClick={pedirConfirmar} disabled={submitting}
@@ -809,7 +809,7 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
           )}
         </div>
 
-        {/* Navegação rápida */}
+        {/* Navegacao rapida */}
         <div style={{ marginTop:'1rem', padding:12, background:'var(--slate-50)', borderRadius:8, border:'1px solid var(--slate-200)' }}>
           <div style={{ fontSize:11, fontWeight:600, color:'var(--slate-500)', marginBottom:8 }}>NAVEGAÇÃO RÁPIDA</div>
           <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
@@ -838,10 +838,10 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
       )}
       {showConfirm && (
         <ConfirmModal
-          titulo="Entregar Avaliação"
-          mensagem="Você está prestes a entregar sua avaliação. Confirme para registrar suas respostas."
-          submensagem="Após o envio não é possível alterar as respostas. Certifique-se de ter respondido todas as questões."
-          confirmLabel="Entregar Avaliação"
+          titulo="Entregar Avaliacao"
+          mensagem="Voce esta prestes a entregar sua avaliacao. Confirme para registrar suas respostas."
+          submensagem="Apos o envio nao e possivel alterar as respostas. Certifique-se de ter respondido todas as questaes."
+          confirmLabel="Entregar Avaliacao"
           cancelLabel="Voltar e revisar"
           respondidas={Object.keys(respostas).length}
           total={questoes.length}
@@ -853,18 +853,18 @@ export default function AlunoAvaliacoes({ initialAvaliacaoId, onReady }) {
     );
   }
 
-  // ── LISTA ─────────────────────────────────────────────────────
+  // - LISTA -
   return (
     <>
       <div className="page-header">
-        <div className="page-title">Avaliações</div>
+        <div className="page-title">Avaliacaes</div>
         <div className="page-sub">Provas e atividades das suas turmas</div>
       </div>
 
       {loading ? (
         <div style={{ textAlign:'center', padding:'3rem' }}><div className="spinner" style={{ margin:'0 auto' }} /></div>
       ) : avs.length === 0 ? (
-        <div className="card"><EmptyState icon="📝" title="Nenhuma avaliação disponível" sub="Seu professor publicará avaliações em breve" /></div>
+        <div className="card"><EmptyState icon="📝" title="Nenhuma avaliacao disponivel" sub="Seu professor publicara avaliacaes em breve" /></div>
       ) : (() => {
         // Agrupar por disciplina
         const porDisc = {};
