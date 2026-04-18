@@ -44,8 +44,7 @@ export default function AlunoDashboard() {
 
   return (
     <>
-      <div className={'sidebar-overlay'+(sidebarOpen?' open':'')} onClick={() => setSidebar(false)} />
-      <div className={'sidebar-shell'+(sidebarOpen?' open':'')}><Sidebar active={active} setActive={(s) => navigate(s)} perfil="aluno" /></div>
+      <Sidebar active={active} setActive={(s) => navigate(s)} isOpen={sidebarOpen} onClose={() => setSidebar(false)} />
       <div className="dash-shell">
       <main className="dash-main">
         <div className="mobile-topbar">

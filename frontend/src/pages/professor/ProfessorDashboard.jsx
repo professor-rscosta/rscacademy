@@ -51,10 +51,7 @@ export default function ProfessorDashboard() {
 
   return (
     <>
-      <div className={'sidebar-overlay'+(sidebarOpen?' open':'')} onClick={() => setSidebar(false)} />
-      <div className={'sidebar-shell'+(sidebarOpen?' open':'')}>
-        <Sidebar active={active} setActive={(s) => { setAction(null); setActive(s); setSidebar(false); }} />
-      </div>
+      <Sidebar active={active} setActive={(s) => { setAction(null); setActive(s); setSidebar(false); }} isOpen={sidebarOpen} onClose={() => setSidebar(false)} />
       <div className="dash-shell">
       <main className="dash-main">
         <div className="mobile-topbar">

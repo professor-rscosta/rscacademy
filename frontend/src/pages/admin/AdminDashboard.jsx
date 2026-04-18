@@ -46,8 +46,7 @@ export default function AdminDashboard() {
 
   return (
     <>
-      <div className={'sidebar-overlay'+(sidebarOpen?' open':'')} onClick={() => setSidebar(false)} />
-      <div className={'sidebar-shell'+(sidebarOpen?' open':'')}><Sidebar active={active} setActive={navigate} /></div>
+      <Sidebar active={active} setActive={navigate} isOpen={sidebarOpen} onClose={() => setSidebar(false)} />
       <div className="dash-shell">
       <main className="dash-main">
         <div className="mobile-topbar">
