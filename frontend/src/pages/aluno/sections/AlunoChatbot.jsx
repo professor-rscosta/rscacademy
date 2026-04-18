@@ -423,7 +423,7 @@ export default function AlunoChatbot() {
         )}
 
         {/* Web toggle + input row */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 6 }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', marginBottom: 6, flexWrap: 'nowrap', width: '100%' }}>
           {/* Web toggle button */}
           {!modoArquivo && <WebToggle active={modoWeb} onClick={() => setModoWeb(v => !v)}/>}
 
@@ -439,7 +439,7 @@ export default function AlunoChatbot() {
             }
             disabled={loading}
             rows={1}
-            style={{ flex: 1, padding: '10px 14px', border: '1.5px solid ' + (modoWeb ? '#3b82f6' : '#e2e8f0'), borderRadius: 10, fontSize: 14, fontFamily: 'var(--font-body)', resize: 'none', outline: 'none', lineHeight: 1.5, maxHeight: 120, overflow: 'auto', background: modoWeb ? '#eff6ff' : 'white' }}
+            style={{ flex: '1 1 0', minWidth: 0, padding: '10px 12px', border: '1.5px solid ' + (modoWeb ? '#3b82f6' : '#e2e8f0'), borderRadius: 10, fontSize: 14, fontFamily: 'var(--font-body)', resize: 'none', outline: 'none', lineHeight: 1.5, maxHeight: 120, overflow: 'auto', background: modoWeb ? '#eff6ff' : 'white', width: '100%' }}
             onFocus={e => e.target.style.borderColor = modoWeb ? '#1d4ed8' : '#3b82f6'}
             onBlur={e => e.target.style.borderColor = modoWeb ? '#3b82f6' : '#e2e8f0'}
           />
@@ -447,7 +447,7 @@ export default function AlunoChatbot() {
           {/* Attach button */}
           <button onClick={() => fileRef.current?.click()} disabled={uploadingFile}
             title="Enviar arquivo para analise (ChatPDF)"
-            style={{ width: 40, height: 40, border: '1px solid ' + (modoArquivo ? '#f59e0b' : '#e2e8f0'), borderRadius: 10, background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: modoArquivo ? '#f59e0b' : '#475569', transition: 'all .15s' }}
+            style={{ width: 38, height: 38, border: '1px solid ' + (modoArquivo ? '#f59e0b' : '#e2e8f0'), borderRadius: 10, background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: modoArquivo ? '#f59e0b' : '#475569', transition: 'all .15s', boxSizing: 'border-box' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.color = '#3b82f6'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = modoArquivo ? '#f59e0b' : '#e2e8f0'; e.currentTarget.style.color = modoArquivo ? '#f59e0b' : '#475569'; }}
           >
@@ -457,7 +457,7 @@ export default function AlunoChatbot() {
 
           {/* Send button */}
           <button onClick={enviar} disabled={!input.trim() || loading} style={{
-            width: 40, height: 40, border: 'none', borderRadius: 10, flexShrink: 0,
+            width: 38, height: 38, border: 'none', borderRadius: 10, flexShrink: 0, boxSizing: 'border-box',
             background: !input.trim() || loading ? '#e2e8f0' : modoWeb ? 'linear-gradient(135deg,#3b82f6,#1d4ed8)' : 'linear-gradient(135deg,#059669,#047857)',
             color: !input.trim() || loading ? '#94a3b8' : 'white',
             cursor: !input.trim() || loading ? 'not-allowed' : 'pointer',

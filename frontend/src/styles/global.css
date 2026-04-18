@@ -331,3 +331,17 @@ tbody tr:hover td { background: var(--slate-50); }
   .dash-shell { flex-direction: column !important; margin-left: 0 !important; }
   .dash-main  { padding: 12px !important; flex: 1; }
 }
+
+/* ── Responsive: evaluations module ──────────────────────── */
+@media (max-width: 540px) {
+  /* btn-sm stays readable on small screens */
+  .btn-sm {
+    font-size: 11px !important;
+    padding: 4px 8px !important;
+  }
+  /* Chat wrap fills screen height better */
+  .chatbot-wrap {
+    height: calc(100dvh - 7rem) !important;
+    height: calc(100vh - 7rem) !important;
+  }
+}

@@ -243,7 +243,7 @@ function ModalCriar({ turmas, questoesDisp, onClose, onSalvar }) {
                           {sel&&<span style={{ color:'white',fontSize:11,fontWeight:700 }}>✓</span>}
                         </div>
                         <span style={{ fontSize:16,flexShrink:0 }}>{TIPO_Q_ICONS[q.tipo]||'❓'}</span>
-                        <div style={{ flex:1,minWidth:0 }}>
+                        <div style={{ flex:'1 1 180px',minWidth:0 }}>
                           <div style={{ fontSize:13,fontWeight:500,color:'var(--slate-800)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{q.enunciado}</div>
                           <div style={{ display:'flex',gap:8,fontSize:10,color:'var(--slate-400)',marginTop:2 }}>
                             <span>{q.tipo?.replace(/_/g,' ')}</span>
@@ -1303,13 +1303,13 @@ export default function ProfAvaliacoes({ autoCreate } = {}) {
               const numQ = av.total_questoes ?? (Array.isArray(av.questoes)?av.questoes.length:0);
               return (
                 <div key={av.id} style={{ border:'1px solid var(--slate-200)',borderRadius:10,overflow:'hidden' }}>
-                  <div style={{ display:'flex',alignItems:'flex-start',gap:12,padding:'12px 14px' }}>
+                  <div style={{ display:'flex',alignItems:'flex-start',gap:12,padding:'12px 14px',flexWrap:'wrap' }}>
                     <div style={{ width:44,height:44,borderRadius:10,background:'var(--slate-100)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,flexShrink:0 }}>
                       {TIPOS_AV.find(t=>t.id===av.tipo)?.icon||'📝'}
                     </div>
-                    <div style={{ flex:1,minWidth:0 }}>
-                      <div style={{ display:'flex',gap:8,alignItems:'center',marginBottom:4,flexWrap:'wrap' }}>
-                        <span style={{ fontWeight:600,fontSize:14,color:'var(--navy)' }}>{av.titulo}</span>
+                    <div style={{ flex:'1 1 180px',minWidth:0 }}>
+                      <div style={{ display:'flex',gap:8,alignItems:'flex-start',marginBottom:4,flexWrap:'wrap' }}>
+                        <span style={{ fontWeight:600,fontSize:14,color:'var(--navy)',wordBreak:'break-word',flex:'1 1 0',minWidth:0 }}>{av.titulo}</span>
                         <span style={{ padding:'2px 9px',borderRadius:50,fontSize:11,fontWeight:600,background:cfg.bg,color:cfg.cor }}>{cfg.label}</span>
                         {numQ===0 && <span style={{ padding:'2px 9px',borderRadius:50,fontSize:11,background:'#fffbeb',color:'#92400e',border:'1px solid #fcd34d' }}>⚠️ Sem questões</span>}
                       </div>
@@ -1324,7 +1324,7 @@ export default function ProfAvaliacoes({ autoCreate } = {}) {
                         {av.encerra_em&&<span>Encerra: {new Date(av.encerra_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</span>}
                       </div>
                     </div>
-                    <div style={{ display:'flex',gap:6,flexShrink:0,flexWrap:'wrap' }}>
+                    <div style={{ display:'flex',gap:6,flexShrink:0,flexWrap:'wrap',alignSelf:'flex-start' }}>
                       <button className="btn-sm" style={{ background:'rgba(99,102,241,.1)',color:'#4f46e5',border:'1px solid rgba(99,102,241,.3)' }} onClick={()=>setEditQ(av)}>Questoes</button>
                       <button className="btn-sm" style={{ background:'#eff6ff',color:'#1d4ed8',border:'1px solid #bfdbfe' }} onClick={()=>setEditAv(av)}>Editar</button>
                       <button className="btn-sm btn-view" onClick={()=>setViewRes(av)}>Resultados</button>
