@@ -45,9 +45,10 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="dash-shell">
+    <>
       <div className={'sidebar-overlay'+(sidebarOpen?' open':'')} onClick={() => setSidebar(false)} />
       <div className={'sidebar-shell'+(sidebarOpen?' open':'')}><Sidebar active={active} setActive={navigate} /></div>
+      <div className="dash-shell">
       <main className="dash-main">
         <div className="mobile-topbar">
           <button className="mobile-hamburger" onClick={() => setSidebar(o=>!o)} aria-label="Menu">
@@ -61,6 +62,7 @@ export default function AdminDashboard() {
         </div>
         {renderSection()}
       </main>
-    </div>
+      </div>
+    </>
   );
 }
