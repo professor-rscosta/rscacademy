@@ -361,7 +361,7 @@ var PROF_CATS = [
   { key:'conteudos', label:'Conteúdos da Disciplina', Icon:IcoBook,      cor:'#7c3aed', bg:'#faf5ff', tipos:['pdf','imagem'],   desc:'Conteúdo formal da disciplina' },
   { key:'videos',    label:'Videoaulas',       Icon:IcoVideoIco, cor:'#dc2626', bg:'#fef2f2', tipos:['youtube'],         desc:'Videoaulas e conteúdos audiovisuais' },
   { key:'links',     label:'Referências Complementares de Estudo',  Icon:IcoLinkIco,  cor:'#0284c7', bg:'#f0f9ff', tipos:['link'],            desc:'Artigos, sites e leituras recomendadas' },
-  { key:'textos',    label:'Resumo e Anotações da Aula',        Icon:IcoTextIco,  cor:'#0f766e', bg:'#f0fdfa', tipos:['texto'],           desc:'Resumos e anotações de apoio ao estudo' },
+  { key:'textos',    label:'Resumos e Anotações da Aula',        Icon:IcoTextIco,  cor:'#0f766e', bg:'#f0fdfa', tipos:['texto'],           desc:'Resumos e anotações de apoio ao estudo' },
 ];
 var TIPO_CFG_PROF = {
   pdf:     { Icon:IcoDocIco,   cor:'#7c3aed', bg:'#faf5ff', label:'PDF' },
