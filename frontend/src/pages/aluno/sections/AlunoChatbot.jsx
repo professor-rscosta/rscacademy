@@ -1,5 +1,5 @@
 /**
- * AlunoChatbot - Assistente Virtual RSC Academy
+ * AlunoChatbot - Lumi, Assistente Virtual RSC Academy
  * Modo RAG (padrao) + Modo Web (toggle manual) + ChatPDF upload
  * 100% ASCII - no emojis in source (SVG icons only)
  */
@@ -222,8 +222,8 @@ export default function AlunoChatbot() {
     if (!loadingDiscs) {
       setMsgs([{ id: 1, role: 'assistant',
         content: disciplinas.length > 0
-          ? 'Ola, **' + (user?.nome?.split(' ')[0] || 'aluno') + '**! Sou o Assistente Virtual da RSC Academy.\n\nSelecione uma disciplina para consultar os documentos, ou ative **Buscar na Web** para pesquisar na internet. Use o clipe para enviar um arquivo (modo ChatPDF).'
-          : 'Ola! Sou o Assistente Virtual. Use o clipe para enviar um arquivo e conversar sobre ele, ou ative Buscar na Web para pesquisar na internet.',
+          ? '\u2728\uD83E\uDD16 Ol\u00e1, **' + (user?.nome?.split(' ')[0] || 'aluno') + '**! Eu sou a **Lumi**, sua assistente virtual.\n\n\uD83D\uDCCE **Envie arquivos facilmente:**\nUse o clipe para anexar documentos, imagens ou atividades e conversar sobre eles.\n\n\uD83C\uDF10 **Pesquise na internet:**\nAtive o modo **Buscar na Web** para encontrar informa\u00e7\u00f5es atualizadas rapidamente.\n\n\uD83D\uDCAC Estou pronta para ajudar voc\u00ea! \uD83D\uDE0A'
+          : '\u2728\uD83E\uDD16 Ol\u00e1! Eu sou a **Lumi**, sua assistente virtual.\n\n\uD83D\uDCCE **Envie arquivos facilmente:**\nUse o clipe para anexar documentos, imagens ou atividades e conversar sobre eles.\n\n\uD83C\uDF10 **Pesquise na internet:**\nAtive o modo **Buscar na Web** para encontrar informa\u00e7\u00f5es atualizadas rapidamente.\n\n\uD83D\uDCAC Estou pronta para ajudar voc\u00ea! \uD83D\uDE0A',
       }]);
     }
   }, [loadingDiscs]);
@@ -355,9 +355,9 @@ export default function AlunoChatbot() {
             <IconBot size={18} color="white"/>
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 800, fontSize: 15 }}>Assistente Virtual RSC Academy</div>
+            <div style={{ fontWeight: 800, fontSize: 15, display:"flex", alignItems:"center", gap:6 }}><span style={{ fontSize:16 }}>&#10024;</span> Lumi</div>
             <div style={{ fontSize: 11, opacity: .6, display: 'flex', gap: 8, alignItems: 'center' }}>
-              <span>RAG Avancado</span><span>|</span><span>Memoria de sessao</span>
+              <span>Assistente Virtual</span><span>|</span><span>RSC Academy</span>
               {modoArquivo && <><span>|</span><span style={{ color: '#fbbf24', display: 'flex', alignItems: 'center', gap: 3 }}><IconPaperclip size={10} color="#fbbf24"/>{arquivoNome}</span></>}
               {modoWeb && <><span>|</span><span style={{ color: '#93c5fd', display: 'flex', alignItems: 'center', gap: 3 }}><IconGlobe size={10} color="#93c5fd"/> Web</span></>}
             </div>

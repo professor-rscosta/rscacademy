@@ -245,7 +245,7 @@ export default function AlunoHome({ onNavigate }) {
             {[
               { id:'boletim',    icon:'📊', label:'Boletim',      desc:'Veja suas notas' },
               { id:'gamificacao',icon:'🏆', label:'XP & Conquistas', desc:'Medalhas e ranking' },
-              { id:'chatbot',    icon:'🤖', label:'Assistente IA', desc:'Tire dúvidas' },
+              { id:'chatbot',    icon:'✨', label:'Lumi', desc:'Sua assistente virtual' },
               { id:'mural',      icon:'📌', label:'Mural',        desc:'Avisos da turma' },
             ].map(e => (
               <button key={e.id} onClick={() => onNavigate?.(e.id)} className="hub-extra-btn">

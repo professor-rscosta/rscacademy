@@ -21,7 +21,7 @@ const MENUS = {
       {id:'materiais',   icon:'📘', label:'Hub de Aprendizagem'},
       {id:'mural',       icon:'📌', label:'Mural de Avisos'},
       {id:'rag',         icon:'🧠', label:'Base RAG (IA)'},
-      {id:'chatbot',     icon:'🤖', label:'Assistente IA'},
+      {id:'chatbot',     icon:'✨', label:'Lumi'},
     ]},
     { section:'Análise',   items:[
       {id:'relatorios',  icon:'📈', label:'Relatórios Globais'},
@@ -42,7 +42,7 @@ const MENUS = {
       {id:'mural',     icon:'📌', label:'Mural de Avisos'},
       {id:'materiais', icon:'📘', label:'Hub de Aprendizagem'},
       {id:'rag', icon:'🧠', label:'Base RAG (IA)'},
-      {id:'chatbot', icon:'🤖', label:'Assistente IA'},
+      {id:'chatbot', icon:'✨', label:'Lumi'},
     ]},
     { section:'Análise',   items:[{id:'relatorios', icon:'📈', label:'Relatórios TRI'},{id:'boletim', icon:'📋', label:'Boletim de Notas'}] },
   ],
@@ -57,7 +57,7 @@ const MENUS = {
     ]},
     { section:'Comunidade', items:[
       {id:'mural',   icon:'📌', label:'Mural de Avisos'},
-      {id:'chatbot', icon:'🤖', label:'Assistente IA'},
+      {id:'chatbot', icon:'✨', label:'Lumi'},
     ]},
     { section:'Progresso',  items:[
       {id:'boletim',     icon:'📋', label:'Meu Boletim'},
