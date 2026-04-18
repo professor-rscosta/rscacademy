@@ -421,6 +421,82 @@ tbody tr:hover td { background: var(--slate-50); }
   .dash-main { padding: 12px !important; flex: 1; }
 }
 
+/* ── Extra safety for very small screens (< 640px) ──────── */
+@media (max-width: 640px) {
+  /* Ensure sidebar-shell fits small screens */
+  .sidebar-shell {
+    width: 82vw;           /* takes 82% of viewport, max 280px */
+    max-width: 280px;
+    min-width: 220px;
+    background: #0f1b35 !important;
+    opacity: 1 !important;
+  }
+
+  /* Ensure inner sidebar fills and shows all sections */
+  .sidebar-shell .sidebar {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100dvh !important;
+    overflow-y: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    background: #0f1b35 !important;
+    color: #ffffff !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  /* Sections: ensure they are block-level and visible */
+  .sidebar-shell .sidebar-section {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    overflow: visible !important;
+    padding: .5rem .75rem !important;
+  }
+
+  /* Labels */
+  .sidebar-shell .sidebar-section-label {
+    display: block !important;
+    color: rgba(255,255,255,0.42) !important;
+    font-size: 10px !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  /* Items — make tappable area larger on small screens */
+  .sidebar-shell .sidebar-item {
+    display: flex !important;
+    align-items: center !important;
+    padding: 14px 16px !important;
+    font-size: 14px !important;
+    color: rgba(255,255,255,0.85) !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    min-height: 44px !important;  /* WCAG tap target */
+  }
+
+  .sidebar-shell .sidebar-item.active {
+    background: rgba(16,185,129,0.22) !important;
+    color: #34d399 !important;
+  }
+
+  /* Footer always at bottom */
+  .sidebar-shell .sidebar-footer {
+    display: block !important;
+    margin-top: auto !important;
+    visibility: visible !important;
+  }
+
+  /* User name/role */
+  .sidebar-shell .user-info .name { color: #ffffff !important; }
+  .sidebar-shell .user-info .role { color: rgba(255,255,255,0.5) !important; }
+
+  /* Adjust offset so panel starts off-screen */
+  .sidebar-shell { left: -105vw; }
+  .sidebar-shell.open { left: 0 !important; }
+}
+
 /* ── Desktop: dash-shell compensates for fixed sidebar ───── */
 @media (min-width: 769px) {
   .dash-shell {
