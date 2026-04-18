@@ -313,67 +313,125 @@ tbody tr:hover td { background: var(--slate-50); }
   flex: 1;
   letter-spacing: -.3px;
 }
+/* ── Overlay (mobile backdrop) ──────────────────────────── */
 .sidebar-overlay {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.55);
-  z-index: 299;
-  backdrop-filter: blur(2px);
+  background: rgba(0, 0, 0, 0.52);
+  z-index: 399;        /* above topbar (200), below sidebar-shell (400) */
+  -webkit-backdrop-filter: blur(2px);
+          backdrop-filter: blur(2px);
 }
-/* sidebar-shell: outer wrapper that slides on mobile */
+.sidebar-overlay.open { display: block !important; }
+
+/* ── sidebar-shell: transparent wrapper on desktop ───────── */
 .sidebar-shell {
-  display: contents; /* desktop: transparent wrapper, sidebar flows normally */
+  display: contents; /* no box on desktop — sidebar just flows in flex */
 }
 
+/* ── Mobile sidebar overrides ────────────────────────────── */
 @media (max-width: 768px) {
+
   .mobile-topbar { display: flex !important; }
-  .sidebar-overlay.open { display: block !important; }
-  .dash-shell {
-    flex-direction: column !important;
-  }
+
+  .dash-shell { flex-direction: column !important; }
+
+  /* Outer sliding panel */
   .sidebar-shell {
     display: block !important;
     position: fixed !important;
-    left: -260px;
     top: 0;
+    left: -280px;             /* fully off-screen */
     bottom: 0;
-    z-index: 300;
-    transition: left .28s cubic-bezier(.4,0,.2,1);
-    width: 240px !important;
-    height: 100vh !important;
+    width: 260px !important;
+    height: 100dvh !important; /* dynamic viewport for iOS */
+    height: 100vh !important;  /* fallback */
+    z-index: 400;              /* above overlay (399) and topbar (200) */
     overflow: hidden;
-    box-shadow: 4px 0 24px rgba(0,0,0,.30);
+    transition: left .28s cubic-bezier(.4, 0, .2, 1);
+    box-shadow: none;
   }
+
   .sidebar-shell.open {
     left: 0 !important;
+    box-shadow: 6px 0 28px rgba(0, 0, 0, 0.45);
   }
-  /* Inner <aside class="sidebar"> fills the shell on mobile */
+
+  /* Inner <aside class="sidebar"> — SOLID opaque background */
   .sidebar-shell .sidebar {
     position: relative !important;
-    height: 100% !important;
+    top: auto !important;
+    left: auto !important;
     width: 100% !important;
-    overflow-y: auto;
-    /* Ensure all items are visible - explicit white on navy */
-    background: var(--navy) !important;
-    color: white !important;
+    height: 100% !important;
+    min-height: 100vh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    flex-shrink: 0 !important;
+
+    /* Explicit solid colors — no variable dependency */
+    background-color: #0f1b35 !important;   /* --navy */
+    background: #0f1b35 !important;
+    color: #ffffff !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+
     display: flex !important;
     flex-direction: column !important;
   }
-  .sidebar-shell .sidebar-item {
-    color: rgba(255,255,255,0.72) !important;
-    font-size: 14px !important;
-    padding: 11px 14px !important;
-  }
-  .sidebar-shell .sidebar-item.active {
-    color: var(--emerald-light) !important;
-  }
+
+  /* Section labels */
   .sidebar-shell .sidebar-section-label {
-    color: rgba(255,255,255,0.38) !important;
+    color: rgba(255, 255, 255, 0.42) !important;
+    font-size: 10px !important;
   }
+
+  /* Navigation items */
+  .sidebar-shell .sidebar-item {
+    color: rgba(255, 255, 255, 0.78) !important;
+    font-size: 14px !important;
+    padding: 12px 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .sidebar-shell .sidebar-item:hover {
+    background: rgba(255, 255, 255, 0.10) !important;
+    color: #ffffff !important;
+  }
+
+  .sidebar-shell .sidebar-item.active {
+    background: rgba(16, 185, 129, 0.20) !important;
+    color: #34d399 !important;   /* --emerald-light */
+  }
+
+  .sidebar-shell .sidebar-item .icon {
+    color: inherit !important;
+    opacity: 1 !important;
+  }
+
+  /* Logo area */
+  .sidebar-shell .sidebar-logo {
+    display: flex !important;
+    visibility: visible !important;
+  }
+
+  /* Footer / user card */
+  .sidebar-shell .sidebar-footer {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  .sidebar-shell .user-info .name {
+    color: #ffffff !important;
+  }
+
+  /* Main content area */
   .dash-main {
     padding: 12px !important;
-    /* Take remaining height below mobile topbar */
     flex: 1;
   }
 }
