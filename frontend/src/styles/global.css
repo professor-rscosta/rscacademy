@@ -339,7 +339,10 @@ tbody tr:hover td { background: var(--slate-50); }
   bottom: 0;
   width: 240px;
   z-index: 500;
-  /* On desktop: always visible, no animation needed */
+  /* Solid background on the shell itself — prevents any bleed-through */
+  background: #0f1b35;
+  background-color: #0f1b35;
+  opacity: 1;
 }
 
 /* ── Mobile: sidebar starts off-screen ───────────────────── */
@@ -356,6 +359,10 @@ tbody tr:hover td { background: var(--slate-50); }
     box-shadow: none;
     width: 260px;
     z-index: 500;
+    /* Solid — no transparency possible */
+    background: #0f1b35 !important;
+    background-color: #0f1b35 !important;
+    opacity: 1 !important;
   }
   .sidebar-shell.open {
     left: 0;
