@@ -313,25 +313,29 @@ tbody tr:hover td { background: var(--slate-50); }
   flex: 1;
   letter-spacing: -.3px;
 }
-/* ─────────────────────────────────────────────────────────────
-   SIDEBAR SYSTEM
-   - sidebar-shell: always position:fixed, always rendered
-   - Desktop: left:0, always visible; dash-shell has margin-left:240px
-   - Mobile:  slides from left:-280px to left:0 via .open class
-   - NO display:contents - avoids browser rendering bugs
-   ───────────────────────────────────────────────────────────── */
+/* =============================================================
+   SIDEBAR SYSTEM — mobile-first, no display:contents
+   Structure:
+     sidebar-shell (always position:fixed)
+       └── aside.sidebar
+             ├── .sidebar-logo
+             ├── .sidebar-section × N
+             └── .sidebar-footer
+   Desktop: left:0, always visible; dash-shell has margin-left:240px
+   Mobile:  left off-screen, slides to left:0 on .open
+   ============================================================= */
 
-/* Overlay (mobile backdrop behind open sidebar) */
+/* Overlay */
 .sidebar-overlay {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.50);
+  background: rgba(0,0,0,0.52);
   z-index: 399;
 }
 .sidebar-overlay.open { display: block; }
 
-/* ── sidebar-shell: the sliding/fixed container ──────────── */
+/* ── Shell ────────────────────────────────────────────────── */
 .sidebar-shell {
   position: fixed;
   top: 0;
@@ -339,165 +343,144 @@ tbody tr:hover td { background: var(--slate-50); }
   bottom: 0;
   width: 240px;
   z-index: 500;
-  /* Solid background on the shell itself — prevents any bleed-through */
   background: #0f1b35;
-  background-color: #0f1b35;
-  opacity: 1;
 }
 
-/* ── Mobile: sidebar starts off-screen ───────────────────── */
+/* ══ MOBILE (≤ 768px) ═══════════════════════════════════════ */
 @media (max-width: 768px) {
 
-  /* Show topbar, stack content vertically */
   .mobile-topbar { display: flex !important; }
-  .dash-shell    { flex-direction: column !important; margin-left: 0 !important; }
+  .dash-shell    { margin-left: 0 !important; flex-direction: column !important; }
 
-  /* Shell slides in/out */
+  /* Shell: starts off-screen */
   .sidebar-shell {
-    left: -280px;
+    left: -110%;
+    width: min(82vw, 280px);
+    z-index: 9999;
+    background: #0f1b35;
+    overflow-y: auto;
+    overflow-x: hidden;
     transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: none;
-    width: 260px;
-    z-index: 500;
-    /* Solid — no transparency possible */
-    background: #0f1b35 !important;
-    background-color: #0f1b35 !important;
-    opacity: 1 !important;
+    /* Ensure it creates its own stacking context */
+    isolation: isolate;
+    will-change: left;
   }
+
   .sidebar-shell.open {
     left: 0;
-    box-shadow: 8px 0 32px rgba(0, 0, 0, 0.50);
+    box-shadow: 8px 0 32px rgba(0,0,0,0.55);
   }
 
-  /* Force inner <aside> to fill the shell and show content */
+  /* ── KEY FIX: on mobile, replace the flex/height layout ── */
+  /* The base .sidebar uses display:flex + height:100vh which can cause */
+  /* flex children to collapse in Safari/Chrome mobile.                 */
+  /* Replace with simple block layout — shell handles the scrolling.    */
+  .sidebar-shell > aside,
   .sidebar-shell .sidebar {
-    position: relative !important;
+    /* Override base flex+height rules */
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
     width: 100% !important;
-    height: 100% !important;
-    min-height: 100vh !important;
-    overflow-y: auto !important;
+
+    /* Explicit colors */
     background: #0f1b35 !important;
-    background-color: #0f1b35 !important;
     color: #ffffff !important;
-    display: flex !important;
-    flex-direction: column !important;
     opacity: 1 !important;
     visibility: visible !important;
+  }
+
+  /* Logo */
+  .sidebar-shell .sidebar-logo {
+    display: flex !important;
+    padding: 1.25rem 1rem 0.75rem !important;
+    visibility: visible !important;
+  }
+
+  /* Sections: simple blocks */
+  .sidebar-shell .sidebar-section {
+    display: block !important;
+    padding: 0.5rem 0.75rem !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
   /* Section labels */
   .sidebar-shell .sidebar-section-label {
-    color: rgba(255,255,255,0.42) !important;
+    display: block !important;
+    color: rgba(255,255,255,0.4) !important;
+    font-size: 10px !important;
+    letter-spacing: 1.5px !important;
+    padding: 0 0.375rem 0.25rem !important;
+    visibility: visible !important;
+    opacity: 1 !important;
   }
 
-  /* Menu items */
+  /* Items: flex for icon alignment */
   .sidebar-shell .sidebar-item {
     display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 13px 14px !important;
+    border-radius: 8px !important;
     color: rgba(255,255,255,0.82) !important;
     font-size: 14px !important;
-    padding: 12px 16px !important;
-    opacity: 1 !important;
+    cursor: pointer !important;
+    margin-bottom: 2px !important;
+    min-height: 44px !important;
     visibility: visible !important;
+    opacity: 1 !important;
+    /* No height constraints */
+    height: auto !important;
+    max-height: none !important;
   }
+
+  .sidebar-shell .sidebar-item:active,
   .sidebar-shell .sidebar-item:hover {
     background: rgba(255,255,255,0.10) !important;
     color: #ffffff !important;
   }
+
   .sidebar-shell .sidebar-item.active {
     background: rgba(16,185,129,0.22) !important;
     color: #34d399 !important;
   }
+
   .sidebar-shell .sidebar-item .icon {
-    color: inherit !important;
+    font-size: 18px !important;
+    width: 22px !important;
+    text-align: center !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Footer: simply displayed, no margin-top:auto (not in flex anymore) */
+  .sidebar-shell .sidebar-footer {
+    display: block !important;
+    padding: 1rem !important;
+    border-top: 1px solid rgba(255,255,255,0.08) !important;
+    margin-top: 0.5rem !important;
+    visibility: visible !important;
     opacity: 1 !important;
   }
 
-  /* Logo, footer */
-  .sidebar-shell .sidebar-logo   { display: flex !important; }
-  .sidebar-shell .sidebar-footer { display: block !important; margin-top: auto !important; }
   .sidebar-shell .user-info .name { color: #ffffff !important; }
+  .sidebar-shell .user-info .role { color: rgba(255,255,255,0.5) !important; }
+  .sidebar-shell .btn-logout      { color: rgba(255,255,255,0.5) !important; }
 
-  /* Main content padding */
+  /* Overlay */
+  .sidebar-overlay { z-index: 9998 !important; }
+
+  /* Main content */
   .dash-main { padding: 12px !important; flex: 1; }
 }
 
-/* ── Extra safety for very small screens (< 640px) ──────── */
-@media (max-width: 640px) {
-  /* Ensure sidebar-shell fits small screens */
-  .sidebar-shell {
-    width: 82vw;           /* takes 82% of viewport, max 280px */
-    max-width: 280px;
-    min-width: 220px;
-    background: #0f1b35 !important;
-    opacity: 1 !important;
-  }
-
-  /* Ensure inner sidebar fills and shows all sections */
-  .sidebar-shell .sidebar {
-    width: 100% !important;
-    height: 100% !important;
-    min-height: 100dvh !important;
-    overflow-y: auto !important;
-    display: flex !important;
-    flex-direction: column !important;
-    background: #0f1b35 !important;
-    color: #ffffff !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-  }
-
-  /* Sections: ensure they are block-level and visible */
-  .sidebar-shell .sidebar-section {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    overflow: visible !important;
-    padding: .5rem .75rem !important;
-  }
-
-  /* Labels */
-  .sidebar-shell .sidebar-section-label {
-    display: block !important;
-    color: rgba(255,255,255,0.42) !important;
-    font-size: 10px !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-
-  /* Items — make tappable area larger on small screens */
-  .sidebar-shell .sidebar-item {
-    display: flex !important;
-    align-items: center !important;
-    padding: 14px 16px !important;
-    font-size: 14px !important;
-    color: rgba(255,255,255,0.85) !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-    min-height: 44px !important;  /* WCAG tap target */
-  }
-
-  .sidebar-shell .sidebar-item.active {
-    background: rgba(16,185,129,0.22) !important;
-    color: #34d399 !important;
-  }
-
-  /* Footer always at bottom */
-  .sidebar-shell .sidebar-footer {
-    display: block !important;
-    margin-top: auto !important;
-    visibility: visible !important;
-  }
-
-  /* User name/role */
-  .sidebar-shell .user-info .name { color: #ffffff !important; }
-  .sidebar-shell .user-info .role { color: rgba(255,255,255,0.5) !important; }
-
-  /* Adjust offset so panel starts off-screen */
-  .sidebar-shell { left: -105vw; }
-  .sidebar-shell.open { left: 0 !important; }
-}
-
-/* ── Desktop: dash-shell compensates for fixed sidebar ───── */
+/* ══ DESKTOP (> 768px) ══════════════════════════════════════ */
 @media (min-width: 769px) {
   .dash-shell {
     margin-left: 240px;
