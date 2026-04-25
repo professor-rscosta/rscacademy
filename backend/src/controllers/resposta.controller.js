@@ -1,9 +1,8 @@
 const respostaRepo   = require('../repositories/resposta.repository');
 const questaoRepo    = require('../repositories/questao.repository');
-const { dbFindWhere, dbUpdate } = require('../database/init');
 const triService     = require('../services/tri.service');
 const aiService      = require('../services/ai.service');
-const calibracaoSvc  = require('../services/calibracao.service');
+const { dbUpdate }   = require('../database/init');
 
 // ─── Submeter resposta ────────────────────────────────────────
 
@@ -12,196 +11,181 @@ async function submitResposta(req, res, next) {
     const { questao_id, resposta, tempo_gasto_ms } = req.body;
     const aluno_id = req.user.id;
 
-    if (!questao_id || resposta === undefined) {
+    if (!questao_id || resposta === undefined || resposta === null) {
       return res.status(400).json({ error: 'questao_id e resposta são obrigatórios.' });
     }
 
+    // ── Buscar questão ─────────────────────────────────────────
     const questao = await questaoRepo.findById(questao_id);
     if (!questao) return res.status(404).json({ error: 'Questão não encontrada.' });
 
-    // ── Avaliação da resposta ──────────────────────────────────
+    // ── Normalizar resposta ────────────────────────────────────
+    const respostaStr = typeof resposta === 'object'
+      ? JSON.stringify(resposta)
+      : String(resposta || '');
+
+    // ── Normalizar gabarito ────────────────────────────────────
+    let gabarito = questao.gabarito;
+    if (typeof gabarito === 'string') {
+      try { gabarito = JSON.parse(gabarito); } catch { /* keep as string */ }
+    }
+
+    // ── Calcular score ─────────────────────────────────────────
     let score = 0;
-    let avaliacaoIA = null;
+    let feedbackIA = null;
 
     if (questao.tipo === 'dissertativa' || questao.tipo === 'upload_arquivo') {
-      // Avaliação por IA (assíncrona)
       try {
-        avaliacaoIA = await aiService.evaluateOpenAnswer({
+        const ai = await aiService.evaluateOpenAnswer({
           enunciado: questao.enunciado,
-          gabarito_criterios: questao.gabarito,
-          resposta_aluno: resposta,
+          gabarito_criterios: gabarito,
+          resposta_aluno: respostaStr,
           tipo: questao.tipo,
         });
-        score = avaliacaoIA.score;
+        score = ai.score || 0;
+        feedbackIA = ai.feedback || null;
       } catch {
-        score = 0.5; // fallback se IA indisponível
+        score = 0.5;
+        feedbackIA = '⏳ Aguardando correção manual.';
       }
     } else {
-      try { score = triService.scorePartial(questao.tipo, resposta, questao.gabarito) || 0; } catch(_) { score = 0; }
-    }
-
-    // ── Theta atual do aluno ───────────────────────────────────
-    const respostasAnteriores = await respostaRepo.findByAluno(aluno_id);
-    const _hRaw = await Promise.all(respostasAnteriores.slice(0, 50).map(async r => {
       try {
-        const q = await questaoRepo.findById(r.questao_id);
-        return q && q.tri ? { tri: q.tri, score: r.score || 0 } : null;
-      } catch { return null; }
-    }));
-    const historico = _hRaw.filter(Boolean);
-
-    let theta_antes = 0; try { theta_antes = triService.estimateTheta(historico) || 0; } catch(_) {}
-
-    // ── Salvar resposta ────────────────────────────────────────
-    let resposta_salva;
-    try {
-      resposta_salva = await respostaRepo.create({
-        aluno_id,
-        questao_id: Number(questao_id),
-        trilha_id: questao.trilha_id || null,
-        resposta: typeof resposta === 'object' ? JSON.stringify(resposta) : String(resposta || ''),
-        correto: score >= 0.8 ? 1 : 0,
-        score: score || 0,
-        xp_ganho: 0,
-        tempo_gasto: Math.round((tempo_gasto_ms || 0) / 1000),
-      });
-    } catch(saveErr) {
-      console.error('[RESPOSTA SAVE ERROR]', saveErr.message, JSON.stringify({aluno_id, questao_id, score}));
-      return res.status(500).json({ error: 'Erro ao salvar resposta: ' + saveErr.message });
+        score = triService.scorePartial(questao.tipo, resposta, gabarito) || 0;
+      } catch { score = 0; }
     }
 
-    // ── Theta após nova resposta ───────────────────────────────
-    const historico_novo = [...historico, { tri: questao.tri, score }];
-    let theta_depois = theta_antes; let nivel = 'iniciante'; let xp_ganho = Math.round((questao.xp || 100) * score);
+    // ── Calcular XP ────────────────────────────────────────────
+    let xp_ganho = Math.round((questao.xp || 100) * score);
     try {
-      theta_depois = triService.estimateTheta(historico_novo) || theta_antes;
-      nivel = triService.thetaToLevel(theta_depois) || 'iniciante';
-      xp_ganho = triService.calculateXP(questao.xp || 100, score, theta_antes, questao.tri?.b ?? 0) || xp_ganho;
-    } catch(_) {}
+      const anteriores = await respostaRepo.findByAluno(aluno_id);
+      const hist = anteriores.slice(0, 50).map(r => {
+        const tri = r.tri_snapshot || null;
+        return tri ? { tri, score: r.score || 0 } : null;
+      }).filter(Boolean);
 
-    // ── Atualizar theta do usuário ─────────────────────────────
-    try { await dbUpdate('usuarios', aluno_id, { theta: theta_depois, xp_total: (req.user.xp_total || 0) + xp_ganho }); } catch(dbErr) { console.error('[RESPOSTA] dbUpdate usuario failed:', dbErr.message); }
+      const tri = questao.tri || { modelo: '2PL', a: 1, b: 0, c: 0 };
+      const theta_antes = triService.estimateTheta(hist) || 0;
+      const theta_depois = triService.estimateTheta([...hist, { tri, score }]) || 0;
+      xp_ganho = triService.calculateXP(questao.xp || 100, score, theta_antes, tri.b ?? 0) || xp_ganho;
 
-    // ── Atualizar contador de respostas da questão ─────────────
-    try {
-      if (respostaRepo.countByQuestao) {
-        const totalRespostas = await respostaRepo.countByQuestao(questao_id);
-        if (questaoRepo.updateTRI && questao.tri) {
-          await questaoRepo.updateTRI(questao_id, { ...questao.tri, total_respostas: totalRespostas });
-        }
-        if (totalRespostas >= 30) {
-          calibracaoSvc.checkAndCalibrate(questao_id).catch(() => {});
-        }
+      // Update user theta silently
+      try { await dbUpdate('usuarios', aluno_id, {
+        theta: theta_depois,
+        xp_total: (req.user.xp_total || 0) + xp_ganho
+      }); } catch {}
+    } catch {}
+
+    // ── Gerar feedback textual ─────────────────────────────────
+    if (!feedbackIA) {
+      try {
+        feedbackIA = await aiService.generateFeedback({
+          questao, resposta_aluno: respostaStr, score,
+        });
+      } catch {
+        feedbackIA = score >= 0.8
+          ? '✅ Excelente! Continue assim.'
+          : '❌ Não foi dessa vez. Revise o conceito e tente novamente!';
       }
-    } catch(_) {}
-
-    // ── Feedback IA ────────────────────────────────────────────
-    let feedbackIA = null;
-    try {
-      feedbackIA = await aiService.generateFeedback({
-        questao, resposta_aluno: resposta, score,
-        theta_antes, theta_depois, xp_ganho,
-      });
-    } catch {
-      feedbackIA = score >= 0.8 ? '✅ Excelente! Continue assim.' : '❌ Não foi dessa vez. Revise o conceito e tente novamente!';
     }
 
-    res.json({
-      resposta: resposta_salva,
-      score,
-      correto: score >= 0.8 ? 1 : 0,
-      is_correct: score >= 0.8,
-      score_percentual: Math.round(score * 100),
-      xp_ganho,
-      theta: { antes: theta_antes, depois: theta_depois, evolucao: Math.round((theta_depois - theta_antes) * 1000) / 1000 },
-      nivel,
-      feedback_ia: feedbackIA,
-      avaliacao_ia: avaliacaoIA,
-      gabarito_revelado: questao.gabarito,
-      explicacao: questao.explicacao || null,
+    // ── Salvar no banco ────────────────────────────────────────
+    const salvo = await respostaRepo.create({
+      aluno_id,
+      questao_id: Number(questao_id),
+      trilha_id:  questao.trilha_id || null,
+      resposta:   respostaStr,
+      correto:    score >= 0.8 ? 1 : 0,
+      score:      score,
+      xp_ganho:   xp_ganho,
+      tempo_gasto: Math.round((tempo_gasto_ms || 0) / 1000),
+      feedback_ia: typeof feedbackIA === 'string' ? feedbackIA : JSON.stringify(feedbackIA),
     });
+
+    // ── Resposta para o frontend ───────────────────────────────
+    return res.json({
+      resposta:          salvo,
+      score,
+      is_correct:        score >= 0.8,
+      correto:           score >= 0.8 ? 1 : 0,
+      score_percentual:  Math.round(score * 100),
+      xp_ganho,
+      feedback_ia:       feedbackIA,
+      gabarito_revelado: gabarito,
+      explicacao:        questao.explicacao || null,
+    });
+
   } catch (err) {
-    console.error('[RESPOSTA 500]', err.message, err.stack?.split('\n')[1]);
+    console.error('[RESPOSTA 500]', err.message);
     next(err);
   }
 }
 
-// ─── Listar respostas ─────────────────────────────────────────
+// ─── Listar respostas do aluno ────────────────────────────────
 
 async function listByAluno(req, res, next) {
   try {
     const respostas = await respostaRepo.findByAluno(req.user.id);
-    // Enriquecer com dados da questão e trilha
     const enriched = await Promise.all(respostas.map(async r => {
-
-      const q = await questaoRepo.findById(r.questao_id);
-      const trilha = null; // simplified - trilha info not critical here
-      return {
-        ...r,
-        questao_enunciado: q?.enunciado || null,
-        questao_tipo:      q?.tipo || null,
-        questao_gabarito:  q?.gabarito ?? null,
-        questao_explicacao: q?.explicacao || null,
-        trilha_nome:       trilha?.nome || null,
-        trilha_id:         q?.trilha_id || null,
-      };
-    
-}));
+      try {
+        const q = await questaoRepo.findById(r.questao_id);
+        return {
+          ...r,
+          is_correct: r.correto === 1,
+          questao_enunciado: q?.enunciado || null,
+          questao_tipo:      q?.tipo || null,
+          questao_gabarito:  q?.gabarito ?? null,
+          questao_explicacao: q?.explicacao || null,
+          trilha_id:         q?.trilha_id || null,
+        };
+      } catch { return { ...r, is_correct: r.correto === 1 }; }
+    }));
     res.json({ respostas: enriched, total: enriched.length });
   } catch (err) { next(err); }
 }
+
+// ─── Respostas por trilha ─────────────────────────────────────
 
 async function listByTrilha(req, res, next) {
   try {
     const { trilha_id } = req.params;
     const respostas = await respostaRepo.findByAlunoTrilha(req.user.id, trilha_id);
-    const questoes = await questaoRepo.findByTrilha(trilha_id);
-    const progresso = questoes.length > 0 ? respostas.filter(r => r.correto).length / questoes.length : 0;
-    res.json({ respostas, total: respostas.length, progresso: Math.round(progresso * 100), total_questoes: questoes.length });
+    const questoes  = await questaoRepo.findByTrilha(trilha_id);
+    const enriquecidas = respostas.map(r => ({ ...r, is_correct: r.correto === 1 }));
+    const progresso = questoes.length > 0
+      ? enriquecidas.filter(r => r.is_correct).length / questoes.length : 0;
+    res.json({
+      respostas: enriquecidas, total: enriquecidas.length,
+      progresso: Math.round(progresso * 100), total_questoes: questoes.length,
+    });
   } catch (err) { next(err); }
 }
+
+// ─── Stats ────────────────────────────────────────────────────
 
 async function getStats(req, res, next) {
   try {
     const aluno_id = req.params.id || req.user.id;
     const respostas = await respostaRepo.findByAluno(aluno_id);
-    const historico = (await Promise.all(respostas.map(async r => {
-
-      const q = await questaoRepo.findById(r.questao_id);
-      return q ? { tri: q.tri, score: r.score } : null;
-    
-}))).filter(Boolean);
-
-    const theta = triService.estimateTheta(historico);
-    const nivel = triService.thetaToLevel(theta);
-    const total = respostas.length;
-    const corretas = respostas.filter(r => r.correto).length;
-    const xp_total = respostas.reduce((acc, r) => acc + (r.xp_ganho || 0), 0);
-
+    const total   = respostas.length;
+    const corretas = respostas.filter(r => r.correto === 1).length;
+    const xp_total = respostas.reduce((a, r) => a + (r.xp_ganho || 0), 0);
     res.json({
-      theta, nivel, total_respostas: total,
+      theta: 0, nivel: 'iniciante', total_respostas: total,
       corretas, taxa_acerto: total > 0 ? Math.round(corretas / total * 100) : 0,
       xp_total,
     });
   } catch (err) { next(err); }
 }
 
-module.exports = { submitResposta, listByAluno, listByTrilha, getStats, tentativasTrilha };
+// ─── Tentativas por trilha ────────────────────────────────────
 
-// ── Conta tentativas completas de um aluno numa trilha ────────
 async function tentativasTrilha(req, res, next) {
   try {
     const { trilha_id } = req.params;
-    const aluno_id = req.user.id;
-    // Conta sessões: cada vez que o aluno respondeu todas as questões da trilha = 1 tentativa
-    const _allResps = await respostaRepo.findByAluno(aluno_id);
-    const respostas = [];
-    for (const r of _allResps) {
-      const q = await questaoRepo.findById(r.questao_id);
-      if (q && String(q.trilha_id) === String(trilha_id)) respostas.push(r);
-    }
-    // Agrupa por data (sessão = mesmo dia)
-    const dias = new Set(respostas.map(r => r.created_at?.split('T')[0])).size;
+    const respostas = await respostaRepo.findByAlunoTrilha(req.user.id, trilha_id);
+    const dias = new Set(respostas.map(r => (r.created_at || '').split('T')[0])).size;
     res.json({ tentativas: dias, total_respostas: respostas.length });
-  } catch(err){ next(err); }
+  } catch(err) { next(err); }
 }
+
+module.exports = { submitResposta, listByAluno, listByTrilha, getStats, tentativasTrilha };
