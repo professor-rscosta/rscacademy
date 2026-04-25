@@ -42,9 +42,11 @@ async function submitResposta(req, res, next) {
 
     // ── Theta atual do aluno ───────────────────────────────────
     const respostasAnteriores = await respostaRepo.findByAluno(aluno_id);
-    const _hRaw = await Promise.all(respostasAnteriores.map(async r => {
-      const q = await questaoRepo.findById(r.questao_id);
-      return q ? { tri: q.tri, score: r.score } : null;
+    const _hRaw = await Promise.all(respostasAnteriores.slice(0, 50).map(async r => {
+      try {
+        const q = await questaoRepo.findById(r.questao_id);
+        return q && q.tri ? { tri: q.tri, score: r.score || 0 } : null;
+      } catch { return null; }
     }));
     const historico = _hRaw.filter(Boolean);
 

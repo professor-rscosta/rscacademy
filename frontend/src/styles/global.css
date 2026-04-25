@@ -128,7 +128,7 @@ body {
 .btn-logout { background: none; border: none; color: rgba(255,255,255,0.4); cursor: pointer; font-size: 16px; margin-left: auto; padding: 4px 8px; border-radius: 6px; transition: all .15s; }
 .btn-logout:hover { color: var(--coral); background: rgba(244,63,94,0.1); }
 
-.dash-main { flex: 1; padding: 2rem; overflow-x: hidden; min-width: 0; }
+.dash-main { flex: 1; padding: 2rem; overflow-x: hidden; min-width: 0; display: flex; flex-direction: column; }
 .page-header { margin-bottom: 1.75rem; }
 .page-title { font-family: var(--font-head); font-size: 24px; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
 .page-sub { color: var(--slate-500); font-size: 14px; }

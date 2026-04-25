@@ -313,8 +313,17 @@ async function concluir(req, res, next) {
     const tentativa = await avaliacaoRepo.findTentativaById(req.params.tentativa_id);
     if (!tentativa || tentativa.aluno_id !== req.user.id)
       return res.status(404).json({ error: 'Tentativa não encontrada.' });
-    if (tentativa.status === 'concluida')
-      return res.status(400).json({ error: 'Tentativa já concluída.' });
+    if (tentativa.status === 'concluida') {
+      // Already concluded - return saved result instead of error
+      return res.json({
+        message: 'Tentativa já concluída anteriormente.',
+        nota: tentativa.nota, aprovado: tentativa.aprovado,
+        feedback_geral: tentativa.feedback_ia || 'Avaliação concluída.',
+        xp_ganho: tentativa.xp_ganho || 0,
+        ja_concluida: true,
+        respostas_corrigidas: tentativa.respostas_corrigidas || [],
+      });
+    }
 
     const av = await avaliacaoRepo.findById(tentativa.avaliacao_id);
     const questoesConfig = av.questoes || [];

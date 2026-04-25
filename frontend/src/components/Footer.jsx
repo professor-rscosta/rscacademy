@@ -29,7 +29,7 @@ export default function Footer() {
           }}>R</div>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'white', letterSpacing: '-.3px' }}>
-              RSC Academy <span style={{ color: '#10b981', fontSize: 11, fontWeight: 500 }}>v1.25</span>
+              RSC Academy <span style={{ color: '#10b981', fontSize: 11, fontWeight: 500 }}>v1.26</span>
             </div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)' }}>
               Plataforma Educacional
