@@ -21,7 +21,7 @@ async function list(req, res, next) {
       if (turmaIds.length === 0) return res.json({ trilhas: [] });
       const discIds = await tdRepo.disciplinaIdsDoAluno(turmaIds);
       if (discIds.length === 0) return res.json({ trilhas: [] });
-      trilhas = (await Promise.all(discIds.map(async did => trilhaRepo.findByDisciplina(did)))).flat();
+      trilhas = (await Promise.all(discIds.map(did => trilhaRepo.findByDisciplina(did)))).flat();
     } else if (disciplina_id) {
       trilhas = await trilhaRepo.findByDisciplina(disciplina_id);
     } else if (professor_id) {
