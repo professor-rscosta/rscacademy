@@ -64,7 +64,7 @@ async function create(req, res, next) {
       instrucoes_extras: instrucoes_extras || null,
       professor_id: req.user.id,
       tipo, enunciado, alternativas: alternativas || null,
-      gabarito, xp: xp || 100, ativo: true,
+      gabarito: gabaritoFinal, xp: xp || 100, ativo: true,
       tri: tri || { modelo:'2PL', a:1.0, b:0.0, c:0, status:'provisorio', total_respostas:0 },
       rag_tags: rag_tags || [],
       midias: midias || [],
