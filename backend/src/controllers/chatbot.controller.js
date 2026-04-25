@@ -103,8 +103,8 @@ async function disciplinas(req, res, next) {
   try {
     const { dbFindAll } = require('../database/init');
     // Disciplinas que têm documentos RAG cadastrados
-    const docs = (await dbFindAll('rag_documentos')||[]);
-    const contextos = (await dbFindAll('rag_contextos')||[]);
+    const docs = (dbFindAll('rag_documentos')||[]);
+    const contextos = (dbFindAll('rag_contextos')||[]);
     // Incluir disciplinas com documentos OU com contextos diretos
     const discIdsFromDocs = [...new Set(docs.map(d => d.disciplina_id))];
     const discIdsFromCtx  = [...new Set(contextos.map(c => c.disciplina_id))];
@@ -115,17 +115,17 @@ async function disciplinas(req, res, next) {
       const turmaIds = (await turmaRepo.getTurmasAluno(req.user.id)||[]).map(m => m.turma_id);
       const adRepo = require('../repositories/aluno_disciplina.repository');
       const discIdsAluno = await adRepo.disciplinaIds(req.user.id);
-      const allDiscIds = discIdsAluno.length > 0 ? discIdsAluno : (await Promise.all((turmaIds).map(async tid => tdRepo.disciplinaIds(tid)))).flat();
+      const allDiscIds = discIdsAluno.length > 0 ? discIdsAluno : (await Promise.all(turmaIds.map(async tid => tdRepo.disciplinaIds(tid)))).flat();
       const discsDaTurma = allDiscIds.filter(did => discIds.includes(did)).map(async did => await discRepo.findById(did)).filter(Boolean);
       if (discsDaTurma.length > 0) {
         minhasDiscs = discsDaTurma;
       } else if (allDiscIds.length > 0) {
-        minhasDiscs = allDiscIds.map(async did => await discRepo.findById(did)).filter(Boolean);
+        minhasDiscs = (await Promise.all(allDiscIds.map(async did => await discRepo.findById(did)))).filter(Boolean);
       } else {
-        minhasDiscs = discIds.map(async did => await discRepo.findById(did)).filter(Boolean);
+        minhasDiscs = (await Promise.all(discIds.map(async did => await discRepo.findById(did)))).filter(Boolean);
       }
     } else {
-      minhasDiscs = discIds.map(async did => await discRepo.findById(did)).filter(Boolean);
+      minhasDiscs = (await Promise.all(discIds.map(async did => await discRepo.findById(did)))).filter(Boolean);
     }
 
     const comDocs = minhasDiscs.map(d => ({

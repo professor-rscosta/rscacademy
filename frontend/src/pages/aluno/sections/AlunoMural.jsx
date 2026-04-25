@@ -1,3 +1,4 @@
+import { fmtDate, fmtDateTime, fmtRelative } from '../../../utils/date.js';
 import { useState, useEffect } from 'react';
 import api from '../../../hooks/useApi';
 import { EmptyState } from '../../../components/ui';
@@ -19,7 +20,7 @@ export default function AlunoMural() {
         <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
           {avisos.map(a => (
             <div key={a.id} className="card notice-card">
-              <div className="notice-date">📅 {new Date(a.created_at).toLocaleDateString('pt-BR')}</div>
+              <div className="notice-date">📅 {fmtDate(a.created_at)}</div>
               <div className="notice-title">{a.titulo}</div>
               <div className="notice-body">{a.corpo}</div>
             </div>

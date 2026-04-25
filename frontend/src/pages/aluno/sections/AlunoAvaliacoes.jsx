@@ -1,3 +1,5 @@
+import { showToast, showConfirm, showAlert } from '../../../utils/alerts.js';
+import { fmtDate, fmtDateTime, fmtRelative } from '../../../utils/date.js';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../../../hooks/useApi';
 import { useAuth } from '../../../context/AuthContext';
@@ -136,12 +138,12 @@ export default function AlunoAvaliações({ initialAvaliacaoId, onReady }) {
       var data = e.response ? e.response.data : {};
       var msg  = data.error || 'Erro ao iniciar avaliação.';
       if (data.codigo === 'ANTES_ABERTURA') {
-        var dt = data.abertura ? new Date(data.abertura).toLocaleString('pt-BR') : '';
-        alert('Esta avaliação ainda não foi liberada.\nDisponível a partir de: ' + dt);
+        var dt = data.abertura ? fmtDateTime(data.abertura) : '';
+        showAlert({ title: 'Aviso', text: 'Esta avaliação ainda não foi liberada.\nDisponível a partir de: ' + dt });
       } else if (data.codigo === 'APOS_ENCERRAMENTO') {
-        alert('O prazo desta avaliação foi encerrado.');
+        showAlert({ title: 'Aviso', text: 'O prazo desta avaliação foi encerrado.' });
       } else {
-        alert(msg);
+        showAlert({ title: 'Aviso', text: msg });
       }
     });
   };
@@ -172,19 +174,42 @@ export default function AlunoAvaliações({ initialAvaliacaoId, onReady }) {
       body: JSON.stringify({ respostas: respostasArray }),
       cache: 'no-store', credentials: 'same-origin', mode: 'same-origin',
     }).then(function(resp) {
-      return resp.json().then(function(data) { return { ok: resp.ok, data: data }; });
+      var ct = resp.headers.get('content-type') || '';
+      // Allow non-JSON only if it's a 2xx (unexpected HTML from SPA fallback)
+      if (resp.ok && !ct.includes('json')) {
+        throw new Error('Resposta inválida do servidor. Tente novamente.');
+      }
+      // For errors (4xx/5xx), try to parse JSON, fallback to text
+      if (!ct.includes('json')) {
+        return resp.text().then(function(txt) {
+          // If it's HTML (SPA fallback), it means route doesn't exist
+          if (txt.trim().startsWith('<')) throw new Error('Rota não encontrada. Verifique a conexão.');
+          try { var d = JSON.parse(txt); return { ok: resp.ok, status: resp.status, data: d }; }
+          catch { throw new Error('Erro ' + resp.status + '. Tente novamente.'); }
+        });
+      }
+      return resp.json().then(function(data) { return { ok: resp.ok, status: resp.status, data: data }; });
     }).then(function(result) {
-      if (!result.ok) throw new Error(result.data.error || 'Erro');
+      // 503 with concluida:true = saved but no AI feedback
+      var is503withResult = result.status === 503 && result.data && result.data.concluida;
+      if (!result.ok && !is503withResult) {
+        throw new Error(result.data.error || 'Erro ao concluir avaliação.');
+      }
       try { localStorage.removeItem('av_resp_' + tentativaAtual.id); } catch(e) {}
-      setResultado(result.data);
+      // Build a minimal result for display when AI unavailable
+      var data = result.data;
+      if (!data.nota && data.concluida) {
+        data = { nota: 0, aprovado: false, feedback_geral: '⚠️ IA indisponível — resultado será corrigido pelo professor.', xp_ganho: 0, estatisticas: {}, sem_ia: true };
+      }
+      setResultado(data);
       setFase('resultado');
       load();
     }).catch(function(e) {
       var msg = e.message || '';
       if (!msg || msg.includes('fetch') || msg.includes('Failed') || msg.includes('network')) {
-        alert('Erro de conexão. Desative o antivírus (ex: Kaspersky) e tente novamente.');
+        showAlert({ title: 'Erro de conexão', text: 'Verifique sua internet e tente novamente.', type: 'error' });
       } else {
-        alert(msg);
+        showAlert({ title: 'Erro ao concluir', text: msg, type: 'error' });
       }
     }).finally(function() { setSub(false); });
   };

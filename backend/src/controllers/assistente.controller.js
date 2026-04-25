@@ -80,7 +80,7 @@ async function disciplinas(req, res, next) {
         allDiscIds = discIdsAluno;
       } else {
         // Fallback: disciplinas via turma
-        allDiscIds = (await Promise.all((turmaIds).map(async tid => tdRepo.disciplinaIds(tid)))).flat();
+        allDiscIds = (await Promise.all(turmaIds.map(async tid => tdRepo.disciplinaIds(tid)))).flat();
       }
 
       // Intersectar com disciplinas que têm RAG
@@ -91,13 +91,13 @@ async function disciplinas(req, res, next) {
       // Se nenhuma disciplina tem RAG mas aluno tem turma, mostrar todas com RAG
       if (discsDaTurma.length === 0 && allDiscIds.length > 0) {
         // Aluno tem disciplinas mas sem RAG ainda - mostrar todas suas disciplinas
-        const todasSuas = allDiscIds.map(async did => await discRepo.findById(did)).filter(Boolean);
-        minhasDiscs = todasSuas.length > 0 ? todasSuas : discIds.map(async did => await discRepo.findById(did)).filter(Boolean);
+        const todasSuas = (await Promise.all(allDiscIds.map(async did => await discRepo.findById(did)))).filter(Boolean);
+        minhasDiscs = todasSuas.length > 0 ? todasSuas : (await Promise.all(discIds.map(async did => await discRepo.findById(did)))).filter(Boolean);
       } else {
-        minhasDiscs = discsDaTurma.length > 0 ? discsDaTurma : discIds.map(async did => await discRepo.findById(did)).filter(Boolean);
+        minhasDiscs = discsDaTurma.length > 0 ? discsDaTurma : (await Promise.all(discIds.map(async did => await discRepo.findById(did)))).filter(Boolean);
       }
     } else {
-      minhasDiscs = discIds.map(async did => await discRepo.findById(did)).filter(Boolean);
+      minhasDiscs = (await Promise.all(discIds.map(async did => await discRepo.findById(did)))).filter(Boolean);
     }
 
     const resultado = minhasDiscs.map(d => {
@@ -190,10 +190,10 @@ async function uploadChatFile(req, res, next) {
 
     // Criar doc temporário (prefixo "temp_chat_userId")
     const sessionKey = `temp_chat_${req.user.id}`;
-    await dbDeleteWhere('rag_contextos', c => c.doc_id === sessionKey);
+    dbDeleteWhere('rag_contextos', c => c.doc_id === sessionKey);
 
     for (let i = 0; i < chunks.length; i++) {
-      await dbInsert('rag_contextos', {
+      dbInsert('rag_contextos', {
         doc_id:        sessionKey,
         disciplina_id: disciplina_id ? Number(disciplina_id) : 0,
         titulo:        `${fileName} › ${chunks[i].secao} [${i+1}]`,

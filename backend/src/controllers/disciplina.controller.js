@@ -28,7 +28,7 @@ async function list(req, res, next) {
       const turmaIds = (await turmaRepo.getTurmasAluno(req.user.id)).map(m => m.turma_id);
       if (turmaIds.length === 0) return res.json({ disciplinas: [] });
       const discIds = await tdRepo.disciplinaIdsDoAluno(turmaIds);
-      disciplinas = (await Promise.all(discIds.map(id => repo.findById(id)))).filter(Boolean);
+      disciplinas = (await Promise.all(discIds.map(async id => await repo.findById(id)))).filter(Boolean);
     } else if (professor_id) {
       disciplinas = await repo.findByProfessor(professor_id);
     } else if (req.user.perfil === 'professor') {
@@ -38,10 +38,10 @@ async function list(req, res, next) {
     }
 
     // Enriquecer com nome do professor
-    disciplinas = disciplinas.map(async d => {
+    disciplinas = await Promise.all(disciplinas.map(async d => {
       const prof = d.professor_id ? await userRepo.findById(d.professor_id) : null;
       return { ...d, professor_nome: prof ? prof.nome : null };
-    });
+    }));
 
     res.json({ disciplinas });
   } catch(e){ next(e); }
@@ -142,16 +142,13 @@ async function getModulo(req, res, next) {
       const qs = await questaoRepo.findByTrilha(t.id) || [];
       let progresso = 0;
       if (req.user.perfil === 'aluno' && qs.length > 0) {
-        let resps = [];
-        if (respostaRepo.findByAlunoTrilha) {
-          resps = await respostaRepo.findByAlunoTrilha(req.user.id, t.id) || [];
-        } else {
-          const allResps = await respostaRepo.findByAluno(req.user.id) || [];
-          for (const r of allResps) {
-            const q = await questaoRepo.findById(r.questao_id);
-            if (q && q.trilha_id === t.id) resps.push(r);
-          }
-        }
+        const resps = (respostaRepo.findByAlunoTrilha
+          ? await respostaRepo.findByAlunoTrilha(req.user.id, t.id)
+          : (await respostaRepo.findByAluno(req.user.id)).filter(async r => {
+              const q = await questaoRepo.findById(r.questao_id);
+              return q && q.trilha_id === t.id;
+            })
+        ) || [];
         progresso = Math.min(100, Math.round(resps.length / qs.length * 100));
       }
       return { id:t.id, nome:t.nome, descricao:t.descricao||'', nivel:t.nivel,

@@ -296,7 +296,7 @@ function EntregasView({ ativ, onBack }) {
         <div className="card"><EmptyState icon="📤" title="Nenhuma entrega ainda" sub="Os alunos ainda não enviaram arquivos para esta atividade." /></div>
       ) : (
         <div style={{ display:'flex',flexDirection:'column',gap:'1rem' }}>
-          {entregas.map(e => (
+          {(entregas||[]).filter(Boolean).map(e => (
             <div key={e.id} style={{ background:'white',border:'1px solid '+(e.status==='entregue'&&!e.nota?'#fcd34d':'var(--slate-200)'),borderRadius:14,overflow:'hidden',boxShadow:'var(--shadow)' }}>
               {/* Header */}
               <div style={{ padding:'12px 16px',background:e.nota?'#f0fdf4':e.status==='entregue'?'#fffbeb':'var(--slate-50)',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid var(--slate-100)' }}>
@@ -480,7 +480,7 @@ export default function ProfAtividades({ autoCreate } = {}) {
         <div className="card"><EmptyState icon="📋" title="Nenhuma atividade criada" sub="Crie sua primeira atividade acima" /></div>
       ) : (
         <div style={{ display:'flex',flexDirection:'column',gap:'0.875rem' }}>
-          {atividades.map(a => {
+          {(atividades||[]).filter(Boolean).map(a => {
             const cfg = STATUS_CFG[a.status]||STATUS_CFG.rascunho;
             const vencida = a.data_entrega && new Date(a.data_entrega)<new Date() && a.status==='publicada';
             return (

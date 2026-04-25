@@ -21,7 +21,7 @@ async function list(req, res, next) {
       if (turmaIds.length === 0) return res.json({ trilhas: [] });
       const discIds = await tdRepo.disciplinaIdsDoAluno(turmaIds);
       if (discIds.length === 0) return res.json({ trilhas: [] });
-      trilhas = (await Promise.all((discIds).map(async did => trilhaRepo.findByDisciplina(did)))).flat();
+      trilhas = (await Promise.all(discIds.map(did => trilhaRepo.findByDisciplina(did)))).flat();
     } else if (disciplina_id) {
       trilhas = await trilhaRepo.findByDisciplina(disciplina_id);
     } else if (professor_id) {
@@ -59,12 +59,13 @@ async function create(req, res, next) {
   try {
     const { nome, descricao, disciplina_id, ordem, xp_total, tempo_limite, tentativas_maximas } = req.body;
     if (!nome || !disciplina_id) return res.status(400).json({ error: 'nome e disciplina_id são obrigatórios.' });
-    const t = await trilhaRepo.create({
+    const trilhaData = {
       nome, descricao, disciplina_id: Number(disciplina_id),
       professor_id: req.user.id, ordem: ordem||1, xp_total: xp_total||500, ativo: true,
-      tempo_limite: tempo_limite ? Number(tempo_limite) : null,
-      tentativas_maximas: tentativas_maximas ? Number(tentativas_maximas) : null,
-    });
+    };
+    if (tempo_limite) trilhaData.tempo_limite = Number(tempo_limite);
+    if (tentativas_maximas) trilhaData.tentativas_maximas = Number(tentativas_maximas);
+    const t = await trilhaRepo.create(trilhaData);
     res.status(201).json({ trilha: t });
   } catch(e){ next(e); }
 }

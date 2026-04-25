@@ -1,3 +1,4 @@
+import { fmtDate, fmtDateTime, fmtRelative } from '../../../utils/date.js';
 /**
  * ProfAvaliacoes - Criar, Editar, CRUD de quest-es da avalia--o
  * Wizard 3 passos para criar | Edi--o completa de quest-es na avalia--o
@@ -38,13 +39,33 @@ function showToast(msg, tipo) {
   setTimeout(function(){ div.style.transition='opacity .3s'; div.style.opacity='0'; setTimeout(function(){ div.remove(); s.remove(); },350); }, 2800);
 }
 function confirmAlert(titulo, msg, onOk) {
-  var o = document.createElement('div');
-  o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99998;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(2px)';
-  o.innerHTML='<div style="background:white;border-radius:20px;max-width:400px;width:100%;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,.3);animation:swAlert .25s cubic-bezier(.34,1.56,.64,1)"><div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:1.25rem;text-align:center"><div style="font-size:42px;margin-bottom:6px">⚠️</div><div style="font-weight:800;font-size:17px;color:white">'+titulo+'</div></div><div style="padding:1.25rem;text-align:center"><p style="color:#475569;font-size:14px;margin:0 0 1.25rem;line-height:1.6">'+msg+'</p><div style="display:flex;gap:10px"><button id="cc" style="flex:1;padding:11px;border:2px solid #e2e8f0;border-radius:10px;background:white;cursor:pointer;font-size:13px;font-weight:600;color:#64748b">❌ Cancelar</button><button id="co" style="flex:2;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,#ef4444,#dc2626);color:white;cursor:pointer;font-size:13px;font-weight:700;box-shadow:0 4px 12px rgba(239,68,68,.4)">🗑️ Sim, excluir</button></div></div></div><style>@keyframes swAlert{from{transform:scale(.85) translateY(20px);opacity:0}to{transform:none;opacity:1}}</style>';
-  document.body.appendChild(o);
-  o.querySelector('#cc').onclick=function(){ o.remove(); };
-  o.querySelector('#co').onclick=function(){ o.remove(); onOk(); };
-  o.onclick=function(e){ if(e.target===o) o.remove(); };
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,27,53,.78);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(6px)';
+  overlay.innerHTML = `<div id="ca-box" style="background:white;border-radius:24px;max-width:420px;width:100%;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.45);animation:swAlert .22s cubic-bezier(.34,1.56,.64,1);transform-origin:center bottom">
+    <div style="background:linear-gradient(135deg,#ef4444,#dc2626);padding:1.75rem 1.5rem;text-align:center">
+      <div style="width:64px;height:64px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:32px">🗑️</div>
+      <div style="font-size:19px;font-weight:800;color:white;letter-spacing:-.3px">${titulo}</div>
+    </div>
+    <div style="padding:1.5rem">
+      <p style="text-align:center;color:#475569;margin:0 0 1.5rem;font-size:14px;line-height:1.65;font-weight:400">${msg}</p>
+      <div style="display:flex;gap:10px">
+        <button id="ca-cancel" style="flex:1;padding:13px;border:2px solid #e2e8f0;background:white;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;color:#64748b;transition:all .15s;font-family:inherit">Cancelar</button>
+        <button id="ca-confirm" style="flex:1;padding:13px;border:none;background:linear-gradient(135deg,#ef4444,#dc2626);color:white;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(239,68,68,.4);transition:all .15s;font-family:inherit">🗑️ Sim, excluir</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  var close = function() { overlay.style.opacity='0'; overlay.style.transition='opacity .18s'; setTimeout(function(){ overlay.remove(); }, 200); };
+  overlay.querySelector('#ca-cancel').addEventListener('click', close);
+  overlay.querySelector('#ca-confirm').addEventListener('click', function() { close(); setTimeout(onOk, 80); });
+  overlay.addEventListener('click', function(e) { if(e.target===overlay) close(); });
+  // Hover effects
+  var cancelBtn = overlay.querySelector('#ca-cancel');
+  var confirmBtn = overlay.querySelector('#ca-confirm');
+  cancelBtn.addEventListener('mouseover', function(){ this.style.background='#f8fafc'; });
+  cancelBtn.addEventListener('mouseout', function(){ this.style.background='white'; });
+  confirmBtn.addEventListener('mouseover', function(){ this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 20px rgba(239,68,68,.5)'; });
+  confirmBtn.addEventListener('mouseout', function(){ this.style.transform=''; this.style.boxShadow='0 4px 16px rgba(239,68,68,.4)'; });
 }
 function ModalCriar({ turmas, questoesDisp, onClose, onSalvar }) {
   const [step, setStep]   = useState(1);
@@ -62,19 +83,27 @@ function ModalCriar({ turmas, questoesDisp, onClose, onSalvar }) {
 
   // Disciplinas das turmas selecionadas
   const [discsDisponiveis, setDiscsDisp] = useState([]);
-  useEffect(() => {
-    if (!form.turma_ids?.length) { setDiscsDisp([]); return; }
-    Promise.all(form.turma_ids.map(tid =>
+  const turmaIdsKey = (form.turma_ids||[]).slice().sort().join(',');
+
+  const carregarDisciplinas = (ids) => {
+    if (!ids || !ids.length) { setDiscsDisp([]); return; }
+    Promise.all(ids.map(tid =>
       api.get('/turmas/' + tid + '/disciplinas').then(r => r.data.disciplinas || []).catch(() => [])
     )).then(results => {
       const todas = results.flat();
       const unicas = todas.filter((d, i, arr) => arr.findIndex(x => x.id === d.id) === i);
       setDiscsDisp(unicas);
-      if (unicas.length === 1 && !form.disciplina_id) {
-        setForm(f => ({ ...f, disciplina_id: String(unicas[0].id) }));
+      if (unicas.length >= 1) {
+        setForm(f => ({ ...f, disciplina_id: f.disciplina_id || String(unicas[0].id) }));
       }
-    });
-  }, [JSON.stringify(form.turma_ids)]);
+    }).catch(() => {});
+  };
+
+  // Load on mount AND whenever turma selection changes
+  useEffect(() => {
+    const ids = form.turma_ids || [];
+    carregarDisciplinas(ids);
+  }, [turmaIdsKey]); // eslint-disable-line
 
   const toggleTurma = (tid) => {
     setForm(f => {
@@ -195,21 +224,35 @@ function ModalCriar({ turmas, questoesDisp, onClose, onSalvar }) {
                 )}
               </div>
 
-              {/* Disciplina auto-carregada */}
-              {discsDisponiveis.length > 0 && (
-                <div className="field">
-                  <label>Disciplina
-                    <span style={{ fontSize:11, color:'var(--slate-400)', fontWeight:400, marginLeft:8 }}>
-                      (carregada automaticamente da turma)
-                    </span>
-                  </label>
+              {/* Disciplina — sempre visível */}
+              <div className="field">
+                <label style={{ display:'flex', alignItems:'center', gap:6 }}>
+                  📚 Disciplina
+                  <span style={{ fontSize:11, color:'var(--slate-400)', fontWeight:400 }}>
+                    (as questões serão vinculadas a esta disciplina)
+                  </span>
+                </label>
+                {(form.turma_ids||[]).length === 0 ? (
+                  <div style={{ padding:'10px 14px', background:'var(--slate-50)', border:'1.5px dashed var(--slate-300)', borderRadius:8, fontSize:13, color:'var(--slate-400)' }}>
+                    ← Selecione uma turma primeiro para carregar as disciplinas
+                  </div>
+                ) : discsDisponiveis.length === 0 ? (
+                  <div style={{ padding:'10px 14px', background:'#fffbeb', border:'1.5px dashed #f59e0b', borderRadius:8, fontSize:13, color:'#92400e' }}>
+                    ⚠️ Esta turma não tem disciplinas vinculadas. Vá em <strong>Turmas</strong> e vincule uma disciplina.
+                  </div>
+                ) : (
                   <select value={form.disciplina_id} onChange={set('disciplina_id')}
-                    style={{ width:'100%', padding:'10px 14px', border:'1.5px solid var(--slate-200)', borderRadius:8, fontSize:14, outline:'none' }}>
+                    style={{ width:'100%', padding:'10px 14px', border:'2px solid '+(form.disciplina_id?'var(--emerald)':'var(--slate-200)'), borderRadius:8, fontSize:14, outline:'none', background:form.disciplina_id?'rgba(16,185,129,.04)':'white', transition:'border-color .2s' }}>
                     <option value="">-- Selecione a disciplina --</option>
                     {discsDisponiveis.map(d => <option key={d.id} value={d.id}>{d.nome}</option>)}
                   </select>
-                </div>
-              )}
+                )}
+                {form.disciplina_id && discsDisponiveis.find(d=>String(d.id)===String(form.disciplina_id)) && (
+                  <div style={{ marginTop:4, fontSize:11, color:'var(--emerald-dark)', fontWeight:500 }}>
+                    ✅ Disciplina selecionada: {discsDisponiveis.find(d=>String(d.id)===String(form.disciplina_id))?.nome}
+                  </div>
+                )}
+              </div>
               <div className="field"><label>Título <span style={{color:'var(--coral)'}}>*</span></label><input value={form.titulo} onChange={set('titulo')} placeholder="ex: Prova 1 — Algoritmos" /></div>
               <div className="field">
                 <label>Descrição (opcional)</label>
@@ -369,7 +412,7 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
   const discsDisp  = [...new Set(bancoBase.map(q => q.disciplina_id).filter(Boolean))];
 
   const addFromBanco = (q) => {
-    setQuestoes(qs => [...qs, { questao_id: q.id, peso: 1, _meta: q }]);
+    if (!q || !q.id) return; setQuestoes(qs => [...qs, { questao_id: Number(q.id), peso: 1, _meta: q }]);
     setAlert({ type:'success', msg:'"'+q.enunciado.slice(0,40)+'..." adicionada. Salve para confirmar.' });
     setTimeout(() => setAlert(null), 3000);
   };
@@ -428,7 +471,10 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
     if (questoes.length === 0) return setAlert({ type:'error', msg:'Adicione ao menos 1 questão.' });
     setSaving(true);
     try {
-      const payload = questoes.map(q => ({ questao_id: q.questao_id, peso: q.peso || 1 }));
+      const payload = questoes
+        .filter(q => q.questao_id && !isNaN(Number(q.questao_id)))
+        .map(q => ({ questao_id: Number(q.questao_id), peso: Number(q.peso) || 1 }));
+      if (!av.id) { setAlert({ type:'error', msg:'Avaliação inválida. Recarregue a página.' }); return; }
       await api.put('/avaliacoes/' + av.id, { questoes: payload });
       setAlert({ type:'success', msg: '✅ Salvo! ' + payload.length + ' questão(ões) na avaliação.' });
       onUpdate({ ...av, questoes: payload, total_questoes: payload.length });
@@ -684,11 +730,12 @@ function AlunoDetalhe({ av, alunoId, alunoNome, onBack }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(function() {
+    if (!av || !av.id || !alunoId) { setLoading(false); return; }
     api.get('/avaliacoes/' + av.id + '/detalhe-aluno/' + alunoId)
       .then(function(r) { setData(r.data); })
       .catch(function() {})
       .finally(function() { setLoading(false); });
-  }, [av.id, alunoId]);
+  }, [av && av.id, alunoId]);
 
   if (loading) return <div style={{ textAlign:'center', padding:'3rem' }}><div className="spinner" style={{ margin:'0 auto' }}/></div>;
   if (!data) return <div className="card"><div style={{ color:'var(--coral)', padding:'1rem' }}>Dados nao encontrados.</div></div>;
@@ -700,7 +747,7 @@ function AlunoDetalhe({ av, alunoId, alunoNome, onBack }) {
   var corretas = stats.corretas || 0;
   var total    = stats.total_questoes || resps.length;
   var taxa     = stats.taxa_acerto || 0;
-  var dataHora = t.concluida_em ? new Date(t.concluida_em).toLocaleString('pt-BR') : '--';
+  var dataHora = t.concluida_em ? fmtDateTime(t.concluida_em) : '--';
   var aprovado = t.aprovado || (t.nota != null && t.nota >= (av.nota_minima || 6));
 
   return (
@@ -807,6 +854,7 @@ function ResultadosView({ av, onBack }) {
   const [alunoSel, setAlunoSel]       = useState(null);
 
   useEffect(function() {
+    if (!av || !av.id) { setLoading(false); return; }
     api.get('/avaliacoes/' + av.id + '/resultados')
       .then(function(r) {
         setResultados(r.data.resultados || []);
@@ -814,7 +862,7 @@ function ResultadosView({ av, onBack }) {
       })
       .catch(function(e) { console.error(e); })
       .finally(function() { setLoading(false); });
-  }, [av.id]);
+  }, [av && av.id]);
 
   var carregarAnalise = function() {
     if (analiseIA || loadingIA) return;
@@ -932,7 +980,7 @@ function ResultadosView({ av, onBack }) {
                   {resultados.map(function(r, i) {
                     var aprovado = r.aprovado || r.melhor_nota >= (av.nota_minima||6);
                     var nota     = r.melhor_nota || 0;
-                    var dataStr  = r.ultima_tentativa ? new Date(r.ultima_tentativa).toLocaleDateString('pt-BR') : '--';
+                    var dataStr  = r.ultima_tentativa ? fmtDate(r.ultima_tentativa) : '--';
                     return (
                       <tr key={r.aluno_id} style={{ borderBottom:'1px solid var(--slate-100)', background:i%2===0?'white':'var(--slate-50)' }}>
                         <td style={{ padding:'10px 12px', color:'var(--slate-400)', fontSize:12 }}>{i+1}</td>
@@ -1111,6 +1159,8 @@ function EditAvaliacaoModal({ av, turmas, onClose, onSalvar }) {
         encerra_em:            form.encerra_em    ? new Date(form.encerra_em).toISOString()    : null,
         turma_id:              form.turma_id ? Number(form.turma_id) : null,
       };
+      if (!av || !av.id) { showToast('Erro: avaliação inválida.', 'error'); return; }
+      payload.disciplina_id = form.disciplina_id ? Number(form.disciplina_id) : null;
       const r = await api.put('/avaliacoes/' + av.id, payload);
       onSalvar(r.data.avaliacao || { ...av, ...payload });
       showToast('Avaliacao atualizada!', 'success');
@@ -1252,12 +1302,16 @@ export default function ProfAvaliacoes({ autoCreate } = {}) {
   };
 
   const handleDelete = (id) => {
-    confirmAlert('Excluir Avaliacao', 'Esta acao nao pode ser desfeita. Deseja excluir esta avaliacao?', async () => {
+    if (!id || isNaN(Number(id))) { showToast('Erro: ID da avaliação inválido.', 'error'); return; }
+    confirmAlert('Excluir Avaliação', 'Esta ação não pode ser desfeita. A avaliação e todas as tentativas serão removidas permanentemente.', async () => {
       try {
         await api.delete('/avaliacoes/'+id);
         setAvs(p=>p.filter(a=>a.id!==id));
-        showToast('Avaliacao excluida com sucesso!', 'success');
-      } catch(e) { showToast('Erro ao excluir avaliacao.', 'error'); }
+        showToast('✅ Avaliação excluída com sucesso!', 'success');
+      } catch(e) {
+        const msg = e.response?.data?.error || 'Erro ao excluir avaliação.';
+        showToast('❌ ' + msg, 'error');
+      }
     });
   };
 
@@ -1320,8 +1374,8 @@ export default function ProfAvaliacoes({ autoCreate } = {}) {
                         <span>🔁 {av.tentativas_permitidas}x</span>
                         <span>✅ Mín:{av.nota_minima}</span>
                         {turmas.find(t=>t.id===av.turma_id)&&<span>🏫 {turmas.find(t=>t.id===av.turma_id)?.nome}</span>}
-                        {av.disponivel_em&&<span>Abertura: {new Date(av.disponivel_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</span>}
-                        {av.encerra_em&&<span>Encerra: {new Date(av.encerra_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</span>}
+                        {av.disponivel_em&&<span>Abertura: {fmtDateTime(av.disponivel_em)}</span>}
+                        {av.encerra_em&&<span>Encerra: {fmtDateTime(av.encerra_em)}</span>}
                       </div>
                     </div>
                     <div style={{ display:'flex',gap:6,flexShrink:0,flexWrap:'wrap',alignSelf:'flex-start' }}>

@@ -86,7 +86,7 @@ async function indexarChunkComEmbedding(chunkId, texto) {
 
 // ── Indexar todos os chunks sem embedding ──────────────────────
 async function indexarPendentes(disciplinaId = null) {
-  let contextos = dbFindAll('rag_contextos');
+  let contextos = await dbFindAll('rag_contextos');
   if (disciplinaId) contextos = contextos.filter(c => c.disciplina_id === Number(disciplinaId));
   const pendentes = contextos.filter(c => !c.embedding);
   let count = 0;
@@ -104,7 +104,7 @@ async function indexarPendentes(disciplinaId = null) {
 async function buscarContextos(pergunta, disciplinaId = null, topK = 8) {
   const queryEmbed = await getEmbedding(pergunta);
 
-  let contextos = dbFindAll('rag_contextos');
+  let contextos = await dbFindAll('rag_contextos');
   if (disciplinaId) {
     const filtered = contextos.filter(c => c.disciplina_id === Number(disciplinaId));
     if (filtered.length > 0) contextos = filtered;
@@ -255,10 +255,10 @@ async function chat({ userId, mensagem, disciplinaId, modoFileSear = false, modo
   // Verificar se há docs na disciplina (para decidir fallback correto)
   let temDocsNaDisciplina = false;
   if (disciplinaId) {
-    const docs = dbFindAll('rag_documentos').filter(d => d.disciplina_id === Number(disciplinaId));
+    const docs = await dbFindAll('rag_documentos').filter(d => d.disciplina_id === Number(disciplinaId));
     temDocsNaDisciplina = docs.length > 0;
   } else {
-    const ctxs = dbFindAll('rag_contextos');
+    const ctxs = await dbFindAll('rag_contextos');
     temDocsNaDisciplina = ctxs.length > 0;
   }
 
@@ -303,7 +303,7 @@ async function chat({ userId, mensagem, disciplinaId, modoFileSear = false, modo
 
   let resumoGlobal = '';
   if (disciplinaId) {
-    const docs = dbFindAll('rag_documentos').filter(d => d.disciplina_id === Number(disciplinaId));
+    const docs = await dbFindAll('rag_documentos').filter(d => d.disciplina_id === Number(disciplinaId));
     if (docs.length > 0) {
       resumoGlobal = docs.map(d => '• ' + d.titulo + ': ' + (d.descricao || 'Documento indexado')).join('\n');
     }

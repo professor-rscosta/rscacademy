@@ -31,19 +31,21 @@ async function boletimTurma(req, res, next) {
 
     // Alunos matriculados
     const matriculas = await turmaRepo.getAlunos(turma_id);
-    const alunos = matriculas.map(async m => {
+    const _alunosRaw = await Promise.all(matriculas.map(async m => {
       const u = await userRepo.findById(m.aluno_id);
       if (!u) return null;
       const { senha_hash, ...safe } = u;
       return { ...safe, joined_at: m.joined_at };
-    }).filter(Boolean).sort((a,b) => a.nome.localeCompare(b.nome));
+    }));
+    const alunos = _alunosRaw.filter(Boolean).sort((a,b) => a.nome.localeCompare(b.nome));
 
     // Disciplinas da turma
     const discIds = await tdRepo.disciplinaIds(turma_id);
-    const disciplinas = discIds.map(async id => await discRepo.findById(id)).filter(Boolean);
+    const disciplinas = (await Promise.all(discIds.map(id => discRepo.findById(id)))).filter(Boolean);
 
     // Montar matriz: aluno x avaliação
-    const linhas = alunos.map(async aluno => {
+    const linhas = await Promise.all(alunos.map(async aluno => {
+
       const notas = {};
       let somaNotas = 0, totalPeso = 0, totalAvs = 0;
 
@@ -71,6 +73,7 @@ async function boletimTurma(req, res, next) {
       // TRI theta do aluno
       const respostas = await respostaRepo.findByAluno(aluno.id);
       const historico = respostas.map(async r => {
+
         const q = await questaoRepo.findById(r.questao_id);
         return q ? { tri: q.tri, score: r.score } : null;
       }).filter(Boolean);
@@ -78,10 +81,11 @@ async function boletimTurma(req, res, next) {
       const nivel = triService.thetaToLevel(theta);
 
       return { aluno, notas, media_geral: mediaGeral, aprovado, theta, nivel };
-    });
+    
+}));
 
     // Estatísticas por avaliação
-    const statsAvaliacoes = avaliacoes.map(async av => {
+    const statsAvaliacoes = avaliacoes.map(av => {
       const notas = linhas.map(l => l.notas[av.id]?.nota).filter(n => n !== null);
       const media = notas.length > 0 ? Math.round(notas.reduce((a,b)=>a+b,0)/notas.length*100)/100 : null;
       const aprovados = linhas.filter(l => l.notas[av.id]?.aprovado).length;
@@ -115,7 +119,7 @@ async function boletimAluno(req, res, next) {
       if (!turma) continue;
 
       const discIds = await tdRepo.disciplinaIds(tid);
-      const disciplinas = discIds.map(async id => await discRepo.findById(id)).filter(Boolean);
+      const disciplinas = (await Promise.all(discIds.map(id => discRepo.findById(id)))).filter(Boolean);
 
       // Avaliações da turma (publicadas/encerradas)
       const avaliacoes = await avaliacaoRepo.findByTurma(tid)
@@ -124,7 +128,8 @@ async function boletimAluno(req, res, next) {
 
       // Notas do aluno em cada avaliação
       let somaNotas = 0, totalPeso = 0;
-      const notasAv = avaliacoes.map(async av => {
+      const notasAv = await Promise.all(avaliacoes.map(async av => {
+
         const tentativas = await avaliacaoRepo.findTentativaAlunoAvalia(aluno_id, av.id)
           .filter(t => t.status === 'concluida')
           .sort((a,b) => (b.nota||0) - (a.nota||0));
@@ -140,7 +145,8 @@ async function boletimAluno(req, res, next) {
         totalPeso += peso;
 
         return { av_id: av.id, titulo: av.titulo, tipo: av.tipo, nota_minima: av.nota_minima, peso, nota, aprovado, tentativas: tentativas.length, melhor_nota: nota, historico_tentativas: tentativas.map(t => ({ nota: t.nota, concluida_em: t.concluida_em, aprovado: (t.nota||0) >= (av.nota_minima||6) })), encerra_em: av.encerra_em, disponivel_em: av.disponivel_em };
-      });
+      
+}));
 
       const media = totalPeso > 0 ? Math.round(somaNotas / totalPeso * 100) / 100 : null;
       const avaliadas = notasAv.filter(n => n.nota !== null);
@@ -148,13 +154,14 @@ async function boletimAluno(req, res, next) {
       const pendentes = notasAv.filter(n => n.nota === null);
 
       // Desempenho nas trilhas
-      const trilhaIdArrays = await Promise.all(discIds.map(did => trilhaRepo.findByDisciplina(did)));
-      const trilhaIds = trilhaIdArrays.flat().map(t => t.id);
+      const trilhaIds = (await Promise.all(discIds.map(async did => (await trilhaRepo.findByDisciplina(did)).map(t => t.id)))).flat();
       const respostas = await respostaRepo.findByAluno(aluno_id);
-      const respostasTrilhas = respostas.filter(async r => {
-        const q = await questaoRepo.findById(r.questao_id);
-        return q && trilhaIds.includes(q.trilha_id);
-      });
+      const _rsAll = respostas;
+        const respostasTrilhas = [];
+        for (const r of _rsAll) {
+          const q = await questaoRepo.findById(r.questao_id);
+          if (q && trilhaIds.includes(q.trilha_id)) respostasTrilhas.push(r);
+        }
       const totalRespostas = respostasTrilhas.length;
       const corretas = respostasTrilhas.filter(r => r.is_correct).length;
 
@@ -173,10 +180,12 @@ async function boletimAluno(req, res, next) {
 
     // Theta / nível geral
     const todasRespostas = await respostaRepo.findByAluno(aluno_id);
-    const historico = todasRespostas.map(async r => {
+    const historico = (await Promise.all(todasRespostas.map(async r => {
+
       const q = await questaoRepo.findById(r.questao_id);
       return q ? { tri: q.tri, score: r.score } : null;
-    }).filter(Boolean);
+    
+}))).filter(Boolean);
     const theta = triService.estimateTheta(historico);
     const nivel = triService.thetaToLevel(theta);
 

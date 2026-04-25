@@ -129,7 +129,8 @@ async function getGamificationProfile(userId) {
 
 // ─── Rankings ─────────────────────────────────────────────────
 async function getRanking(limit = 10) {
-  return await dbFindAll('usuarios')
+  const users = await dbFindAll('usuarios');
+  return users
     .filter(u => u.perfil === 'aluno' && u.status === 'ativo')
     .sort((a, b) => (b.xp_total||0) - (a.xp_total||0))
     .slice(0, limit)

@@ -44,10 +44,10 @@ function AlunosTab({ turma, alunos, disciplinas, onRefresh, onAlert }) {
     });
   }, [alunos]);
 
-  // Busca em tempo real
+  // Busca em tempo real + carregar ao entrar em modo adicionar
   useEffect(() => {
     if (modo !== 'adicionar') return;
-    const timer = setTimeout(() => carregarAlunos(busca), 300);
+    const timer = setTimeout(() => carregarAlunos(busca), busca ? 300 : 0);
     return () => clearTimeout(timer);
   }, [busca, modo]);
 

@@ -134,9 +134,13 @@ app.get('/api/ai/test', async (req, res) => {
 const frontendDist = path.join(__dirname, '../public'); // nodejs/public/ no Hostinger
 const fs = require('fs');
 
-if (process.env.NODE_ENV === 'production' && fs.existsSync(frontendDist)) {
+if (fs.existsSync(frontendDist)) {
   app.use(express.static(frontendDist));
+  // Only serve SPA for non-API routes
   app.get('*', (req, res) => {
+    if (req.path.startsWith('/api/')) {
+      return res.status(404).json({ error: 'Rota de API não encontrada: ' + req.path });
+    }
     res.sendFile(path.join(frontendDist, 'index.html'));
   });
 } else {

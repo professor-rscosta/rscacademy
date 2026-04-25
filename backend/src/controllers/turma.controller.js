@@ -16,8 +16,9 @@ const adRepo    = require('../repositories/aluno_disciplina.repository');
 // ── Helpers internos ────────────────────────────────────────
 async function _turmaComDiscs(turma) {
   const discIds = await tdRepo.disciplinaIds(turma.id);
-  const disciplinas = discIds.map(async id => await discRepo.findById(id)).filter(Boolean);
-  return { ...turma, disciplinas, total_alunos: (await turmaRepo.getAlunos(turma.id)).length };
+  const disciplinas = (await Promise.all(discIds.map(id => discRepo.findById(id)))).filter(Boolean);
+  const alunos = await turmaRepo.getAlunos(turma.id);
+  return { ...turma, disciplinas, total_alunos: alunos.length };
 }
 
 function _checkDono(req, turma) {
@@ -35,7 +36,7 @@ async function list(req, res, next) {
 
     if (req.user.perfil === 'aluno') {
       const mats = await turmaRepo.getTurmasAluno(req.user.id);
-      turmas = mats.map(async m => await turmaRepo.findById(m.turma_id)).filter(Boolean);
+      turmas = (await Promise.all(mats.map(m => turmaRepo.findById(m.turma_id)))).filter(Boolean);
     } else if (professor_id) {
       turmas = await turmaRepo.findByProfessor(professor_id);
     } else if (disciplina_id) {
@@ -61,16 +62,23 @@ async function getById(req, res, next) {
         return res.status(403).json({ error: 'Você não está matriculado nesta turma.' });
     }
 
-    const alunos = (await turmaRepo.getAlunos(t.id)).map(async mat => {
+    const _mats = await turmaRepo.getAlunos(t.id);
+    const _alunosBrut = await Promise.all(_mats.map(async mat => {
       const u = await userRepo.findById(mat.aluno_id);
       if (!u) return null;
       const { senha_hash, ...safe } = u;
-      return { ...safe, joined_at: mat.joined_at };
-    }).filter(Boolean);
+      return { ...safe, joined_at: mat.created_at };
+    }));
+    const alunos = _alunosBrut.filter(Boolean);
 
     const discIds = await tdRepo.disciplinaIds(t.id);
-    const disciplinas = discIds.map(async id => await discRepo.findById(id)).filter(Boolean)
-      .map(async d => ({ ...d, trilhas: (await trilhaRepo.findByDisciplina(d.id)).length }));
+    const _discBrut = await Promise.all(discIds.map(id => discRepo.findById(id)));
+    const disciplinas = await Promise.all(
+      _discBrut.filter(Boolean).map(async d => ({
+        ...d,
+        trilhas: (await trilhaRepo.findByDisciplina(d.id)).length,
+      }))
+    );
 
     // Disciplinas disponíveis para vincular (do professor)
     const todasDiscs = req.user.perfil === 'admin'
@@ -101,7 +109,7 @@ async function update(req, res, next) {
     const err = _checkDono(req, t);
     if (err) return res.status(err.includes('não encontrada') ? 404 : 403).json({ error: err });
     const updated = await turmaRepo.update(req.params.id, req.body);
-    res.json({ turma: await _turmaComDiscs(updated) });
+    res.json({ turma: _turmaComDiscs(updated) });
   } catch(e){ next(e); }
 }
 
@@ -131,13 +139,11 @@ async function listDisciplinas(req, res, next) {
       return res.status(403).json({ error: 'Você não está matriculado nesta turma.' });
 
     const discIds = await tdRepo.disciplinaIds(t.id);
-    const disciplinasBrut = await Promise.all(discIds.map(id => discRepo.findById(id)));
-    const disciplinas = await Promise.all(
-      disciplinasBrut.filter(Boolean).map(async d => ({
-        ...d,
-        total_trilhas: (await trilhaRepo.findByDisciplina(d.id)).length,
-      }))
-    );
+    const _discList = (await Promise.all(discIds.map(id => discRepo.findById(id)))).filter(Boolean);
+    const disciplinas = await Promise.all(_discList.map(async d => ({
+      ...d,
+      total_trilhas: (await trilhaRepo.findByDisciplina(d.id)).length,
+    })));
 
     res.json({ disciplinas });
   } catch(e){ next(e); }
@@ -189,11 +195,12 @@ async function buscarAluno(req, res, next) {
   try {
     const { email } = req.query;
     if (!email) return res.status(400).json({ error: 'email é obrigatório.' });
-    const u = (await userRepo.findByEmail(email.trim()).toLowerCase());
+    const u = await userRepo.findByEmail(email.trim().toLowerCase());
     if (!u || u.perfil !== 'aluno') return res.status(404).json({ error: 'Aluno não encontrado.' });
     const { senha_hash, ...safe } = u;
-    const turmasAluno = await turmaRepo.getTurmasAluno(u.id)
-      .map(async m => await turmaRepo.findById(m.turma_id)).filter(Boolean);
+    const _mats = await turmaRepo.getTurmasAluno(u.id);
+    const _turmasBrut = await Promise.all(_mats.map(m => turmaRepo.findById(m.turma_id)));
+    const turmasAluno = _turmasBrut.filter(Boolean);
     res.json({ aluno: safe, turmas: turmasAluno });
   } catch(e){ next(e); }
 }
@@ -213,8 +220,9 @@ async function matricularAluno(req, res, next) {
     if (aluno.status !== 'ativo') return res.status(400).json({ error: 'Aluno não está ativo.' });
 
     // Regra: 1 turma ativa por aluno
-    const turmasAtivas = await turmaRepo.getTurmasAluno(aluno.id)
-      .map(async m => await turmaRepo.findById(m.turma_id)).filter(t => t?.ativo);
+    const _mats2 = await turmaRepo.getTurmasAluno(aluno.id);
+    const _turmasBrut2 = await Promise.all(_mats2.map(m => turmaRepo.findById(m.turma_id)));
+    const turmasAtivas = _turmasBrut2.filter(t => t?.ativo);
     if (turmasAtivas.length > 0)
       return res.status(409).json({
         error: `Aluno já está matriculado em "${turmasAtivas[0].nome}". Remova-o primeiro.`,
@@ -247,13 +255,15 @@ async function removerAluno(req, res, next) {
 async function minhasTurmas(req, res, next) {
   try {
     const mats = await turmaRepo.getTurmasAluno(req.user.id);
-    const turmas = mats.map(async m => {
+    const turmas = (await Promise.all(mats.map(async m => {
+
       const t = await turmaRepo.findById(m.turma_id);
       if (!t) return null;
       const discIds = await tdRepo.disciplinaIds(t.id);
-      const disciplinas = discIds.map(async id => await discRepo.findById(id)).filter(Boolean);
+      const disciplinas = (await Promise.all(discIds.map(id => discRepo.findById(id)))).filter(Boolean);
       return { ...t, joined_at: m.joined_at, disciplinas };
-    }).filter(Boolean);
+    
+}))).filter(Boolean);
     res.json({ turmas });
   } catch(e){ next(e); }
 }
@@ -263,31 +273,36 @@ async function minhasTurmas(req, res, next) {
 async function listarTodosAlunos(req, res, next) {
   try {
     const { busca, turma_id } = req.query;
-    let alunos = await userRepo.findAll()
-      .filter(u => u.perfil === 'aluno' && u.status === 'ativo');
+    const todos = await userRepo.findAll();
+    let alunos = todos.filter(u => u.perfil === 'aluno' && u.status === 'ativo');
 
     if (busca?.trim()) {
       const q = busca.trim().toLowerCase();
       alunos = alunos.filter(u =>
-        u.nome.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+        (u.nome||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q)
       );
     }
 
     // Marcar quais já estão nesta turma
     const jaMatriculados = new Set();
     if (turma_id) {
-      (await turmaRepo.getAlunos(turma_id)).forEach(m => jaMatriculados.add(m.aluno_id));
+      const mats = await turmaRepo.getAlunos(Number(turma_id));
+      mats.forEach(m => jaMatriculados.add(m.aluno_id));
     }
 
     const result = await Promise.all(alunos.map(async u => {
       const { senha_hash, ...safe } = u;
-      const mats = await turmaRepo.getTurmasAluno(u.id);
-      const turmasBrut = await Promise.all(mats.map(m => turmaRepo.findById(m.turma_id)));
-      const turmasAtivas = turmasBrut.filter(t => t?.ativo);
+      let turma_atual = null;
+      try {
+        const mats = await turmaRepo.getTurmasAluno(u.id);
+        const turmasBrut = await Promise.all(mats.map(m => turmaRepo.findById(m.turma_id)));
+        const turmasAtivas = turmasBrut.filter(t => t?.ativo);
+        turma_atual = turmasAtivas[0]?.nome || null;
+      } catch(_) {}
       return {
         ...safe,
         ja_nesta_turma: jaMatriculados.has(u.id),
-        turma_atual: turmasAtivas[0] ? turmasAtivas[0].nome : null,
+        turma_atual,
       };
     }));
 
@@ -320,8 +335,9 @@ async function matricularLote(req, res, next) {
         continue;
       }
       // Regra: 1 turma ativa por aluno
-      const turmasAtivas = await turmaRepo.getTurmasAluno(aluno.id)
-        .map(async m => await turmaRepo.findById(m.turma_id)).filter(ta => ta?.ativo);
+      const _mats = await turmaRepo.getTurmasAluno(aluno.id);
+      const _tBrut = await Promise.all(_mats.map(m => turmaRepo.findById(m.turma_id)));
+      const turmasAtivas = _tBrut.filter(ta => ta?.ativo);
       if (turmasAtivas.length > 0) {
         resultados.erros.push({ id: aid, nome: aluno.nome, msg: `Já em "${turmasAtivas[0].nome}"` });
         continue;
@@ -372,8 +388,9 @@ async function matricularNasDisciplinas(req, res, next) {
       // Matricular na turma se ainda não estiver
       if (!await turmaRepo.jaMatriculado(aluno.id, t.id)) {
         // Verificar regra: 1 turma ativa por aluno
-        const turmasAtivas = await turmaRepo.getTurmasAluno(aluno.id)
-          .map(async m => await turmaRepo.findById(m.turma_id)).filter(ta => ta?.ativo);
+        const _mats3 = await turmaRepo.getTurmasAluno(aluno.id);
+        const _tBrut3 = await Promise.all(_mats3.map(m => turmaRepo.findById(m.turma_id)));
+        const turmasAtivas = _tBrut3.filter(ta => ta?.ativo);
         if (turmasAtivas.length > 0) {
           resultados.erros.push({ id: aid, nome: aluno.nome, msg: `Já em outra turma: "${turmasAtivas[0].nome}"` });
           continue;
@@ -408,10 +425,8 @@ async function disciplinasDoAlunoNaTurma(req, res, next) {
   try {
     const { aluno_id, turma_id } = req.params;
     const vinculos = await adRepo.findByAlunoTurma(aluno_id, turma_id);
-    const disciplinas = vinculos.map(v => {
-      const d = require('../repositories/disciplina.repository').findById(v.disciplina_id);
-      return d ? { ...d, enrolled_at: v.enrolled_at } : null;
-    }).filter(Boolean);
+    const discList = await Promise.all(vinculos.map(v => discRepo.findById(v.disciplina_id)));
+    const disciplinas = discList.map((d, i) => d ? { ...d, enrolled_at: vinculos[i]?.created_at } : null).filter(Boolean);
     res.json({ disciplinas, total: disciplinas.length });
   } catch(e){ next(e); }
 }

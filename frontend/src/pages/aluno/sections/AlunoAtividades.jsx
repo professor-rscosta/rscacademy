@@ -1,3 +1,4 @@
+import { fmtDate, fmtDateTime, fmtRelative } from '../../../utils/date.js';
 /**
  * AlunoAtividades — Visualizar e entregar atividades
  * Estilo Google Sala de Aula: ver instruções + materiais + enviar arquivo
@@ -154,7 +155,7 @@ function AtividadeDetalhe({ ativ: atividadeInicial, onBack }) {
               </span>
               {ativ.data_entrega && (
                 <span style={{ padding:'4px 12px', borderRadius:50, background:prazoVencido?'rgba(239,68,68,.25)':'rgba(16,185,129,.2)', color:prazoVencido?'#fca5a5':'#34d399', fontSize:12, fontWeight:600 }}>
-                  📅 Prazo: {new Date(ativ.data_entrega).toLocaleString('pt-BR')} {prazoVencido && '(ENCERRADO)'}
+                  📅 Prazo: {fmtDateTime(ativ.data_entrega)} {prazoVencido && '(ENCERRADO)'}
                 </span>
               )}
             </div>
@@ -196,7 +197,7 @@ function AtividadeDetalhe({ ativ: atividadeInicial, onBack }) {
               )}
               {jaEntregou && entrega.entregue_em && (
                 <div style={{ fontSize:11, color:'var(--slate-400)', marginTop:4 }}>
-                  Enviado em {new Date(entrega.entregue_em).toLocaleString('pt-BR')}
+                  Enviado em {fmtDateTime(entrega.entregue_em)}
                 </div>
               )}
             </div>
@@ -281,7 +282,7 @@ function AtividadeDetalhe({ ativ: atividadeInicial, onBack }) {
 
               {prazoVencido && !jaEntregou && (
                 <div style={{ textAlign:'center', padding:'1rem', color:'#b91c1c', fontSize:13 }}>
-                  ⏰ O prazo de entrega encerrou em {new Date(ativ.data_entrega).toLocaleDateString('pt-BR')}.
+                  ⏰ O prazo de entrega encerrou em {fmtDate(ativ.data_entrega)}.
                 </div>
               )}
             </div>
@@ -418,7 +419,7 @@ export default function AlunoAtividades() {
                       {(a.materiais||[]).length>0 && <span>📎 {a.materiais.length} material(is)</span>}
                       {a.data_entrega && (
                         <span style={{ fontWeight:600, color:prazoVencido?'#b91c1c':prazoHoje?'#f59e0b':'var(--slate-400)' }}>
-                          📅 {prazoVencido?'Encerrou:':'Prazo:'} {new Date(a.data_entrega).toLocaleString('pt-BR')}
+                          📅 {prazoVencido?'Encerrou:':'Prazo:'} {fmtDateTime(a.data_entrega)}
                         </span>
                       )}
                     </div>

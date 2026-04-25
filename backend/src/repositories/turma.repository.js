@@ -1,4 +1,4 @@
-const { dbFindAll,dbFindById,dbFindWhere,dbFindOne,dbInsert,dbUpdate,dbDelete,dbDeleteWhere } = require('../database/init');
+const { dbFindAll,dbFindById,dbFindWhere,dbFindOne,dbInsert,dbUpdate,dbDelete,dbDeleteWhere,dbQuery } = require('../database/init');
 const T='turmas', AT='aluno_turma';
 module.exports = {
   findAll:          async () => (await dbFindAll(T)).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)),
@@ -13,4 +13,9 @@ module.exports = {
   matricular:       async (uid,tid) => await dbInsert(AT,{aluno_id:Number(uid),turma_id:Number(tid)}),
   desmatricular:    async (uid,tid) => await dbDeleteWhere(AT,r=>r.aluno_id===Number(uid)&&r.turma_id===Number(tid)),
   jaMatriculado:    async (uid,tid) => !!(await dbFindOne(AT,r=>r.aluno_id===Number(uid)&&r.turma_id===Number(tid))),
+  findByDisciplina: async (did) => {
+    const links = await dbFindWhere('turma_disciplinas', r => r.disciplina_id === Number(did));
+    const turmas = await Promise.all(links.map(l => dbFindById(T, l.turma_id)));
+    return turmas.filter(Boolean);
+  },
 };

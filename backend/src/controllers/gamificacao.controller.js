@@ -3,7 +3,7 @@ const { dbFindAll, dbFindWhere, dbFindById } = require('../database/init');
 
 async function meuPerfil(req, res, next) {
   try {
-    const perfil = gamifService.getGamificationProfile(req.user.id);
+    const perfil = await gamifService.getGamificationProfile(req.user.id);
     if (!perfil) return res.status(404).json({ error: 'Perfil não encontrado.' });
     res.json(perfil);
   } catch(e){ next(e); }
@@ -12,7 +12,7 @@ async function meuPerfil(req, res, next) {
 async function ranking(req, res, next) {
   try {
     const limit = Number(req.query.limit) || 10;
-    const lista = gamifService.getRanking(limit);
+    const lista = await gamifService.getRanking(limit);
     res.json({ ranking: lista });
   } catch(e){ next(e); }
 }

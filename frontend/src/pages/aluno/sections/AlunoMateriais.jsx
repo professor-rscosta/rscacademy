@@ -487,7 +487,7 @@ export default function AlunoMateriais() {
       ) : filtrados.length === 0 ? (
         <div className="card">
           <EmptyState
-            icon="[DOC]"
+            icon="📚"
             title={safe.length===0?'Nenhum material disponivel':'Nenhum resultado'}
             sub={safe.length===0?'Seus professores adicionarao materiais em breve':'Tente outra busca ou filtro'}
           />
