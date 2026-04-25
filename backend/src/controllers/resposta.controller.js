@@ -7,6 +7,7 @@ const { dbUpdate }   = require('../database/init');
 // ─── Submeter resposta ────────────────────────────────────────
 
 async function submitResposta(req, res, next) {
+  console.log('[RESPOSTA] Received:', JSON.stringify({ questao_id: req.body?.questao_id, tipo_resposta: typeof req.body?.resposta, aluno: req.user?.id }));
   try {
     const { questao_id, resposta, tempo_gasto_ms } = req.body;
     const aluno_id = req.user.id;
@@ -20,6 +21,7 @@ async function submitResposta(req, res, next) {
     if (!questao) return res.status(404).json({ error: 'Questão não encontrada.' });
 
     // ── Normalizar resposta ────────────────────────────────────
+    // Normalize resposta to always be a valid JSON-serializable value
     const respostaStr = typeof resposta === 'object'
       ? JSON.stringify(resposta)
       : String(resposta || '');
@@ -89,11 +91,16 @@ async function submitResposta(req, res, next) {
     }
 
     // ── Salvar no banco ────────────────────────────────────────
+    // Ensure resposta is valid JSON for MySQL JSON column
+    let respostaJson = respostaStr;
+    try { JSON.parse(respostaStr); } // already valid JSON?
+    catch { respostaJson = JSON.stringify(respostaStr); } // wrap as JSON string
+
     const salvo = await respostaRepo.create({
       aluno_id,
       questao_id: Number(questao_id),
       trilha_id:  questao.trilha_id || null,
-      resposta:   respostaStr,
+      resposta:   respostaJson,
       correto:    score >= 0.8 ? 1 : 0,
       score:      score,
       xp_ganho:   xp_ganho,

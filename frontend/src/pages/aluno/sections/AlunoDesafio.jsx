@@ -173,12 +173,28 @@ export default function AlunoDesafio({ trilha_id, onConcluir }) {
     try {
       const res = await api.post('/respostas', {
         questao_id: questaoAtual.id,
-        resposta,
+        resposta: typeof resposta === 'object' ? JSON.stringify(resposta) : String(resposta || ''),
         tempo_gasto_ms: timerGlobal * 1000,
       });
       processarResultado(res.data);
-    } catch(e) { console.error(e); }
-    setSub(false);
+    } catch(e) {
+      const serverErr = e.response?.data?.error || '';
+      const errMsg = serverErr || 'Servidor indisponível. Avançando...';
+      console.error('[DESAFIO 500]', errMsg);
+      // Show error result but allow navigation
+      const fakeResult = {
+        score: 0, is_correct: false, score_percentual: 0, xp_ganho: 0,
+        feedback_ia: '⚠️ ' + errMsg,
+        gabarito_revelado: null, explicacao: null, nivel: nivel,
+      };
+      setRes(fakeResult);
+      setHist(h => [...h, { questao_id: questaoAtual.id, is_correct: false, score: 0, xp: 0,
+                             resposta_aluno: typeof resposta === 'string' ? resposta : JSON.stringify(resposta || ''),
+                             feedback_ia: errMsg }]);
+      setFase('resultado');
+    } finally {
+      setSub(false);
+    }
   };
 
   const processarResultado = (r) => {
