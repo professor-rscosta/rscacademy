@@ -29,8 +29,8 @@ const TIPO_CONFIG = {
 async function generateQuestion({ tipo, topico, nivel, instrucoes_extras = '', tags = [], ids = [], bncc = '', modelo_tri = '' }) {
   const cfg = TIPO_CONFIG[tipo] || TIPO_CONFIG.multipla_escolha;
 
-  const contextos = (await retrieveContext(topico, tags, 2)) || [];
-  const ragContext = formatContextForPrompt(Array.isArray(contextos) ? contextos : []);
+  const contextos = retrieveContext(topico, tags, 2);
+  const ragContext = formatContextForPrompt(contextos);
   contextos.forEach(function(ctx) { if (ctx && ctx.id != null) markUsed([ctx.id]); });
 
   const system = [

@@ -12,10 +12,11 @@ async function list(req, res, next) {
     const { trilha_id, professor_id, disciplina_id, tipo_uso } = req.query;
     let questoes;
     if (trilha_id)       questoes = await questaoRepo.findByTrilha(trilha_id);
-    else if (disciplina_id) questoes = await questaoRepo.findByDisciplina(disciplina_id);
+    else if (disciplina_id) questoes = questaoRepo.findByDisciplina ? await questaoRepo.findByDisciplina(disciplina_id) : (await questaoRepo.findAll()).filter(q=>String(q.disciplina_id)===String(disciplina_id));
     else if (professor_id)  questoes = await questaoRepo.findByProfessor(professor_id);
     else                    questoes = await questaoRepo.findAll();
-    if (tipo_uso) questoes = questoes.filter(q => q.uso === tipo_uso || q.uso === 'ambos' || (!q.uso && tipo_uso === 'trilha'));
+    if (tipo_uso) questoes = questoes.filter(q => q.tipo_uso === tipo_uso || q.tipo_uso === 'ambos' || (!q.tipo_uso && tipo_uso === 'trilha'));
+    else questoes = await questaoRepo.findAll();
     // Remove senha_hash se vier por join
     res.json({ questoes, total: questoes.length });
   } catch (err) { next(err); }
@@ -46,14 +47,6 @@ async function create(req, res, next) {
       return res.status(400).json({ error: 'trilha_id é obrigatório para questões de trilha.' });
     }
 
-    // Ensure gabarito is valid JSON
-    let gabaritoFinal = gabarito;
-    if (gabaritoFinal !== null && gabaritoFinal !== undefined) {
-      if (typeof gabaritoFinal === 'string') {
-        try { JSON.parse(gabaritoFinal); } catch { gabaritoFinal = JSON.stringify(gabaritoFinal); }
-      }
-    }
-
     const questao = await questaoRepo.create({
       trilha_id: trilha_id ? Number(trilha_id) : null,
       disciplina_id: disciplina_id ? Number(disciplina_id) : null,
@@ -64,7 +57,7 @@ async function create(req, res, next) {
       instrucoes_extras: instrucoes_extras || null,
       professor_id: req.user.id,
       tipo, enunciado, alternativas: alternativas || null,
-      gabarito: gabaritoFinal, xp: xp || 100, ativo: true,
+      gabarito, xp: xp || 100, ativo: true,
       tri: tri || { modelo:'2PL', a:1.0, b:0.0, c:0, status:'provisorio', total_respostas:0 },
       rag_tags: rag_tags || [],
       midias: midias || [],
@@ -114,11 +107,10 @@ async function gerarComIA(req, res, next) {
     res.json({ questao_sugerida: result });
   } catch (err) {
     console.error('[gerarComIA] Erro:', err.message, err.stack && err.stack.split('\n')[1]);
-    if (err.code === 'NO_API_KEY' || err.message?.includes('API_KEY') || err.message?.includes('ANTHROPIC')) {
-      return res.status(503).json({ error: 'Serviço de IA indisponível. Configure OPENAI_API_KEY nas variáveis de ambiente do Hostinger.' });
+    if (err.message && err.message.includes('ANTHROPIC_API_KEY')) {
+      return res.status(503).json({ error: 'Servico de IA indisponivel. Verifique a chave da API.' });
     }
-    if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
-    res.status(500).json({ error: 'Erro ao gerar questão: ' + (err.message || 'Erro desconhecido.') });
+    res.status(500).json({ error: 'Erro ao gerar questao: ' + (err.message || 'Erro desconhecido.') });
   }
 }
 

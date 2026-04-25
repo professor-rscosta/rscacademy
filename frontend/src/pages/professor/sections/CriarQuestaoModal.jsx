@@ -158,12 +158,7 @@ export default function CriarQuestaoModal({ trilhas = [], disciplinas = [], tril
       if (q.habilidade_bncc && !iaBncc) setIaBncc(q.habilidade_bncc);
       setIaGerado(true);
     } catch(e) {
-      const msg = e.response?.data?.error || '';
-      if (e.response?.status === 503) {
-        setError('⚠️ IA indisponível: ' + (msg || 'Configure OPENAI_API_KEY nas variáveis do servidor.'));
-      } else {
-        setError(msg || 'Erro ao gerar questão. Tente novamente.');
-      }
+      setError(e.response?.data?.error || 'Erro ao gerar questao. Verifique se ANTHROPIC_API_KEY esta configurada.');
     }
     setIaLoading(false);
   };
@@ -467,13 +462,12 @@ export default function CriarQuestaoModal({ trilhas = [], disciplinas = [], tril
                 </div>
               )}
 
-              {/* Disciplina (sempre disponível) */}
-              {true && (
+              {/* Disciplina (se modo avaliacao ou ambos) */}
+              {(modoUso === 'avaliacao' || modoUso === 'ambos') && (
                 <div className="field" style={{ marginBottom:'1rem' }}>
                   <label style={{ fontWeight:600 }}>
-                    📚 Disciplina de destino
+                    📚 Disciplina
                     {modoUso === 'avaliacao' && <span style={{color:'var(--coral)'}}> *</span>}
-                    {modoUso !== 'avaliacao' && <span style={{ fontSize:11, color:'var(--slate-400)', fontWeight:400, marginLeft:6 }}>(opcional)</span>}
                   </label>
                   {disciplinas.length > 0 ? (
                     <select value={disciplinaId||''} onChange={e=>setDiscId(e.target.value)}

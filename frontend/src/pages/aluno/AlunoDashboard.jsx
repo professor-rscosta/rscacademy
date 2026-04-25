@@ -1,4 +1,3 @@
-import Footer from '../../components/Footer.jsx';
 import { useState } from 'react';
 import Sidebar from '../../components/sidebar/Sidebar';
 import AlunoHome from './AlunoHome';
@@ -59,7 +58,6 @@ export default function AlunoDashboard() {
           )}
         </div>
         {renderSection()}
-        <Footer />
       </main>
     </div>
   );

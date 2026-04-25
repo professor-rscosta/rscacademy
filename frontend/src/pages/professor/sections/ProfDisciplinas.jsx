@@ -53,7 +53,7 @@ function ImageUpload({ value, onChange, label, size=120 }) {
         <input ref={ref} type="file" accept="image/*" style={{ display:'none' }} onChange={e => {
           const file = e.target.files[0];
           if (!file) return;
-          if (file.size > 500*1024) { alert('Imagem muito grande. Máximo 500KB.'); return; }
+          if (file.size > 2*1024*1024) { alert('Imagem muito grande. Máximo 2MB.'); return; }
           const reader = new FileReader();
           reader.onload = ev => onChange(ev.target.result);
           reader.readAsDataURL(file);
@@ -164,7 +164,7 @@ export default function ProfDisciplinas({ autoCreate } = {}) {
               <div key={d.id} style={{ border:'1px solid var(--slate-200)', borderRadius:12, overflow:'hidden', boxShadow:'0 1px 4px rgba(0,0,0,.06)' }}>
                 {/* Banner */}
                 <div style={{
-                  height:80, background: d.banner && d.banner.length > 10
+                  height:80, background: d.banner
                     ? `url(${d.banner}) center/cover`
                     : 'linear-gradient(135deg,var(--navy),var(--navy-mid))',
                   position:'relative',

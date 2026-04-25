@@ -65,7 +65,7 @@ function scorePartial(tipo, resposta, gabarito) {
     switch (tipo) {
       case 'multipla_escolha':
       case 'verdadeiro_falso':
-        return String(resposta) === String(gabarito) ? 1 : 0;
+        return resposta === gabarito ? 1 : 0;
 
       case 'preenchimento': {
         const r = String(resposta).trim().toLowerCase();

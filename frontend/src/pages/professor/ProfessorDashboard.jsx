@@ -1,4 +1,3 @@
-import Footer from '../../components/Footer.jsx';
 import { useState } from 'react';
 import Sidebar from '../../components/sidebar/Sidebar';
 import ProfHome from './sections/ProfHome';
@@ -64,7 +63,6 @@ export default function ProfessorDashboard() {
           )}
         </div>
         {renderSection()}
-        <Footer />
       </main>
     </div>
   );

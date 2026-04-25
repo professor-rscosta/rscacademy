@@ -7,7 +7,6 @@
  */
 const repo      = require('../repositories/atividade.repository');
 const turmaRepo = require('../repositories/turma.repository');
-const adRepo    = require('../repositories/aluno_disciplina.repository');
 const userRepo  = require('../repositories/user.repository');
 const discRepo  = require('../repositories/disciplina.repository');
 const tdRepo    = require('../repositories/turma_disciplina.repository');
@@ -16,54 +15,20 @@ const tdRepo    = require('../repositories/turma_disciplina.repository');
 // ATIVIDADES
 // ════════════════════════════════════════════════════════════════
 
-
-// ── Helper: converte colunas DB → array arquivos ──────────────
-function buildArquivos(e) {
-  if (!e) return e;
-  const arquivos = [];
-  if (e.arquivo_base64 || e.arquivo_nome) {
-    arquivos.push({
-      base64:   e.arquivo_base64 || null,
-      nome:     e.arquivo_nome   || 'arquivo',
-      tipo:     e.arquivo_tipo   || 'application/octet-stream',
-      tamanho:  e.arquivo_tamanho || 0,
-    });
-  }
-  return { ...e, arquivos };
-}
-
 async function list(req, res, next) {
   try {
     const { professor_id, turma_id, disciplina_id } = req.query;
     let atividades;
 
     if (req.user.perfil === 'aluno') {
-      // Aluno: atividades das suas turmas e disciplinas
-      const mats = await turmaRepo.getTurmasAluno(req.user.id);
-      const turmaIds = (mats || []).map(m => Number(m.turma_id));
-      
-      let todasAtividades = [];
-      if (turmaIds.length) {
-        const porTurma = await Promise.all(turmaIds.map(tid => repo.findByTurma(tid)));
-        todasAtividades = porTurma.flat();
-      }
-      
-      // Also fetch by disciplinas the aluno is enrolled in
-      const discIds = await adRepo.disciplinaIds(req.user.id);
-      if (discIds && discIds.length) {
-        const porDisc = await Promise.all(discIds.map(did => repo.findByDisciplina(did)));
-        todasAtividades = [...todasAtividades, ...porDisc.flat()];
-      }
-      
+      // Aluno: atividades das suas turmas
+      const turmaIds = (await turmaRepo.getTurmasAluno(req.user.id)).map(m => m.turma_id);
+      if (!turmaIds.length) return res.json({ atividades: [] });
+      atividades = (await Promise.all((turmaIds).map(async tid => repo.findByTurma(tid)))).flat()
+        .filter(a => a.status === 'publicada');
       // Dedup
       const seen = new Set();
-      atividades = todasAtividades.filter(a => {
-        if (!a || seen.has(a.id)) return false;
-        seen.add(a.id);
-        return true;
-      });
-      // Show publicadas (and ativas for compatibility)
-      atividades = atividades.filter(a => a.status === 'publicada' || a.status === 'ativa');
+      atividades = atividades.filter(async a => { if (seen.has(a.id)) return false; seen.add(a.id); return true; });
     } else if (turma_id) {
       atividades = await repo.findByTurma(turma_id);
     } else if (professor_id) {
@@ -75,14 +40,13 @@ async function list(req, res, next) {
     }
 
     // Enriquecer com contagem de entregas
-    atividades = await Promise.all(atividades.map(async a => {
+    atividades = atividades.map(async a => {
       const entregas = await repo.findEntregasByAtividade(a.id);
       const disc = await discRepo.findById(a.disciplina_id);
       const turma = await turmaRepo.findById(a.turma_id);
       let minha_entrega = null;
       if (req.user.perfil === 'aluno') {
-        const _me = await repo.findEntregaByAlunoAtiv(req.user.id, a.id);
-      minha_entrega = _me ? buildArquivos(_me) : null;
+        minha_entrega = await repo.findEntregaByAlunoAtiv(req.user.id, a.id) || null;
       }
       return {
         ...a,
@@ -92,7 +56,7 @@ async function list(req, res, next) {
         turma_nome: turma?.nome || null,
         minha_entrega,
       };
-    }));
+    });
 
     res.json({ atividades });
   } catch(e){ next(e); }
@@ -115,8 +79,7 @@ async function getById(req, res, next) {
     const turma = await turmaRepo.findById(a.turma_id);
     let minha_entrega = null;
     if (req.user.perfil === 'aluno') {
-      const _me = await repo.findEntregaByAlunoAtiv(req.user.id, a.id);
-      minha_entrega = _me ? buildArquivos(_me) : null;
+      minha_entrega = await repo.findEntregaByAlunoAtiv(req.user.id, a.id) || null;
     }
 
     res.json({
@@ -145,13 +108,13 @@ async function create(req, res, next) {
     }
 
     const a = await repo.create({
-      titulo,
-      descricao: instrucoes || '',   // DB column is 'descricao'
+      titulo, instrucoes: instrucoes || '',
       turma_id: Number(turma_id),
       disciplina_id: disciplina_id ? Number(disciplina_id) : null,
       professor_id: req.user.id,
-      nota_maxima: pontos ? Number(pontos) : 10,
+      pontos: pontos ? Number(pontos) : 10,
       data_entrega: data_entrega || null,
+      materiais: materiais || [],
       status: 'rascunho',
     });
     res.status(201).json({ atividade: a });
@@ -164,15 +127,7 @@ async function update(req, res, next) {
     if (!a) return res.status(404).json({ error: 'Atividade não encontrada.' });
     if (req.user.perfil === 'professor' && a.professor_id !== req.user.id)
       return res.status(403).json({ error: 'Acesso negado.' });
-    const { instrucoes: ins2, pontos: pts2, ...rest2 } = req.body;
-    const updateData = { ...rest2 };
-    if (ins2 !== undefined) updateData.descricao = ins2;
-    if (pts2 !== undefined) updateData.nota_maxima = Number(pts2);
-    // Remove fields not in DB schema
-    delete updateData.materiais;
-    delete updateData.instrucoes;
-    delete updateData.pontos;
-    const updated = await repo.update(req.params.id, updateData);
+    const updated = await repo.update(req.params.id, req.body);
     res.json({ atividade: updated });
   } catch(e){ next(e); }
 }
@@ -206,14 +161,12 @@ async function listarEntregas(req, res, next) {
     const a = await repo.findById(req.params.id);
     if (!a) return res.status(404).json({ error: 'Atividade não encontrada.' });
 
-    const _raw = await repo.findEntregasByAtividade(a.id);
-    const _enriched = await Promise.all(_raw.map(async e => {
+    const entregas = (await repo.findEntregasByAtividade(a.id)).map(async e => {
       const aluno = await userRepo.findById(e.aluno_id);
       if (!aluno) return null;
       const { senha_hash, ...safe } = aluno;
       return { ...e, aluno: safe };
-    }));
-    const entregas = _enriched.filter(Boolean).map(buildArquivos).sort((a,b) => new Date(b.updated_at)-new Date(a.updated_at));
+    }).filter(Boolean).sort((a,b) => new Date(b.updated_at)-new Date(a.updated_at));
 
     res.json({ entregas, total: entregas.length, pendentes: entregas.filter(e=>!e.nota).length });
   } catch(e){ next(e); }
@@ -225,22 +178,10 @@ async function enviarEntrega(req, res, next) {
     if (!a) return res.status(404).json({ error: 'Atividade não encontrada.' });
     if (a.status !== 'publicada') return res.status(400).json({ error: 'Atividade não está publicada.' });
 
-    // Verificar turma OU disciplina do aluno
-    const mats = await turmaRepo.getTurmasAluno(req.user.id);
-    const turmaIds = (mats || []).map(m => Number(m.turma_id));
-    
-    // Check by turma
-    const inTurma = a.turma_id && turmaIds.includes(Number(a.turma_id));
-    
-    // Check by disciplina (aluno can be enrolled in disciplina directly)
-    let inDisc = false;
-    if (!inTurma && a.disciplina_id) {
-      const discIds = await adRepo.disciplinaIds(req.user.id);
-      inDisc = (discIds || []).includes(Number(a.disciplina_id));
-    }
-    
-    if (!inTurma && !inDisc)
-      return res.status(403).json({ error: 'Você não está matriculado nesta atividade.' });
+    // Verificar turma do aluno
+    const turmaIds = (await turmaRepo.getTurmasAluno(req.user.id)).map(m => m.turma_id);
+    if (!turmaIds.includes(a.turma_id))
+      return res.status(403).json({ error: 'Atividade não pertence à sua turma.' });
 
     const { arquivos, comentario } = req.body;
     const agora = new Date().toISOString();
@@ -249,29 +190,24 @@ async function enviarEntrega(req, res, next) {
     const existente = await repo.findEntregaByAlunoAtiv(req.user.id, a.id);
     if (existente) {
       // Atualizar entrega existente
-      const arqAtualizado = arquivos && arquivos.length > 0 ? arquivos[0] : null;
       const updated = await repo.updateEntrega(existente.id, {
-        arquivo_base64:    arqAtualizado?.base64    || existente.arquivo_base64    || null,
-        arquivo_nome:      arqAtualizado?.nome      || existente.arquivo_nome      || null,
-        arquivo_tipo:      arqAtualizado?.tipo      || existente.arquivo_tipo      || null,
-        arquivo_tamanho:   arqAtualizado?.tamanho   || existente.arquivo_tamanho   || null,
+        arquivos: arquivos || existente.arquivos,
         comentario: comentario !== undefined ? comentario : existente.comentario,
         status: 'entregue',
+        entregue_em: agora,
       });
       return res.json({ entrega: updated, message: 'Entrega atualizada!' });
     }
 
-    // Map arquivos array to DB columns
-    const arq = arquivos && arquivos.length > 0 ? arquivos[0] : {};
     const entrega = await repo.createEntrega({
-      atividade_id:    a.id,
-      aluno_id:        req.user.id,
-      arquivo_base64:  arq.base64   || null,
-      arquivo_nome:    arq.nome     || null,
-      arquivo_tipo:    arq.tipo     || null,
-      arquivo_tamanho: arq.tamanho  || null,
-      comentario:      comentario   || '',
+      atividade_id: a.id,
+      aluno_id: req.user.id,
+      arquivos: arquivos || [],
+      comentario: comentario || '',
       status: 'entregue',
+      nota: null,
+      feedback_prof: null,
+      entregue_em: agora,
     });
     res.status(201).json({ entrega, message: 'Entrega enviada com sucesso!' });
   } catch(e){ next(e); }

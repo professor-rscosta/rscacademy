@@ -1,4 +1,3 @@
-import Footer from '../../components/Footer.jsx';
 import { useState } from 'react';
 import Sidebar from '../../components/sidebar/Sidebar';
 import AdminHome        from './sections/AdminHome';
@@ -60,7 +59,6 @@ export default function AdminDashboard() {
           )}
         </div>
         {renderSection()}
-        <Footer />
       </main>
     </div>
   );

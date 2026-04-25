@@ -145,7 +145,7 @@ export default function LoginPage() {
               <p className="form-subtitle">Acesse sua conta para continuar</p>
               {alert && <div className={`alert alert-${alert.type}`}>{alert.msg}</div>}
               <div className="field"><label>E-mail</label><input type="email" placeholder="seu@email.com" value={form.email} onChange={set('email')} onKeyDown={e => e.key === 'Enter' && handleLogin()} /></div>
-<div className="field"><label>Senha</label><input type="password" placeholder="••••••••" value={form.senha} onChange={set('senha')} onKeyDown={e => e.key === 'Enter' && handleLogin()} /></div>
+              <div className="field"><label>Senha</label><input type="password" placeholder="••••••••" value={form.senha} onChange={set('senha')} onKeyDown={e => e.key === 'Enter' && handleLogin()} /></div>
               <button className="btn-primary" onClick={handleLogin} disabled={loading}>{loading ? 'Entrando...' : 'Entrar na plataforma'}</button>
               <div className="form-links-row">
                 <button className="form-link" onClick={() => setAlert({ type: 'success', msg: 'Instruções enviadas para o e-mail cadastrado.' })}>Esqueci minha senha</button>

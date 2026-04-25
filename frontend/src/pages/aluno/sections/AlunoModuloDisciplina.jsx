@@ -124,7 +124,7 @@ export default function AlunoModuloDisciplina({ disciplinaId, onVoltar, onNaviga
       {/* ── Banner ─────────────────────────────────────────── */}
       <div style={{
         borderRadius:14, overflow:'hidden', marginBottom:'1.25rem', position:'relative',
-        height:180, background: d.banner ? (d.banner.startsWith('data:') ? `url(${d.banner}) center/cover` : `url(${d.banner}) center/cover`) : 'linear-gradient(135deg,#1e3a5f 0%,#2d5a9e 60%,#1e3a5f 100%)',
+        height:180, background: d.banner ? `url(${d.banner}) center/cover` : 'linear-gradient(135deg,#1e3a5f 0%,#2d5a9e 60%,#1e3a5f 100%)',
         boxShadow:'0 4px 20px rgba(0,0,0,.15)',
       }}>
         <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(0,0,0,.7) 0%, rgba(0,0,0,.1) 60%)' }} />

@@ -24,16 +24,17 @@ async function list(req, res, next) {
       const turmaIds = (await turmaRepo.getTurmasAluno(req.user.id)).map(m => m.turma_id);
       if (!turmaIds.length) return res.json({ avaliacoes: [] });
       // Avaliacoes diretas (turma_id) + vinculadas via turma_avaliacoes
-      const diretas = (await Promise.all(turmaIds.map(tid => avaliacaoRepo.findByTurma(tid)))).flat();
+      const diretas = (await Promise.all((turmaIds).map(async tid => avaliacaoRepo.findByTurma(tid)))).flat();
       const { dbFindWhere: fw } = require('../database/init');
-      const _taLinks = (await Promise.all(turmaIds.map(tid => fw('turma_avaliacoes', r => r.turma_id === Number(tid))))).flat();
-      const _vinculadasRaw = await Promise.all(_taLinks.map(v => avaliacaoRepo.findById(v.avaliacao_id)));
-      const vinculadas = _vinculadasRaw.filter(Boolean);
+      const vinculadas = turmaIds.flatMap(tid =>
+        fw('turma_avaliacoes', r => r.turma_id === Number(tid))
+          .map(async v => await avaliacaoRepo.findById(v.avaliacao_id)).filter(Boolean)
+      );
       avs = [...diretas, ...vinculadas]
         .filter(a => a.status === 'publicada');
       // Dedup
       const seen = new Set();
-      avs = avs.filter(a => { if (seen.has(a.id)) return false; seen.add(a.id); return true; });
+      avs = avs.filter(async a => { if (seen.has(a.id)) return false; seen.add(a.id); return true; });
     } else if (professor_id) {
       avs = await avaliacaoRepo.findByProfessor(professor_id);
     } else if (disciplina_id) {
@@ -47,17 +48,17 @@ async function list(req, res, next) {
     }
 
     // Enriquecer com info do aluno
-    const enriched = await Promise.all(avs.map(async a => {
+    const enriched = avs.map(async a => {
       const numQ = (a.questoes || []).length;
       let tentativas_feitas = 0, minha_nota = null;
       if (req.user.perfil === 'aluno') {
         const ts = await avaliacaoRepo.findTentativaAlunoAvalia(req.user.id, a.id);
-        tentativas_feitas = (ts||[]).length;
-        const conc = (ts||[]).filter(t => t.status === 'concluida');
+        tentativas_feitas = ts.length;
+        const conc = ts.filter(t => t.status === 'concluida');
         if (conc.length > 0) minha_nota = Math.max(...conc.map(t => t.nota || 0));
       }
       return { ...a, total_questoes: numQ, tentativas_feitas, minha_nota };
-    }));
+    });
 
     res.json({ avaliacoes: enriched });
   } catch(e){ next(e); }
@@ -126,20 +127,9 @@ async function create(req, res, next) {
 // ── EDITAR avaliação ──────────────────────────────────────────
 async function update(req, res, next) {
   try {
-    const avId = Number(req.params.id);
-    if (!avId || isNaN(avId)) return res.status(400).json({ error: 'ID inválido.' });
-    const av = await avaliacaoRepo.findById(avId);
+    const av = await avaliacaoRepo.findById(req.params.id);
     if (!av) return res.status(404).json({ error: 'Avaliação não encontrada.' });
-    
-    // Sanitize questoes - remove entries with invalid questao_id
-    const body = { ...req.body };
-    if (Array.isArray(body.questoes)) {
-      body.questoes = body.questoes
-        .filter(q => q && q.questao_id && !isNaN(Number(q.questao_id)))
-        .map(q => ({ questao_id: Number(q.questao_id), peso: Number(q.peso) || 1 }));
-    }
-    
-    const updated = await avaliacaoRepo.update(avId, body);
+    const updated = await avaliacaoRepo.update(req.params.id, req.body);
     res.json({ avaliacao: updated });
   } catch(e){ next(e); }
 }
@@ -157,16 +147,8 @@ async function publicar(req, res, next) {
 
 // ── REMOVER avaliação ─────────────────────────────────────────
 async function remove(req, res, next) {
-  try {
-    const id = Number(req.params.id);
-    if (!id || isNaN(id)) return res.status(400).json({ error: 'ID inválido.' });
-    const av = await avaliacaoRepo.findById(id);
-    if (!av) return res.status(404).json({ error: 'Avaliação não encontrada.' });
-    if (req.user.perfil === 'professor' && av.professor_id !== req.user.id)
-      return res.status(403).json({ error: 'Sem permissão para excluir esta avaliação.' });
-    await avaliacaoRepo.remove(id);
-    res.json({ message: 'Avaliação removida com sucesso.' });
-  } catch(e){ next(e); }
+  try { await avaliacaoRepo.remove(req.params.id); res.json({ message: 'Avaliação removida.' }); }
+  catch(e){ next(e); }
 }
 
 // ── INICIAR tentativa (aluno) ─────────────────────────────────
@@ -183,14 +165,10 @@ async function iniciar(req, res, next) {
       const vinculadaATurmaDoAluno = av.turma_id
         ? turmaIds.includes(av.turma_id)
         : false;
-      let vinculadaViaNtoN = false;
-      if (turmaIds.length > 0) {
-        const links = await Promise.all(turmaIds.map(tid => fw('turma_avaliacoes', r => r.avaliacao_id === av.id && r.turma_id === Number(tid))));
-        vinculadaViaNtoN = links.some(l => l && l.length > 0);
-      }
-      // Only block if avaliacao has a specific turma_id AND aluno is not in it
-      // AND not linked via N:N
-      if (av.turma_id && !vinculadaATurmaDoAluno && !vinculadaViaNtoN)
+      const vinculadaViaNtoN = turmaIds.some(tid =>
+        fw('turma_avaliacoes', r => r.avaliacao_id === av.id && r.turma_id === tid).length > 0
+      );
+      if (!vinculadaATurmaDoAluno && !vinculadaViaNtoN && av.turma_id)
         return res.status(403).json({ error: 'Esta avaliação não pertence à sua turma.' });
     }
 
@@ -232,8 +210,7 @@ async function iniciar(req, res, next) {
       : (av.questoes || []);
 
     // Montar questões com alternativas randomizadas SEM gabaritos
-    const questoesCompletas = (await Promise.all(questoesBase.map(async qc => {
-
+    const questoesCompletas = questoesBase.map(async qc => {
       const q = await questaoRepo.findById(qc.questao_id);
       if (!q) return null;
       const { gabarito, ...semGabarito } = q;
@@ -250,8 +227,7 @@ async function iniciar(req, res, next) {
       }
 
       return { ...semGabarito, peso: qc.peso || 1, _mapeamento: mapeamentoAlternativas };
-    
-}))).filter(Boolean);
+    }).filter(Boolean);
 
     // Salvar ordem e mapeamentos na tentativa para correção correta
     const ordemQuestoes      = questoesCompletas.map(q => q.id);
@@ -279,9 +255,9 @@ async function iniciar(req, res, next) {
 
     const tentativa = await avaliacaoRepo.createTentativa({
       avaliacao_id: av.id, aluno_id: req.user.id,
-      status: 'em_andamento',
-      respostas: JSON.stringify([]),
-      iniciada_em: new Date().toISOString(),
+      status: 'em_andamento', respostas: [], iniciada_em: new Date().toISOString(),
+      ordem_questoes: ordemQuestoes,
+      mapeamentos_alternativas: Object.keys(mapeamentosAlt).length > 0 ? mapeamentosAlt : null,
     });
     res.status(201).json({ tentativa, avaliacao: avaliacaoComQuestoes, tempo_restante_segundos: tempoTotalSegundos });
   } catch(e){ next(e); }
@@ -313,17 +289,8 @@ async function concluir(req, res, next) {
     const tentativa = await avaliacaoRepo.findTentativaById(req.params.tentativa_id);
     if (!tentativa || tentativa.aluno_id !== req.user.id)
       return res.status(404).json({ error: 'Tentativa não encontrada.' });
-    if (tentativa.status === 'concluida') {
-      // Already concluded - return saved result instead of error
-      return res.json({
-        message: 'Tentativa já concluída anteriormente.',
-        nota: tentativa.nota, aprovado: tentativa.aprovado,
-        feedback_geral: tentativa.feedback_ia || 'Avaliação concluída.',
-        xp_ganho: tentativa.xp_ganho || 0,
-        ja_concluida: true,
-        respostas_corrigidas: tentativa.respostas_corrigidas || [],
-      });
-    }
+    if (tentativa.status === 'concluida')
+      return res.status(400).json({ error: 'Tentativa já concluída.' });
 
     const av = await avaliacaoRepo.findById(tentativa.avaliacao_id);
     const questoesConfig = av.questoes || [];
@@ -386,38 +353,20 @@ async function concluir(req, res, next) {
     const aprovado = nota >= (av.nota_minima || 6);
     const xpGanho = Math.round(nota * 20 + (aprovado ? 100 : 0));
 
-    let novasMedalhas = [];
-    try {
-      gamifService.awardXP(req.user.id, xpGanho);
-      gamifService.updateStreak(req.user.id);
-      novasMedalhas = gamifService.checkMedals(req.user.id) || [];
-    } catch(_) {}
+    gamifService.awardXP(req.user.id, xpGanho);
+    gamifService.updateStreak(req.user.id);
+    const novasMedalhas = gamifService.checkMedals(req.user.id);
 
-    const corretas = respostasCorrigidas.filter(r => r.correto || r.score >= 0.8).length;
+    const corretas = respostasCorrigidas.filter(r => r.score >= 0.8).length;
     let feedbackGeral = aprovado ? '✅ Parabéns! Nota ' + nota + '/10.' : '📚 Nota ' + nota + '/10. Continue estudando!';
-    
-    // ── SAVE TENTATIVA IMMEDIATELY (before any AI calls) ──────
-    const respostasRaw0 = tentativa.respostas || [];
-    const respostasComRespostasAluno0 = await Promise.all(respostasCorrigidas.map(async function(rc) {
-      const raw = respostasRaw0.find(function(r) { return r.questao_id === rc.questao_id; });
-      return Object.assign({}, rc, { resposta_aluno: raw ? raw.resposta : null });
-    }));
-    await avaliacaoRepo.updateTentativa(tentativa.id, {
-      status: 'concluida', nota, aprovado,
-      respostas_corrigidas: respostasComRespostasAluno0,
-      respostas: respostasRaw0,
-      concluida_em: new Date().toISOString(),
-      feedback_ia: feedbackGeral,
-    });
-    
     try {
       const u = await userRepo.findById(req.user.id);
       // Preparar dados detalhados para feedback pedagógico
-      const respostasDetalhadas = await Promise.all(respostasCorrigidas.map(async rc => ({
+      const respostasDetalhadas = respostasCorrigidas.map(async rc => ({
         ...rc,
         questao: await questaoRepo.findById(rc.questao_id),
         resposta_aluno: tentativa.respostas?.find(r => r.questao_id === rc.questao_id)?.resposta,
-      })));
+      }));
       feedbackGeral = await gerarFeedbackPedagogico(u, av, nota, corretas, questoesConfig.length, respostasDetalhadas);
     } catch(feedErr) {
       console.log('[Avaliacao] Feedback IA falhou:', feedErr.message);
@@ -430,17 +379,16 @@ async function concluir(req, res, next) {
       return Object.assign({}, rc, { resposta_aluno: raw ? raw.resposta : null });
     });
     await avaliacaoRepo.updateTentativa(tentativa.id, {
-      status: 'concluida', nota, aprovado,
+      status: 'concluida', nota, aprovado, pontos_brutos: pontosBrutos, peso_total: pesoTotal,
       respostas_corrigidas: respostasComRespostasAluno,
       respostas: respostasRaw,
       concluida_em: new Date().toISOString(),
-      feedback_ia: feedbackGeral,
+      xp_ganho: xpGanho, feedback_geral: feedbackGeral,
     });
 
     // Montar resposta detalhada com info de questões
     const corretasCount = respostasCorrigidas.filter(r => r.score >= 0.8).length;
-    const respostasCompletas = await Promise.all(respostasCorrigidas.map(async rc => {
-
+    const respostasCompletas = respostasCorrigidas.map(async rc => {
       const q = await questaoRepo.findById(rc.questao_id);
       const rAluno = tentativa.respostas?.find(r => r.questao_id === rc.questao_id);
       return {
@@ -453,8 +401,7 @@ async function concluir(req, res, next) {
         resposta_aluno:     rAluno?.resposta ?? null,
         tempo_gasto_ms:     rAluno?.tempo_gasto_ms || null,
       };
-    
-}));
+    });
 
     // Dados complementares para o relatório
     const alunoInfo    = await userRepo.findById(req.user.id);
@@ -513,12 +460,10 @@ async function resultados(req, res, next) {
 async function minhasTentativas(req, res, next) {
   try {
     const tentativas = await avaliacaoRepo.findTentativasByAluno(req.user.id);
-    const enriched = await Promise.all(tentativas.map(async t => {
-
+    const enriched = tentativas.map(async t => {
       const av = await avaliacaoRepo.findById(t.avaliacao_id);
       return { ...t, avaliacao_titulo: av?.titulo, avaliacao_tipo: av?.tipo };
-    
-}));
+    });
     res.json({ tentativas: enriched });
   } catch(e){ next(e); }
 }
@@ -561,7 +506,7 @@ async function vincularTurmas(req, res, next) {
     await dbDeleteWhere(T, r => r.avaliacao_id === av.id);
     const vinculados = [];
     for (const tid of turma_ids) {
-      await dbInsert(T, { avaliacao_id: Number(av.id), turma_id: Number(tid) });
+      await dbInsert(T, { avaliacao_id: av.id, turma_id: Number(tid), vinculado_em: new Date().toISOString() });
       vinculados.push(Number(tid));
     }
 
@@ -576,9 +521,9 @@ async function vincularTurmas(req, res, next) {
 async function turmasDaAvaliacao(req, res, next) {
   try {
     const { dbFindWhere } = require('../database/init');
-    const vinculos = dbFindWhere('turma_avaliacoes', r => r.avaliacao_id === Number(req.params.id));
+    const vinculos = await dbFindWhere('turma_avaliacoes', r => r.avaliacao_id === Number(req.params.id));
     const turmaRepo = require('../repositories/turma.repository');
-    const turmas = (await Promise.all(vinculos.map(v => turmaRepo.findById(v.turma_id)))).filter(Boolean);
+    const turmas = vinculos.map(async v => await turmaRepo.findById(v.turma_id)).filter(Boolean);
     res.json({ turmas });
   } catch(e){ next(e); }
 }
@@ -599,7 +544,7 @@ async function gerarFeedbackPedagogico(aluno, av, nota, corretas, totalQ, respos
     `Questões corretas: ${corretas} de ${totalQ}`,
     '',
     'Desempenho por tipo de questão:',
-    ...respostasDetalhadas.map(r => {
+    ...respostasDetalhadas.map(async r => {
       const q = r.questao;
       if (!q) return '';
       return `- ${q.tipo}: ${r.is_correct ? '✅ Correto' : '❌ Incorreto'} | ${q.enunciado?.slice(0,80)}...`;
@@ -657,26 +602,7 @@ async function responderBatch(req, res, next) {
     }
     await avaliacaoRepo.updateTentativa(tentativa_id, { respostas: respostasAtuais });
     res.json({ ok: true, total: respostas.length });
-  } catch(e) {
-    // If it's an AI error (503), try to save what we have
-    if (e.code === 'NO_API_KEY' || e.statusCode === 503 || (e.message && e.message.includes('503'))) {
-      try {
-        const tentAtual = await avaliacaoRepo.findTentativaById(req.params.tentativa_id);
-        if (tentAtual && tentAtual.status !== 'concluida') {
-          await avaliacaoRepo.updateTentativa(tentAtual.id, {
-            status: 'concluida',
-            concluida_em: new Date().toISOString(),
-            feedback_ia: '⚠️ IA indisponível. Resultado salvo sem feedback automático.',
-          });
-        }
-        return res.status(503).json({ 
-          error: 'Avaliação concluída, mas feedback da IA indisponível. Configure OPENAI_API_KEY no servidor.',
-          concluida: true 
-        });
-      } catch(_) {}
-    }
-    next(e);
-  }
+  } catch(e) { next(e); }
 }
 
 
@@ -854,13 +780,12 @@ async function listarEntregas(req, res, next) {
     if (questoesUpload.length === 0)
       return res.json({ entregas: [], questoes_upload: [] });
 
-    const entregas = (await Promise.all(tentativas.map(async t => {
-
+    const entregas = tentativas.map(async t => {
       const aluno = await userRepo.findById(t.aluno_id);
       if (!aluno) return null;
-      const respostas_upload = (t.respostas || []).filter(r => {
+      const respostas_upload = (t.respostas || []).filter(async r => {
         return questoesUpload.find(q => q.id === r.questao_id);
-      }).map(r => {
+      }).map(async r => {
         const q = questoesUpload.find(q => q.id === r.questao_id);
         let parsed = r.resposta;
         try { if (typeof r.resposta === 'string') parsed = JSON.parse(r.resposta); } catch {}
@@ -885,10 +810,9 @@ async function listarEntregas(req, res, next) {
         respostas_upload,
         pendente_correcao: respostas_upload.some(r => !r.corrigido_manualmente),
       };
-    
-}))).filter(Boolean).filter(t => t.status === 'concluida');
+    }).filter(Boolean).filter(t => t.status === 'concluida');
 
-    res.json({ entregas, questoes_upload: questoesUpload.map(q => ({ id: q.id, enunciado: q.enunciado })) });
+    res.json({ entregas, questoes_upload: questoesUpload.map(async q => ({ id: q.id, enunciado: q.enunciado })) });
   } catch(e){ next(e); }
 }
 

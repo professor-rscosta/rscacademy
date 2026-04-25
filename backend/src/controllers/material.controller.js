@@ -22,7 +22,7 @@ async function listMateriais(req, res, next) {
       const turmaIds = (await turmaRepo.getTurmasAluno(req.user.id)).map(m => m.turma_id);
       if (!turmaIds.length) return res.json({ materiais: [] });
       const discIds = await tdRepo.disciplinaIdsDoAluno(turmaIds);
-      items = (await Promise.all(discIds.map(async did => materialRepo.findByDisciplina(did)))).flat();
+      items = (await Promise.all((discIds).map(async did => materialRepo.findByDisciplina(did)))).flat();
     } else if (disciplina_id) {
       items = await materialRepo.findByDisciplina(disciplina_id);
     } else if (professor_id) {
@@ -84,27 +84,13 @@ async function listAvisos(req, res, next) {
     let items;
 
     if (req.user.perfil === 'aluno') {
-      // Aluno: avisos das turmas + avisos globais (turma_id=null)
-      const mats = await turmaRepo.getTurmasAluno(req.user.id);
-      const turmaIds = (mats || []).map(m => Number(m.turma_id));
-      
-      // Get avisos from enrolled turmas
-      let turmaAvisos = [];
-      if (turmaIds.length) {
-        turmaAvisos = (await Promise.all(turmaIds.map(tid => avisoRepo.findByTurma(tid)))).flat();
-      }
-      
-      // Also get global avisos (turma_id = null)
-      const allAvisos = await avisoRepo.findAll();
-      const globalAvisos = allAvisos.filter(a => !a.turma_id);
-      
-      // Merge, dedup, sort by date
+      // Aluno: avisos das turmas em que está matriculado
+      const turmaIds = (await turmaRepo.getTurmasAluno(req.user.id)).map(m => m.turma_id);
+      if (!turmaIds.length) return res.json({ avisos: [] });
+      items = (await Promise.all((turmaIds).map(async tid => avisoRepo.findByTurma(tid)))).flat();
+      // Dedup por id
       const seen = new Set();
-      items = [...turmaAvisos, ...globalAvisos].filter(a => {
-        if (!a || seen.has(a.id)) return false;
-        seen.add(a.id);
-        return true;
-      }).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      items = items.filter(a => { if (seen.has(a.id)) return false; seen.add(a.id); return true; });
     } else if (turma_id) {
       items = await avisoRepo.findByTurma(turma_id);
     } else if (professor_id) {
