@@ -64,8 +64,8 @@ export default function ProfessorDashboard() {
           )}
         </div>
         {renderSection()}
+        <Footer />
       </main>
-    <Footer />
     </div>
   );
 }

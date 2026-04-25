@@ -60,8 +60,8 @@ export default function AdminDashboard() {
           )}
         </div>
         {renderSection()}
+        <Footer />
       </main>
-    <Footer />
     </div>
   );
 }

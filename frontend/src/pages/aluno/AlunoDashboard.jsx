@@ -59,8 +59,8 @@ export default function AlunoDashboard() {
           )}
         </div>
         {renderSection()}
+        <Footer />
       </main>
-    <Footer />
     </div>
   );
 }
