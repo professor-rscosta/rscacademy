@@ -1,0 +1,70 @@
+const bcrypt = require('bcryptjs');
+const userRepository = require('../repositories/user.repository');
+
+function sanitize(user) {
+  if (!user) return null;
+  const { senha_hash, ...safe } = user;
+  return safe;
+}
+
+async function listAll() {
+  return (await userRepository.findAll()).map(sanitize);
+}
+
+async function listByStatus(status) {
+  return (await userRepository.findByStatus(status)).map(sanitize);
+}
+
+async function findById(id) {
+  return sanitize(await userRepository.findById(id));
+}
+
+async function create({ nome, email, senha, perfil, status }) {
+  const existing = await userRepository.findByEmail(email);
+  if (existing) {
+    const err = new Error('E-mail já cadastrado.');
+    err.status = 409;
+    throw err;
+  }
+  const senha_hash = await bcrypt.hash(senha, 12);
+  const user = await userRepository.create({ nome, email, senha_hash, perfil, status });
+  return sanitize(user);
+}
+
+async function update(id, fields) {
+  const existing = await userRepository.findById(id);
+  if (!existing) return null;
+
+  // Prevent demoting the last admin
+  if (existing.perfil === 'admin' && fields.perfil && fields.perfil !== 'admin') {
+    const admins = (await userRepository.findAll()).filter(u => u.perfil === 'admin');
+    if (admins.length <= 1) {
+      const err = new Error('Não é possível remover o último administrador.');
+      err.status = 400;
+      throw err;
+    }
+  }
+
+  const updated = await userRepository.update(id, fields);
+  return sanitize(updated);
+}
+
+async function remove(id) {
+  const user = await userRepository.findById(id);
+  if (!user) {
+    const err = new Error('Usuário não encontrado.');
+    err.status = 404;
+    throw err;
+  }
+  if (user.perfil === 'admin') {
+    const admins = (await userRepository.findAll()).filter(u => u.perfil === 'admin');
+    if (admins.length <= 1) {
+      const err = new Error('Não é possível excluir o último administrador.');
+      err.status = 400;
+      throw err;
+    }
+  }
+  await userRepository.remove(id);
+}
+
+module.exports = { listAll, listByStatus, findById, create, update, remove };

@@ -1,0 +1,209 @@
+### RSC Academy — API Tests (VS Code REST Client)
+### Instale a extensão "REST Client" — clique em "Send Request" em cada bloco
+
+@base = http://localhost:3001/api
+@adminToken = COLE_TOKEN_AQUI
+@profToken  = COLE_TOKEN_AQUI
+@alunoToken = COLE_TOKEN_AQUI
+
+### ─── HEALTH ───────────────────────────────────────────────
+GET {{base}}/health
+
+###
+
+### ─── AUTH: Login Admin ────────────────────────────────────
+# @name loginAdmin
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{ "email": "admin@rsc.edu", "senha": "Admin@123" }
+
+###
+
+### ─── AUTH: Login Professor ────────────────────────────────
+# @name loginProf
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{ "email": "ana@rsc.edu", "senha": "Prof@123" }
+
+###
+
+### ─── AUTH: Login Aluno ─────────────────────────────────────
+# @name loginAluno
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{ "email": "lucas@aluno.rsc.edu", "senha": "Aluno@123" }
+
+###
+
+### ─── AUTH: Register ────────────────────────────────────────
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{ "nome": "Novo Aluno", "email": "novo@aluno.rsc.edu", "senha": "Aluno@123", "perfil": "aluno" }
+
+###
+
+### ─── USERS: Listar ─────────────────────────────────────────
+GET {{base}}/users
+Authorization: Bearer {{adminToken}}
+
+###
+
+### ─── USERS: Aprovações pendentes ───────────────────────────
+GET {{base}}/users/pending
+Authorization: Bearer {{adminToken}}
+
+###
+
+### ─── DISCIPLINAS: Listar ───────────────────────────────────
+GET {{base}}/disciplinas
+Authorization: Bearer {{alunoToken}}
+
+###
+
+### ─── DISCIPLINAS: Criar ────────────────────────────────────
+POST {{base}}/disciplinas
+Authorization: Bearer {{profToken}}
+Content-Type: application/json
+
+{ "nome": "Banco de Dados", "descricao": "SQL e modelagem relacional", "codigo": "BD1", "carga_horaria": 60 }
+
+###
+
+### ─── TRILHAS: Listar por disciplina ────────────────────────
+GET {{base}}/trilhas?disciplina_id=1
+Authorization: Bearer {{alunoToken}}
+
+###
+
+### ─── TRILHAS: Criar ────────────────────────────────────────
+POST {{base}}/trilhas
+Authorization: Bearer {{profToken}}
+Content-Type: application/json
+
+{ "nome": "SQL Básico", "descricao": "SELECT, INSERT, UPDATE, DELETE", "disciplina_id": 1, "ordem": 3, "xp_total": 400 }
+
+###
+
+### ─── QUESTÕES: Listar por trilha ───────────────────────────
+GET {{base}}/questoes?trilha_id=1
+Authorization: Bearer {{alunoToken}}
+
+###
+
+### ─── QUESTÕES: Criar manual ────────────────────────────────
+POST {{base}}/questoes
+Authorization: Bearer {{profToken}}
+Content-Type: application/json
+
+{
+  "trilha_id": 1,
+  "tipo": "multipla_escolha",
+  "enunciado": "Qual comando é usado para criar uma tabela em SQL?",
+  "alternativas": ["CREATE TABLE", "MAKE TABLE", "NEW TABLE", "INSERT TABLE"],
+  "gabarito": 0,
+  "xp": 80,
+  "tri": { "modelo": "3PL", "a": 1.2, "b": -0.5, "c": 0.25 },
+  "rag_tags": ["sql", "ddl"]
+}
+
+###
+
+### ─── QUESTÕES: Gerar com IA (RAG) ──────────────────────────
+POST {{base}}/questoes/gerar
+Authorization: Bearer {{profToken}}
+Content-Type: application/json
+
+{
+  "tipo": "multipla_escolha",
+  "topico": "estruturas de repetição em Python",
+  "nivel": "intermediário",
+  "trilha_id": 1,
+  "tags": ["python", "laços"]
+}
+
+###
+
+### ─── QUESTÕES: Sugerir TRI com IA ──────────────────────────
+POST {{base}}/questoes/sugerir-tri
+Authorization: Bearer {{profToken}}
+Content-Type: application/json
+
+{
+  "tipo": "multipla_escolha",
+  "enunciado": "Qual estrutura de dados usa FIFO?",
+  "alternativas": ["Pilha", "Fila", "Árvore", "Grafo"],
+  "gabarito": 1,
+  "nivel_esperado": "intermediário"
+}
+
+###
+
+### ─── QUESTÕES: Ver curva ICC ───────────────────────────────
+GET {{base}}/questoes/1/curva
+Authorization: Bearer {{alunoToken}}
+
+###
+
+### ─── RESPOSTAS: Submeter ────────────────────────────────────
+POST {{base}}/respostas
+Authorization: Bearer {{alunoToken}}
+Content-Type: application/json
+
+{ "questao_id": 1, "resposta": 0, "tempo_gasto_ms": 12000 }
+
+###
+
+### ─── RESPOSTAS: Submeter V/F ────────────────────────────────
+POST {{base}}/respostas
+Authorization: Bearer {{alunoToken}}
+Content-Type: application/json
+
+{ "questao_id": 2, "resposta": false, "tempo_gasto_ms": 5000 }
+
+###
+
+### ─── RESPOSTAS: Submeter dissertativa ──────────────────────
+POST {{base}}/respostas
+Authorization: Bearer {{alunoToken}}
+Content-Type: application/json
+
+{
+  "questao_id": 6,
+  "resposta": "Herança é quando uma classe filha reutiliza atributos e métodos da classe pai. Ex: class Dog extends Animal. Composição é quando uma classe contém outra como atributo. Ex: class Car { engine: Engine }. A diferença é IS-A vs HAS-A.",
+  "tempo_gasto_ms": 45000
+}
+
+###
+
+### ─── RESPOSTAS: Minhas respostas ───────────────────────────
+GET {{base}}/respostas/minhas
+Authorization: Bearer {{alunoToken}}
+
+###
+
+### ─── RESPOSTAS: Progresso na trilha ────────────────────────
+GET {{base}}/respostas/trilha/1
+Authorization: Bearer {{alunoToken}}
+
+###
+
+### ─── RESPOSTAS: Stats / theta ───────────────────────────────
+GET {{base}}/respostas/stats/
+Authorization: Bearer {{alunoToken}}
+
+###
+
+### ─── RAG: Adicionar contexto ───────────────────────────────
+POST {{base}}/questoes/rag-context
+Authorization: Bearer {{profToken}}
+Content-Type: application/json
+
+{
+  "titulo": "Comandos SQL DDL",
+  "conteudo": "DDL (Data Definition Language): CREATE TABLE cria tabelas. ALTER TABLE modifica. DROP TABLE remove. TRUNCATE limpa dados. CREATE INDEX cria índices.",
+  "tags": ["sql", "ddl", "banco de dados"]
+}
