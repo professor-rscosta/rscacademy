@@ -72,11 +72,11 @@ async function boletimTurma(req, res, next) {
 
       // TRI theta do aluno
       const respostas = await respostaRepo.findByAluno(aluno.id);
-      const historico = respostas.map(async r => {
-
-        const q = await questaoRepo.findById(r.questao_id);
-        return q ? { tri: q.tri, score: r.score } : null;
-      }).filter(Boolean);
+      const _histRaw = await Promise.all(respostas.map(async r => {
+        const q = await questaoRepo.findById(r.questao_id).catch(() => null);
+        return q?.tri ? { tri: q.tri, score: r.score || 0 } : null;
+      }));
+      const historico = _histRaw.filter(Boolean);
       const theta = triService.estimateTheta(historico);
       const nivel = triService.thetaToLevel(theta);
 

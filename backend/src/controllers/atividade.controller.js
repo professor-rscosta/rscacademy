@@ -305,8 +305,8 @@ async function corrigirEntrega(req, res, next) {
 
     const updated = await repo.updateEntrega(entrega_id, {
       nota: Number(nota),
-      feedback_prof: feedback || '',
-      status: 'devolvida',
+      feedback: feedback || '',
+      status: 'corrigida',
       corrigido_em: new Date().toISOString(),
     });
     res.json({ entrega: updated, message: 'Entrega corrigida!' });

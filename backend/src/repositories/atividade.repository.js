@@ -46,6 +46,15 @@ module.exports = {
     allowed.forEach(k => { if (data[k] !== undefined) safe[k] = data[k]; });
     return await dbInsert(E, safe);
   },
-  updateEntrega:           async (id, f) => await dbUpdate(E, id, { ...f, updated_at: new Date().toISOString() }),
+  updateEntrega: async (id, f) => {
+    const ALLOWED = ['arquivo_base64','arquivo_nome','arquivo_tipo','arquivo_tamanho',
+                     'comentario','nota','feedback','status','corrigido_em'];
+    const safe = {};
+    ALLOWED.forEach(k => { if (f[k] !== undefined) safe[k] = f[k]; });
+    // Map common aliases
+    if (f.feedback_prof !== undefined) safe.feedback = f.feedback_prof;
+    if (f.nota_prof !== undefined) safe.nota = f.nota_prof;
+    return await dbUpdate(E, id, safe);
+  },
   deleteEntrega:           async (id) => await dbDelete(E, id),
 };
