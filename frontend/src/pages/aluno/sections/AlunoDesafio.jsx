@@ -141,7 +141,13 @@ export default function AlunoDesafio({ trilha_id, onConcluir }) {
     return () => clearInterval(countdownRef.current);
   }, [fase, idx, trilha]);
 
-  const questaoAtual = questoes[idx];
+  const _q = questoes[idx];
+  const questaoAtual = _q ? {
+    ..._q,
+    alternativas: Array.isArray(_q.alternativas) ? _q.alternativas :
+      (typeof _q.alternativas === 'string' ? (() => { try { return JSON.parse(_q.alternativas); } catch { return []; } })() : []),
+    gabarito: _q.gabarito,
+  } : _q;
   const Comp = questaoAtual ? TIPO_COMP[questaoAtual.tipo] : null;
 
   const handleAnswer = (resp) => setResp(resp);

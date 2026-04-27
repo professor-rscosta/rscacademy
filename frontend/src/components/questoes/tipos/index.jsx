@@ -23,7 +23,8 @@ const styles = {
 // ── 1. Múltipla Escolha ───────────────────────────────────────
 export function MultiplaEscolha({ questao, onAnswer, disabled, respostaDada }) {
   const [sel, setSel] = useState(respostaDada ?? null);
-  const alts = questao.alternativas || [];
+  const _altRaw = questao.alternativas;
+  const alts = Array.isArray(_altRaw) ? _altRaw : (typeof _altRaw === 'string' ? (() => { try { return JSON.parse(_altRaw); } catch { return []; } })() : []);
 
   useEffect(() => { setSel(respostaDada ?? null); }, [respostaDada]);
 
@@ -224,7 +225,8 @@ export function Associacao({ questao, onAnswer, disabled, respostaDada }) {
 
 // ── 6. Ordenação ─────────────────────────────────────────────
 export function Ordenacao({ questao, onAnswer, disabled, respostaDada }) {
-  const original = questao.alternativas || [];
+  const _oRaw = questao.alternativas;
+  const original = Array.isArray(_oRaw) ? _oRaw : (typeof _oRaw === 'string' ? (() => { try { return JSON.parse(_oRaw); } catch { return []; } })() : []);
   const [itens, setItens] = useState(() =>
     respostaDada
       ? respostaDada.map(idx => ({ item: original[idx], originalIdx: idx }))
