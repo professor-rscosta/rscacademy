@@ -53,7 +53,7 @@ export default function ProfHome({ onNavigate }) {
       api.get('/disciplinas?professor_id='+id).catch(() =>({ data:{disciplinas:[]} })),
       api.get('/trilhas?professor_id='+id).catch(() =>({ data:{trilhas:[]} })),
       api.get('/questoes?professor_id='+id).catch(() =>({ data:{questoes:[]} })),
-      api.get('/avaliacoes?professor_id='+id).catch(() =>({ data:{avaliacoes:[]} })),
+      api.get('/avaliações?professor_id='+id).catch(() =>({ data:{avaliacoes:[]} })),
     ]).then(([t,d,tr,q,av]) => {
       const turmas = t.data.turmas||[];
       setStats({
@@ -62,7 +62,7 @@ export default function ProfHome({ onNavigate }) {
         disciplinas:(d.data.disciplinas||[]).length,
         trilhas:(tr.data.trilhas||[]).length,
         questoes:(q.data.questoes||[]).length,
-        avaliacoes:(av.data.avaliacoes||[]).length,
+        avaliacoes:(av.data.avaliações||[]).length,
       });
     });
   }, [user?.id]);
@@ -109,7 +109,7 @@ export default function ProfHome({ onNavigate }) {
               { icon:'📚', label:'Disciplinas', val:stats.disciplinas, c:'#a78bfa' },
               { icon:'🗺️', label:'Trilhas',     val:stats.trilhas,     c:'#34d399' },
               { icon:'❓', label:'Questões',    val:stats.questoes,    c:'#fbbf24' },
-              { icon:'📝', label:'Avaliações',  val:stats.avaliacoes,  c:'#60a5fa' },
+              { icon:'📝', label:'Avaliações',  val:stats.avaliações,  c:'#60a5fa' },
             ].map(s => (
               <div key={s.label} style={{
                 background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.09)',

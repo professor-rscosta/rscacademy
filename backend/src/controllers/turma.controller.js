@@ -259,7 +259,14 @@ async function minhasTurmas(req, res, next) {
 
       const t = await turmaRepo.findById(m.turma_id);
       if (!t) return null;
-      const discIds = await tdRepo.disciplinaIds(t.id);
+      // Get ALL turma disciplines
+      const allDiscIds = await tdRepo.disciplinaIds(t.id);
+      // Filter to only ones the aluno is enrolled in (via aluno_disciplinas table)
+      const alunoDiscIds = await adRepo.disciplinaIds(req.user.id).catch(() => null);
+      // If aluno_disciplinas has entries, filter; otherwise show all turma disciplines
+      const discIds = (alunoDiscIds && alunoDiscIds.length > 0)
+        ? allDiscIds.filter(id => alunoDiscIds.includes(Number(id)))
+        : allDiscIds;
       const disciplinas = (await Promise.all(discIds.map(id => discRepo.findById(id)))).filter(Boolean);
       return { ...t, joined_at: m.joined_at, disciplinas };
     

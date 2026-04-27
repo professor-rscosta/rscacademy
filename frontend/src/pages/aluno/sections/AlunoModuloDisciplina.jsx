@@ -109,7 +109,7 @@ export default function AlunoModuloDisciplina({ disciplinaId, onVoltar, onNaviga
     </div>
   );
 
-  const { disciplina: d, professor, materiais=[], videoaulas=[], trilhas=[], avaliacoes=[], atividades=[], turmas=[] } = data;
+  const { disciplina: d, professor, materiais=[], videoaulas=[], trilhas=[], avaliações=[], atividades=[], turmas=[] } = data;
 
   const totalProgresso = trilhas.length > 0
     ? Math.round(trilhas.reduce((s, t) => s + t.progresso, 0) / trilhas.length)

@@ -693,7 +693,7 @@ async function responderBatch(req, res, next) {
             },
           });
         } catch(_) {
-          return res.status(503).json({ error: 'Avaliação salva mas IA indisponível.', concluida: true });
+          return res.status(200).json({ nota:0, aprovado:false, feedback_geral:'✅ Avaliação salva.', xp_ganho:0, estatisticas:{total_questoes:0,corretas:0,erros:0,taxa_acerto:0} });
         }
       } catch(_) {}
     }

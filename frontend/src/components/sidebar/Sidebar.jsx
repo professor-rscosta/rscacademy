@@ -27,7 +27,7 @@ var MENUS = {
       {id:'turmas',      icon:'\uD83C\uDFEB', label:'Turmas'},
       {id:'trilhas',     icon:'\uD83D\uDDFA\uFE0F', label:'Trilhas'},
       {id:'questoes',    icon:'\u2753', label:'Banco de Questoes'},
-      {id:'avaliacoes',  icon:'\uD83D\uDCDD', label:'Avaliacoes'},
+      {id:'avaliacoes',  icon:'\uD83D\uDCDD', label:'Avaliações'},
       {id:'atividades',  icon:'\uD83D\uDCCB', label:'Atividades'},
     ]},
     { section:'Conteudo',  items:[
@@ -47,7 +47,7 @@ var MENUS = {
       {id:'disciplinas',icon:'\uD83D\uDCDA', label:'Disciplinas'},
       {id:'trilhas',    icon:'\uD83D\uDDFA\uFE0F', label:'Trilhas'},
       {id:'questoes',   icon:'\u2753', label:'Banco de Questoes'},
-      {id:'avaliacoes', icon:'\uD83D\uDCDD', label:'Avaliacoes'},
+      {id:'avaliacoes', icon:'\uD83D\uDCDD', label:'Avaliações'},
       {id:'atividades', icon:'\uD83D\uDCCB', label:'Atividades'},
     ]},
     { section:'Turmas',    items:[
@@ -67,7 +67,7 @@ var MENUS = {
     { section:'Estudos',    items:[
       {id:'disciplinas', icon:'\uD83D\uDCDA', label:'Minhas Turmas'},
       {id:'trilhas',     icon:'\uD83D\uDDFA\uFE0F', label:'Trilhas & Desafios'},
-      {id:'avaliacoes',  icon:'\uD83D\uDCDD', label:'Avaliacoes'},
+      {id:'avaliacoes',  icon:'\uD83D\uDCDD', label:'Avaliações'},
       {id:'atividades',  icon:'\uD83D\uDCCB', label:'Atividades'},
       {id:'materiais',   icon:'\uD83D\uDCD8', label:'Hub de Aprendizagem'},
     ]},

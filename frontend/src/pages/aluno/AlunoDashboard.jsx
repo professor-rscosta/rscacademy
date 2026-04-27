@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Sidebar from '../../components/sidebar/Sidebar';
 import AlunoHome from './AlunoHome';
 import AlunoTrilhas from './sections/AlunoTrilhas';
-import AlunoAvaliacoes from './sections/AlunoAvaliacoes';
+import AlunoAvaliações from './sections/AlunoAvaliacoes';
 import AlunoAtividades from './sections/AlunoAtividades';
 import AlunoMural from './sections/AlunoMural';
 import AlunoMateriais from './sections/AlunoMateriais';
@@ -31,7 +31,7 @@ export default function AlunoDashboard() {
       case 'dashboard':   return <AlunoHome onNavigate={navigate} />;
       case 'disciplinas': return <AlunoMinhasDisciplinas onNavigate={navigate} />;
       case 'trilhas':     return <AlunoTrilhas initialTrilhaId={deepNav?.trilhaId} onReady={() => setDeepNav(null)} />;
-      case 'avaliacoes':  return <AlunoAvaliacoes initialAvaliacaoId={deepNav?.avaliacaoId} onReady={() => setDeepNav(null)} />;
+      case 'avaliacoes':  return <AlunoAvaliações initialAvaliacaoId={deepNav?.avaliacaoId} onReady={() => setDeepNav(null)} />;
       case 'atividades':  return <AlunoAtividades />;
       case 'mural':       return <AlunoMural />;
       case 'materiais':   return <AlunoMateriais />;

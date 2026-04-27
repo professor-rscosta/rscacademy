@@ -11,7 +11,7 @@ import ProfMateriais from './sections/ProfMateriais';
 import ProfRelatorios from './sections/ProfRelatorios';
 import ProfBoletim from './sections/ProfBoletim';
 import AlunoChatbot from '../aluno/sections/AlunoChatbot';
-import ProfAvaliacoes from './sections/ProfAvaliacoes';
+import ProfAvaliações from './sections/ProfAvaliacoes';
 import ProfAtividades from './sections/ProfAtividades';
 import ProfRAG from './sections/ProfRAG';
 import GenericSection from '../shared/GenericSection';
@@ -37,7 +37,7 @@ export default function ProfessorDashboard() {
       case 'disciplinas': return <ProfDisciplinas autoCreate={action==='criar'} />;
       case 'trilhas':     return <ProfTrilhas autoCreate={action==='criar'} />;
       case 'questoes':    return <ProfQuestoes autoCreate={action==='criar'} />;
-      case 'avaliacoes':  return <ProfAvaliacoes autoCreate={action==='criar'} />;
+      case 'avaliacoes':  return <ProfAvaliações autoCreate={action==='criar'} />;
       case 'atividades':  return <ProfAtividades autoCreate={action==='criar'} />;
       case 'turmas':      return <ProfTurmas autoCreate={action==='criar'} />;
       case 'mural':       return <ProfMural autoCreate={action==='criar'} />;

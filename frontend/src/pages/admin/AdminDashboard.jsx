@@ -11,7 +11,7 @@ import AdminTurmas      from './sections/AdminTurmas';
 // Reutiliza componentes do professor — backend já autoriza admin via profOuAdmin
 import ProfTrilhas    from '../professor/sections/ProfTrilhas';
 import ProfQuestoes   from '../professor/sections/ProfQuestoes';
-import ProfAvaliacoes from '../professor/sections/ProfAvaliacoes';
+import ProfAvaliações from '../professor/sections/ProfAvaliacoes';
 import ProfAtividades from '../professor/sections/ProfAtividades';
 import ProfMateriais  from '../professor/sections/ProfMateriais';
 import ProfMural      from '../professor/sections/ProfMural';
@@ -34,7 +34,7 @@ export default function AdminDashboard() {
       case 'turmas':      return <AdminTurmas />;
       case 'trilhas':     return <ProfTrilhas />;
       case 'questoes':    return <ProfQuestoes />;
-      case 'avaliacoes':  return <ProfAvaliacoes />;
+      case 'avaliacoes':  return <ProfAvaliações />;
       case 'atividades':  return <ProfAtividades />;
       case 'materiais':   return <ProfMateriais />;
       case 'mural':       return <ProfMural />;

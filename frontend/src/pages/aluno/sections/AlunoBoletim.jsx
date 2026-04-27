@@ -104,7 +104,7 @@ function DiscDetalhe({ disc, onBack }) {
         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:0, borderTop:'1px solid var(--slate-100)' }}>
           {[
             { l:'Situação', v: <Badge s={disc.situacao} /> },
-            { l:'Avaliações', v: disc.avaliacoes_realizadas+'/'+disc.total_avaliacoes+' realizadas' },
+            { l:'Avaliações', v: disc.avaliações_realizadas+'/'+disc.total_avaliações+' realizadas' },
             { l:'Trilhas', v: (disc.trilhas?.filter(t=>t.progresso>=100).length||0)+'/'+disc.trilhas?.length+' completas' },
           ].map((item, i) => (
             <div key={i} style={{ padding:'12px 16px', borderRight: i<2?'1px solid var(--slate-100)':'none', textAlign:'center' }}>
@@ -119,7 +119,7 @@ function DiscDetalhe({ disc, onBack }) {
         {/* Avaliações */}
         <div className="card">
           <div style={{ fontFamily:'var(--font-head)', fontSize:13, fontWeight:600, color:'var(--navy)', marginBottom:'0.875rem' }}>📝 Avaliações</div>
-          {disc.avaliacoes?.length === 0 ? (
+          {disc.avaliações?.length === 0 ? (
             <div style={{ color:'var(--slate-400)', fontSize:13 }}>Nenhuma avaliação publicada.</div>
           ) : disc.avaliacoes.map(av => (
             <div key={av.id} style={{ padding:'10px 0', borderBottom:'1px solid var(--slate-100)', display:'flex', alignItems:'center', gap:10 }}>
@@ -299,9 +299,9 @@ export default function AlunoBoletim() {
         <div style={{ display:'flex', flexDirection:'column', gap:'0.875rem' }}>
           {disciplinas.map(disc => {
             const notaColor = disc.media_disciplina===null?'var(--slate-300)':disc.media_disciplina>=7?'#10b981':disc.media_disciplina>=6?'#f59e0b':'#ef4444';
-            const aprovQ = disc.avaliacoes?.filter(a=>a.status_aluno==='aprovado').length||0;
-            const reprovQ= disc.avaliacoes?.filter(a=>a.status_aluno==='reprovado').length||0;
-            const pend   = disc.avaliacoes?.filter(a=>a.status_aluno==='nao_realizada').length||0;
+            const aprovQ = disc.avaliações?.filter(a=>a.status_aluno==='aprovado').length||0;
+            const reprovQ= disc.avaliações?.filter(a=>a.status_aluno==='reprovado').length||0;
+            const pend   = disc.avaliações?.filter(a=>a.status_aluno==='nao_realizada').length||0;
             const trilhasOk = disc.trilhas?.filter(t=>t.progresso>=100).length||0;
 
             return (

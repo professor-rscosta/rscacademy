@@ -31,7 +31,7 @@ export default function AlunoHome({ onNavigate }) {
   const [turmas, setTurmas]     = useState([]);
   const [stats, setStats]       = useState(null);
   const [atividades, setAtivs]  = useState([]);
-  const [avaliacoes, setAvs]    = useState([]);
+  const [avaliações, setAvs]    = useState([]);
   const [loading, setLoading]   = useState(true);
   const [turmaIdx, setTurmaIdx] = useState(0);
 

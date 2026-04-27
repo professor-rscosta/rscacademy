@@ -122,16 +122,17 @@ async function boletimAluno(req, res, next) {
       const disciplinas = (await Promise.all(discIds.map(id => discRepo.findById(id)))).filter(Boolean);
 
       // Avaliações da turma (publicadas/encerradas)
-      const avaliacoes = await avaliacaoRepo.findByTurma(tid)
-        .filter(a => ['publicada','encerrada'].includes(a.status))
-        .sort((a,b) => new Date(a.disponivel_em) - new Date(b.disponivel_em));
+      const _avsRaw2 = await avaliacaoRepo.findByTurma(tid).catch(() => []);
+      const avaliacoes = (_avsRaw2||[])
+        .filter(a => ['publicada','encerrada','concluida'].includes(a.status||''))
+        .sort((a,b) => new Date(a.disponivel_em||0) - new Date(b.disponivel_em||0));
 
       // Notas do aluno em cada avaliação
       let somaNotas = 0, totalPeso = 0;
       const notasAv = await Promise.all(avaliacoes.map(async av => {
 
-        const tentativas = await avaliacaoRepo.findTentativaAlunoAvalia(aluno_id, av.id)
-          .filter(t => t.status === 'concluida')
+        const _tRaw = await avaliacaoRepo.findTentativaAlunoAvalia(aluno_id, av.id).catch(() => []);
+        const tentativas = (_tRaw||[]).filter(t => t.status === 'concluida')
           .sort((a,b) => (b.nota||0) - (a.nota||0));
 
         if (tentativas.length === 0)

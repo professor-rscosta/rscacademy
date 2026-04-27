@@ -125,7 +125,7 @@ export default function AlunoAvaliações({ initialAvaliacaoId, onReady }) {
   };
 
   var iniciar = function(av) {
-    api.post('/avaliacoes/' + av.id + '/iniciar').then(function(r) {
+    api.post('/avaliações/' + av.id + '/iniciar').then(function(r) {
       var qs = r.data.avaliacao.questoes_completas || [];
       setAvAtual(r.data.avaliacao);
       setTentativa(r.data.tentativa);
@@ -162,7 +162,7 @@ export default function AlunoAvaliações({ initialAvaliacaoId, onReady }) {
     setShowConfirm(false);
     setSub(true);
     var token = localStorage.getItem('rsc_token') || '';
-    var url   = window.location.origin + '/api/avaliacoes/tentativa/' + tentativaAtual.id + '/concluir';
+    var url   = window.location.origin + '/api/avaliações/tentativa/' + tentativaAtual.id + '/concluir';
     var respostasArray = Object.entries(respostas).map(function(entry) {
       var qid  = entry[0];
       var resp = entry[1];
@@ -174,21 +174,8 @@ export default function AlunoAvaliações({ initialAvaliacaoId, onReady }) {
       body: JSON.stringify({ respostas: respostasArray }),
       cache: 'no-store', credentials: 'same-origin', mode: 'same-origin',
     }).then(function(resp) {
-      var ct = resp.headers.get('content-type') || '';
-      // Allow non-JSON only if it's a 2xx (unexpected HTML from SPA fallback)
-      if (resp.ok && !ct.includes('json')) {
-        throw new Error('Resposta inválida do servidor. Tente novamente.');
-      }
-      // For errors (4xx/5xx), try to parse JSON, fallback to text
-      if (!ct.includes('json')) {
-        return resp.text().then(function(txt) {
-          // If it's HTML (SPA fallback), it means route doesn't exist
-          if (txt.trim().startsWith('<')) throw new Error('Servidor indisponível. Tente novamente em alguns segundos.');
-          try { var d = JSON.parse(txt); return { ok: resp.ok, status: resp.status, data: d }; }
-          catch { throw new Error('Erro ' + resp.status + '. Tente novamente.'); }
-        });
-      }
-      return resp.json().then(function(data) { return { ok: resp.ok, status: resp.status, data: data }; });
+      return resp.json().then(function(data) { return { ok: resp.ok, status: resp.status, data: data }; })
+        .catch(function() { return { ok: resp.ok, status: resp.status, data: {} }; });
     }).then(function(result) {
       // 503 with concluida:true = saved but no AI feedback
       var is503withResult = result.status === 503 && result.data && result.data.concluida;
