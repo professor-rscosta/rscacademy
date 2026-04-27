@@ -183,7 +183,7 @@ export default function AlunoAvaliações({ initialAvaliacaoId, onReady }) {
       if (!ct.includes('json')) {
         return resp.text().then(function(txt) {
           // If it's HTML (SPA fallback), it means route doesn't exist
-          if (txt.trim().startsWith('<')) throw new Error('Rota não encontrada. Verifique a conexão.');
+          if (txt.trim().startsWith('<')) throw new Error('Servidor indisponível. Tente novamente em alguns segundos.');
           try { var d = JSON.parse(txt); return { ok: resp.ok, status: resp.status, data: d }; }
           catch { throw new Error('Erro ' + resp.status + '. Tente novamente.'); }
         });
