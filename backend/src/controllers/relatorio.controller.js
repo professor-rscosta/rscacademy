@@ -54,7 +54,7 @@ async function profGeral(req, res, next) {
       let resp = 0, corr = 0;
       for (const q of qs) {
         const rs = await respostaRepo.findByQuestao(q.id);
-        resp += rs.length; corr += rs.filter(r => r.is_correct).length;
+        resp += rs.length; corr += rs.filter(r => r.correto).length;
       }
       totalResp += resp; totalCorretas += corr;
       return {
@@ -73,8 +73,8 @@ async function profGeral(req, res, next) {
       const rs = await respostaRepo.findByAluno(aid);
       const t  = await calcTheta(aid);
       return { id: u.id, nome: u.nome, email: u.email, ...t,
-        total_respostas: rs.length, corretas: rs.filter(r => r.is_correct).length,
-        taxa_acerto: pct(rs.filter(r => r.is_correct).length, rs.length) };
+        total_respostas: rs.length, corretas: rs.filter(r => r.correto).length,
+        taxa_acerto: pct(rs.filter(r => r.correto).length, rs.length) };
     
 }))).filter(Boolean).sort((a, b) => b.theta - a.theta);
 
@@ -100,7 +100,8 @@ async function porTurma(req, res, next) {
     const turma = await turmaRepo.findById(turma_id);
     if (!turma) return res.status(404).json({ error: 'Turma não encontrada.' });
 
-    const alunos = (await turmaRepo.getAlunos(turma_id)).map(async mat => {
+    const _mats = await turmaRepo.getAlunos(turma_id);
+    const alunos = await Promise.all(_mats.map(async mat => {
       const u = await userRepo.findById(mat.aluno_id);
       if (!u) return null;
       const rs = await respostaRepo.findByAluno(u.id);
@@ -108,14 +109,15 @@ async function porTurma(req, res, next) {
       return {
         id: u.id, nome: u.nome, email: u.email, ...t,
         total_respostas: rs.length,
-        corretas: rs.filter(r => r.is_correct).length,
-        taxa_acerto: pct(rs.filter(r => r.is_correct).length, rs.length),
+        corretas: rs.filter(r => r.correto).length,
+        taxa_acerto: pct(rs.filter(r => r.correto).length, rs.length),
         xp_total: rs.reduce((s, r) => s + (r.xp_ganho||0), 0),
         joined_at: mat.joined_at,
       };
-    }).filter(Boolean).sort((a, b) => b.theta - a.theta);
+    })).filter(Boolean).sort((a, b) => b.theta - a.theta);
 
-    res.json({ turma, alunos, total: alunos.length });
+    const alunosFiltered = alunos.filter(Boolean);
+    res.json({ turma, alunos: alunosFiltered, total: alunosFiltered.length });
   } catch(e){ next(e); }
 }
 
@@ -133,21 +135,21 @@ async function porTrilha(req, res, next) {
     const questoesDetalhadas = await Promise.all(questoes.map(async q => {
 
       const respostas = await respostaRepo.findByQuestao(q.id);
-      const alunos_responderam = respostas.map(async r => {
+      const alunos_responderam = (await Promise.all(respostas.map(async r => {
         const u = await userRepo.findById(r.aluno_id);
         return u ? {
           aluno_id: u.id, nome: u.nome,
           resposta: r.resposta,
-          is_correct: r.is_correct,
+          is_correct: r.correto,
           score: round2(r.score || 0),
           tempo_ms: r.tempo_gasto_ms || 0,
           tempo_seg: r.tempo_gasto_ms ? Math.round(r.tempo_gasto_ms / 1000) : null,
           respondida_em: r.created_at,
         } : null;
-      }).filter(Boolean);
+      }))).filter(Boolean);
 
       const total  = respostas.length;
-      const certos = respostas.filter(r => r.is_correct).length;
+      const certos = respostas.filter(r => r.correto).length;
 
       return {
         id: q.id,
@@ -182,7 +184,7 @@ async function porTrilha(req, res, next) {
       const u = await userRepo.findById(aid);
       if (!u) return null;
       const rsAluno = await respostaRepo.findByAlunoTrilha(aid, trilha_id);
-      const corretas = rsAluno.filter(r => r.is_correct).length;
+      const corretas = rsAluno.filter(r => r.correto).length;
       const tempos = rsAluno.filter(r => r.tempo_gasto_ms).map(r => r.tempo_gasto_ms);
       return {
         id: u.id, nome: u.nome,
@@ -233,10 +235,8 @@ async function relatorioAluno(req, res, next) {
     const { theta, nivel, emoji } = await calcTheta(targetId);
 
     // Respostas agrupadas por trilha
-    const trilhasIds = [...new Set(todasRespostas.map(async r => {
-      const q = await questaoRepo.findById(r.questao_id);
-      return q?.trilha_id;
-    }).filter(Boolean))];
+    const _qTrilhas = await Promise.all(todasRespostas.map(r => questaoRepo.findById(r.questao_id)));
+    const trilhasIds = [...new Set(_qTrilhas.map(q => q?.trilha_id).filter(Boolean))];
 
     const porTrilha = (await Promise.all(trilhasIds.map(async tid => {
 
@@ -251,14 +251,14 @@ async function relatorioAluno(req, res, next) {
         const q = await questaoRepo.findById(r.questao_id);
         return {
           data: r.created_at,
-          is_correct: r.is_correct,
+          is_correct: r.correto,
           score: round2(r.score||0),
           tipo: q?.tipo,
           tempo_seg: r.tempo_gasto_ms ? Math.round(r.tempo_gasto_ms/1000) : null,
         };
       }).sort((a,b) => new Date(a.data) - new Date(b.data));
 
-      const acertos = rsAl.filter(r => r.is_correct).length;
+      const acertos = rsAl.filter(r => r.correto).length;
       const taxa    = pct(acertos, rsAl.length);
       const xp      = rsAl.reduce((s, r) => s + (r.xp_ganho||0), 0);
 
@@ -269,7 +269,7 @@ async function relatorioAluno(req, res, next) {
         if (!q) continue;
         if (!porTipo[q.tipo]) porTipo[q.tipo] = { total: 0, acertos: 0 };
         porTipo[q.tipo].total++;
-        if (r.is_correct) porTipo[q.tipo].acertos++;
+        if (r.correto) porTipo[q.tipo].acertos++;
       }
       const analise_por_tipo = Object.entries(porTipo).map(([tipo, d]) => ({
         tipo, total: d.total, acertos: d.acertos,
@@ -308,7 +308,7 @@ async function relatorioAluno(req, res, next) {
         const dia = r.created_at?.split('T')[0] || 'desconhecido';
         if (!diasMap[dia]) diasMap[dia] = { data: dia, respostas: 0, acertos: 0 };
         diasMap[dia].respostas++;
-        if (r.is_correct) diasMap[dia].acertos++;
+        if (r.correto) diasMap[dia].acertos++;
       
     })
       const tentativas = Object.values(diasMap).sort((a,b) => a.data.localeCompare(b.data))
@@ -352,8 +352,8 @@ async function relatorioAluno(req, res, next) {
       aluno: { ...alunoSafe, theta, nivel, nivel_emoji: emoji },
       resumo: {
         total_respostas: todasRespostas.length,
-        acertos: todasRespostas.filter(r => r.is_correct).length,
-        taxa_acerto_geral: pct(todasRespostas.filter(r=>r.is_correct).length, todasRespostas.length),
+        acertos: todasRespostas.filter(r => r.correto).length,
+        taxa_acerto_geral: pct(todasRespostas.filter(r=>r.correto).length, todasRespostas.length),
         trilhas_iniciadas: porTrilha.filter(t => t.respondidas > 0).length,
         trilhas_completas: trilhasCompletas,
         xp_total: todasRespostas.reduce((s,r)=>s+(r.xp_ganho||0),0),
@@ -390,12 +390,12 @@ async function turmaCompleto(req, res, next) {
         const rsTotal = (await Promise.all((qs).map(async q => respostaRepo.findByQuestao(q.id)))).flat()
           .filter(r => matriculas.some(m => m.aluno_id === r.aluno_id));
 
-        const acertos = rsTotal.filter(r => r.is_correct).length;
+        const acertos = rsTotal.filter(r => r.correto).length;
 
         // Questões mais erradas (pontos críticos)
         const questoesCriticas = qs.map(async q => {
           const rs = (await respostaRepo.findByQuestao(q.id)).filter(r => matriculas.some(m => m.aluno_id === r.aluno_id));
-          const ac = rs.filter(r => r.is_correct).length;
+          const ac = rs.filter(r => r.correto).length;
           return { id: q.id, enunciado: q.enunciado.slice(0, 80), tipo: q.tipo,
             total: rs.length, acertos: ac, taxa: pct(ac, rs.length) };
         }).filter(q => q.total > 0).sort((a,b) => a.taxa - b.taxa);
@@ -422,7 +422,7 @@ async function turmaCompleto(req, res, next) {
       if (!u) return null;
       const rs = await respostaRepo.findByAluno(u.id);
       const t  = await calcTheta(u.id);
-      const ac = rs.filter(r => r.is_correct).length;
+      const ac = rs.filter(r => r.correto).length;
       return {
         id: u.id, nome: u.nome, ...t,
         total_respostas: rs.length, acertos: ac,
@@ -489,7 +489,7 @@ async function adminGeral(req, res, next) {
       conteudo: { disciplinas: disciplinas.length, turmas: turmas.length, questoes: questoes.length,
         questoes_calibradas: questoes.filter(q => q.tri?.status === 'calibrado').length },
       atividade: { total_respostas: respostas.length,
-        taxa_acerto: pct(respostas.filter(r=>r.is_correct).length, respostas.length),
+        taxa_acerto: pct(respostas.filter(r=>r.correto).length, respostas.length),
         theta_medio_alunos: alunos.length > 0 ? round2(thetaTotal/alunos.length) : 0 },
       top_alunos: alunoStats.sort((a,b)=>b.theta-a.theta).slice(0,5),
     });
@@ -655,7 +655,7 @@ async function exportarExcel(req, res, next) {
         ['Disciplina', disc?.nome||'—'],
         ['Total Questões', questoes.length],
         ['Total Respostas', rsAll.length],
-        ['Taxa de Acerto', pct(rsAll.filter(r=>r.is_correct).length, rsAll.length)+'%'],
+        ['Taxa de Acerto', pct(rsAll.filter(r=>r.correto).length, rsAll.length)+'%'],
         ['Gerado em', new Date().toLocaleString('pt-BR')],
       ]);
 
@@ -664,7 +664,7 @@ async function exportarExcel(req, res, next) {
       let _qi = 0;
       for (const q of questoes) { const i = _qi++;
         const rs = await respostaRepo.findByQuestao(q.id);
-        const ac = rs.filter(r=>r.is_correct).length;
+        const ac = rs.filter(r=>r.correto).length;
         qRows.push([i+1, q.enunciado.slice(0,100), q.tipo, rs.length, ac, rs.length-ac,
           pct(ac,rs.length)+'%',
           rs.length>0 ? round2(rs.reduce((s,r)=>s+(r.tempo_gasto_ms||0),0)/rs.length/1000) : '-',
@@ -678,7 +678,7 @@ async function exportarExcel(req, res, next) {
         const u = await userRepo.findById(aid);
         if (!u) continue;
         const rsAl = await respostaRepo.findByAlunoTrilha(aid, id);
-        const ac = rsAl.filter(r=>r.is_correct).length;
+        const ac = rsAl.filter(r=>r.correto).length;
         aRows.push([u.nome, u.email, rsAl.length, ac, pct(ac,rsAl.length)+'%',
           rsAl.reduce((s,r)=>s+(r.xp_ganho||0),0),
           rsAl.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))[0]?.created_at?.split('T')[0]||'-']);
@@ -697,7 +697,7 @@ async function exportarExcel(req, res, next) {
         ['E-mail', aluno.email],
         ['Nível TRI', nivel+' ('+theta+')'],
         ['Total Respostas', todasRs.length],
-        ['Taxa de Acerto', pct(todasRs.filter(r=>r.is_correct).length,todasRs.length)+'%'],
+        ['Taxa de Acerto', pct(todasRs.filter(r=>r.correto).length,todasRs.length)+'%'],
         ['XP Total', todasRs.reduce((s,r)=>s+(r.xp_ganho||0),0)],
         ['Gerado em', new Date().toLocaleString('pt-BR')],
       ]);
@@ -711,7 +711,7 @@ async function exportarExcel(req, res, next) {
         const disc = await discRepo.findById(t?.disciplina_id);
         const qs = await questaoRepo.findByTrilha(tid);
         const rsAl = await respostaRepo.findByAlunoTrilha(Number(id), tid);
-        const ac = rsAl.filter(r=>r.is_correct).length;
+        const ac = rsAl.filter(r=>r.correto).length;
         tRows.push([t?.nome||'-', disc?.nome||'-', rsAl.length, qs.length,
           pct(rsAl.length,qs.length)+'%', ac, pct(ac,rsAl.length)+'%',
           rsAl.reduce((s,r)=>s+(r.xp_ganho||0),0),
@@ -725,7 +725,7 @@ async function exportarExcel(req, res, next) {
         const q = await questaoRepo.findById(r.questao_id);
         const t = q ? await trilhaRepo.findById(q.trilha_id) : null;
         hRows.push([r.created_at?.split('T')[0]||'-', q?.enunciado?.slice(0,80)||'-',
-          q?.tipo||'-', t?.nome||'-', r.is_correct?'Sim':'Não',
+          q?.tipo||'-', t?.nome||'-', r.correto?'Sim':'Não',
           round2(r.score||0), r.tempo_gasto_ms?Math.round(r.tempo_gasto_ms/1000):'-', r.xp_ganho||0]);
       }
       addSheet('Histórico', hRows);
@@ -743,7 +743,7 @@ async function exportarExcel(req, res, next) {
         const u = await userRepo.findById(mat.aluno_id);
         if (!u) return null;
         const rs = await respostaRepo.findByAluno(u.id);
-        const ac = rs.filter(r=>r.is_correct).length;
+        const ac = rs.filter(r=>r.correto).length;
         const t = await calcTheta(u.id);
         return { nome:u.nome, email:u.email, taxa:pct(ac,rs.length), ...t, total:rs.length, xp:rs.reduce((s,r)=>s+(r.xp_ganho||0),0) };
       
@@ -759,7 +759,7 @@ async function exportarExcel(req, res, next) {
         for (const t of trilhas) {
           const qs = await questaoRepo.findByTrilha(t.id);
           const rsAll = (await Promise.all(qs.map(q => respostaRepo.findByQuestao(q.id)))).flat().filter(r=>matriculas.some(m=>m.aluno_id===r.aluno_id));
-          const ac = rsAll.filter(r=>r.is_correct).length;
+          const ac = rsAll.filter(r=>r.correto).length;
           trRows.push([disc?.nome||'-', t.nome, qs.length, new Set(rsAll.map(r=>r.aluno_id)).size, rsAll.length, pct(ac,rsAll.length)+'%']);
         }
       }
@@ -775,7 +775,7 @@ async function exportarExcel(req, res, next) {
       for (const q of todasQs) {
         const _rsQ = await respostaRepo.findByQuestao(q.id);
         const rs = _rsQ.filter(r=>matriculas.some(m=>m.aluno_id===r.aluno_id));
-        const ac = rs.filter(r=>r.is_correct).length;
+        const ac = rs.filter(r=>r.correto).length;
         const t = await trilhaRepo.findById(q.trilha_id);
         _qcData.push({ q, rs:rs.length, taxa:pct(ac,rs.length), trilha:t?.nome||'-' });
       }

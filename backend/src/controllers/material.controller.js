@@ -33,7 +33,13 @@ async function listMateriais(req, res, next) {
       items = await materialRepo.findAll();
     }
 
-    res.json({ materiais: items });
+    // Map snake_case to camelCase for frontend compatibility
+    const mapped = items.map(m => ({
+      ...m,
+      fileName: m.file_name || m.fileName || null,
+      fileSize: m.file_size || m.fileSize || null,
+    }));
+    res.json({ materiais: mapped });
   } catch(e){ next(e); }
 }
 
