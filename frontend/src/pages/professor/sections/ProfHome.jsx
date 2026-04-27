@@ -72,7 +72,7 @@ export default function ProfHome({ onNavigate }) {
   const nome = user?.nome?.split(' ')[0]||'Professor';
 
   return (
-    <div style={{ maxWidth:1140, margin:'0 auto', padding:'0 0 3rem' }}>
+    <div style={{ width:'100%', padding:'0 0 3rem' }}>
 
       {/* ── HERO BANNER ──────────────────────────────────────── */}
       <div style={{

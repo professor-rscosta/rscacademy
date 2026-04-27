@@ -81,7 +81,7 @@ export default function AlunoHome({ onNavigate }) {
   const nome = user?.nome?.split(' ')[0] || 'Aluno';
 
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto', padding: '0 0 2rem' }}>
+    <div style={{ width:'100%', padding:'0 0 2rem' }}>
 
       {/* Welcome Banner */}
       <div style={{
