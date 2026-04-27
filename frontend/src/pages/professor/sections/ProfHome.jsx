@@ -2,34 +2,40 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import api from '../../../hooks/useApi';
 
-const CATEGORIES = [
+const S = {
+  conteudo:  { color:'#7c3aed', grad:'135deg,#7c3aed,#5b21b6', bg:'rgba(124,58,237,.06)', bd:'rgba(124,58,237,.18)' },
+  avaliacao: { color:'#0ea5e9', grad:'135deg,#0ea5e9,#0369a1', bg:'rgba(14,165,233,.06)',  bd:'rgba(14,165,233,.18)' },
+  turma:     { color:'#10b981', grad:'135deg,#10b981,#047857', bg:'rgba(16,185,129,.06)',  bd:'rgba(16,185,129,.18)' },
+};
+
+const SECTIONS = [
   {
-    id: 'conteudo', label: '📚 Conteúdo & Ensino',
-    color: '#7c3aed', bg: 'rgba(124,58,237,.07)', border: 'rgba(124,58,237,.2)',
-    actions: [
-      { id:'disciplinas', icon:'📚', label:'Disciplinas',       desc:'Criar e configurar suas disciplinas' },
-      { id:'materiais',   icon:'📂', label:'Hub de Aprendizagem', desc:'PDFs, vídeos e links para alunos' },
-      { id:'trilhas',     icon:'🗺️', label:'Trilhas Gamificadas',  desc:'Prática com XP, TRI e questões' },
-      { id:'questoes',    icon:'❓', label:'Banco de Questões',  desc:'Questões com IA e correção automática' },
+    key: 'conteudo', title: '📚 Conteúdo & Ensino', subtitle: 'Organize e enriqueça o aprendizado',
+    ...S.conteudo,
+    items: [
+      { id:'disciplinas', icon:'📖', title:'Disciplinas',           badge:null, sub:'Criar, editar e gerenciar disciplinas' },
+      { id:'materiais',   icon:'📂', title:'Hub de Aprendizagem',   badge:null, sub:'PDFs, vídeos, links e arquivos' },
+      { id:'trilhas',     icon:'🗺️', title:'Trilhas Gamificadas',   badge:null, sub:'XP, TRI e questões adaptativas' },
+      { id:'questoes',    icon:'❓', title:'Banco de Questões',     badge:null, sub:'Questões com IA e auto-correção' },
     ],
   },
   {
-    id: 'avaliacao', label: '📝 Avaliações & Atividades',
-    color: '#0ea5e9', bg: 'rgba(14,165,233,.07)', border: 'rgba(14,165,233,.2)',
-    actions: [
-      { id:'avaliacoes', icon:'📝', label:'Avaliações', desc:'Provas, quizzes e simulados' },
-      { id:'atividades', icon:'📋', label:'Atividades', desc:'Entregas e trabalhos dos alunos' },
-      { id:'boletim',    icon:'📊', label:'Boletim',    desc:'Notas e desempenho por aluno' },
-      { id:'relatorios', icon:'📈', label:'Relatórios', desc:'Análise TRI e desempenho da turma' },
+    key: 'avaliacao', title: '📝 Avaliações & Atividades', subtitle: 'Avalie e acompanhe o progresso',
+    ...S.avaliacao,
+    items: [
+      { id:'avaliacoes', icon:'📝', title:'Avaliações',  badge:null, sub:'Provas, quizzes e simulados' },
+      { id:'atividades', icon:'📋', title:'Atividades',  badge:null, sub:'Entregas e trabalhos dos alunos' },
+      { id:'boletim',    icon:'📊', title:'Boletim',     badge:null, sub:'Notas e situação por aluno' },
+      { id:'relatorios', icon:'📈', title:'Relatórios',  badge:null, sub:'Análise TRI e desempenho da turma' },
     ],
   },
   {
-    id: 'turma', label: '🏫 Turmas & Comunicação',
-    color: '#10b981', bg: 'rgba(16,185,129,.07)', border: 'rgba(16,185,129,.2)',
-    actions: [
-      { id:'turmas',  icon:'🏫', label:'Turmas',          desc:'Criar turmas e matricular alunos' },
-      { id:'mural',   icon:'📌', label:'Mural de Avisos', desc:'Comunicados para a turma' },
-      { id:'chatbot', icon:'🤖', label:'Assistente IA',   desc:'Configure o Lumi para seus alunos' },
+    key: 'turma', title: '🏫 Turmas & Comunicação', subtitle: 'Gerencie e se comunique com sua turma',
+    ...S.turma,
+    items: [
+      { id:'turmas',  icon:'🏫', title:'Turmas',          badge:null, sub:'Criar turmas e matricular alunos' },
+      { id:'mural',   icon:'📌', title:'Mural de Avisos', badge:null, sub:'Comunicados e avisos para a turma' },
+      { id:'chatbot', icon:'🤖', title:'Assistente IA',   badge:null, sub:'Configure o Lumi para os alunos' },
     ],
   },
 ];
@@ -37,104 +43,136 @@ const CATEGORIES = [
 export default function ProfHome({ onNavigate }) {
   const { user } = useAuth();
   const [stats, setStats] = useState({ turmas:0, alunos:0, disciplinas:0, trilhas:0, questoes:0, avaliacoes:0 });
+  const [hover, setHover] = useState(null);
 
   useEffect(() => {
     const id = user?.id;
     if (!id) return;
     Promise.all([
-      api.get('/turmas?professor_id=' + id).catch(() => ({ data: { turmas: [] } })),
-      api.get('/disciplinas?professor_id=' + id).catch(() => ({ data: { disciplinas: [] } })),
-      api.get('/trilhas?professor_id=' + id).catch(() => ({ data: { trilhas: [] } })),
-      api.get('/questoes?professor_id=' + id).catch(() => ({ data: { questoes: [] } })),
-      api.get('/avaliacoes?professor_id=' + id).catch(() => ({ data: { avaliacoes: [] } })),
-    ]).then(([t, d, tr, q, av]) => {
-      const turmas = t.data.turmas || [];
+      api.get('/turmas?professor_id='+id).catch(() =>({ data:{turmas:[]} })),
+      api.get('/disciplinas?professor_id='+id).catch(() =>({ data:{disciplinas:[]} })),
+      api.get('/trilhas?professor_id='+id).catch(() =>({ data:{trilhas:[]} })),
+      api.get('/questoes?professor_id='+id).catch(() =>({ data:{questoes:[]} })),
+      api.get('/avaliacoes?professor_id='+id).catch(() =>({ data:{avaliacoes:[]} })),
+    ]).then(([t,d,tr,q,av]) => {
+      const turmas = t.data.turmas||[];
       setStats({
         turmas: turmas.length,
-        alunos: turmas.reduce((s, t) => s + (t.total_alunos || 0), 0),
-        disciplinas: (d.data.disciplinas || []).length,
-        trilhas: (tr.data.trilhas || []).length,
-        questoes: (q.data.questoes || []).length,
-        avaliacoes: (av.data.avaliacoes || []).length,
+        alunos: turmas.reduce((s,t)=>s+(t.total_alunos||0),0),
+        disciplinas:(d.data.disciplinas||[]).length,
+        trilhas:(tr.data.trilhas||[]).length,
+        questoes:(q.data.questoes||[]).length,
+        avaliacoes:(av.data.avaliacoes||[]).length,
       });
     });
   }, [user?.id]);
 
   const hora = new Date().getHours();
-  const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
-  const nome = user?.nome?.split(' ')[0] || 'Professor';
+  const saudacao = hora<12?'Bom dia':hora<18?'Boa tarde':'Boa noite';
+  const nome = user?.nome?.split(' ')[0]||'Professor';
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 0 2rem' }}>
+    <div style={{ maxWidth:1140, margin:'0 auto', padding:'0 0 3rem' }}>
 
-      {/* Welcome Banner */}
+      {/* ── HERO BANNER ──────────────────────────────────────── */}
       <div style={{
-        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0f2a1e 100%)',
-        borderRadius: 20, padding: '2rem 2.5rem', marginBottom: '2rem',
-        boxShadow: '0 8px 32px rgba(15,23,42,.3)',
+        background:'linear-gradient(135deg,#0f172a 0%,#1e293b 55%,#0d2818 100%)',
+        borderRadius:22, padding:'2.5rem', marginBottom:'2rem',
+        boxShadow:'0 12px 40px rgba(0,0,0,.35)',
+        position:'relative', overflow:'hidden',
       }}>
-        <div style={{ marginBottom: '1.5rem' }}>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.45)', marginBottom: 4, letterSpacing: '.08em', textTransform: 'uppercase', fontWeight: 600 }}>
+        {/* Decorative circles */}
+        <div style={{ position:'absolute',top:-40,right:-40,width:200,height:200,background:'rgba(16,185,129,.08)',borderRadius:'50%' }} />
+        <div style={{ position:'absolute',bottom:-30,right:120,width:120,height:120,background:'rgba(124,58,237,.07)',borderRadius:'50%' }} />
+
+        {/* Greeting */}
+        <div style={{ position:'relative' }}>
+          <div style={{ fontSize:11,color:'rgba(255,255,255,.4)',letterSpacing:'.12em',textTransform:'uppercase',fontWeight:600,marginBottom:6 }}>
             {saudacao} 👋
           </div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: 'white', margin: '0 0 6px', letterSpacing: '-.5px' }}>
-            {nome}! <span style={{ fontSize: 24 }}>👩‍🏫</span>
+          <h1 style={{ fontSize:30,fontWeight:800,color:'white',margin:'0 0 6px',letterSpacing:'-.6px' }}>
+            Olá, {nome}! <span style={{ fontSize:26 }}>👩‍🏫</span>
           </h1>
-          <p style={{ fontSize: 13, color: 'rgba(255,255,255,.45)', margin: 0 }}>
-            <strong style={{ color: '#10b981' }}>{stats.turmas} turmas ativas</strong> · <strong style={{ color: '#10b981' }}>{stats.alunos} alunos matriculados</strong>
+          <p style={{ fontSize:13,color:'rgba(255,255,255,.45)',margin:'0 0 2rem' }}>
+            Você possui{' '}
+            <span style={{ color:'#10b981',fontWeight:700 }}>{stats.turmas} turma{stats.turmas!==1?'s':''} ativa{stats.turmas!==1?'s':''}</span>
+            {' '}e{' '}
+            <span style={{ color:'#10b981',fontWeight:700 }}>{stats.alunos} aluno{stats.alunos!==1?'s':''} matriculado{stats.alunos!==1?'s':''}</span>.
           </p>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
-          {[
-            { icon:'📚', label:'Disciplinas', val: stats.disciplinas, color:'#a78bfa' },
-            { icon:'🗺️', label:'Trilhas',     val: stats.trilhas,     color:'#34d399' },
-            { icon:'❓', label:'Questões',    val: stats.questoes,    color:'#fbbf24' },
-            { icon:'📝', label:'Avaliações',  val: stats.avaliacoes,  color:'#60a5fa' },
-          ].map(s => (
-            <div key={s.label} style={{
-              background: 'rgba(255,255,255,.06)', borderRadius: 12,
-              padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10,
-              border: '1px solid rgba(255,255,255,.08)',
-            }}>
-              <div style={{ fontSize: 22 }}>{s.icon}</div>
-              <div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.val}</div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', marginTop: 2 }}>{s.label}</div>
+          {/* Stats grid */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:10 }}>
+            {[
+              { icon:'📚', label:'Disciplinas', val:stats.disciplinas, c:'#a78bfa' },
+              { icon:'🗺️', label:'Trilhas',     val:stats.trilhas,     c:'#34d399' },
+              { icon:'❓', label:'Questões',    val:stats.questoes,    c:'#fbbf24' },
+              { icon:'📝', label:'Avaliações',  val:stats.avaliacoes,  c:'#60a5fa' },
+            ].map(s => (
+              <div key={s.label} style={{
+                background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.09)',
+                borderRadius:14,padding:'14px 16px',display:'flex',alignItems:'center',gap:12,
+              }}>
+                <div style={{ fontSize:24 }}>{s.icon}</div>
+                <div>
+                  <div style={{ fontSize:24,fontWeight:800,color:s.c,lineHeight:1 }}>{s.val}</div>
+                  <div style={{ fontSize:10,color:'rgba(255,255,255,.38)',marginTop:3 }}>{s.label}</div>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Categories */}
-      {CATEGORIES.map(cat => (
-        <div key={cat.id} style={{
-          background: cat.bg, border: '1.5px solid ' + cat.border,
-          borderRadius: 16, padding: '1.5rem', marginBottom: '1.25rem',
-        }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: cat.color, marginBottom: '1rem' }}>
-            {cat.label}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-            {cat.actions.map(a => (
-              <button key={a.id} onClick={() => onNavigate(a.id)}
-                style={{
-                  background: 'white', border: '1.5px solid #e2e8f0',
-                  borderRadius: 12, padding: '1rem', textAlign: 'left',
-                  cursor: 'pointer', transition: 'all .15s',
-                  boxShadow: '0 1px 4px rgba(0,0,0,.05)',
-                }}
-                onMouseOver={e => { e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 6px 20px rgba(0,0,0,.12)'; e.currentTarget.style.borderColor=cat.color; }}
-                onMouseOut={e => { e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow='0 1px 4px rgba(0,0,0,.05)'; e.currentTarget.style.borderColor='#e2e8f0'; }}
-              >
-                <div style={{ fontSize: 28, marginBottom: 8 }}>{a.icon}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>{a.label}</div>
-                <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>{a.desc}</div>
-              </button>
             ))}
           </div>
         </div>
-      ))}
+      </div>
+
+      {/* ── SECTIONS ─────────────────────────────────────────── */}
+      <div style={{ display:'flex',flexDirection:'column',gap:'1.5rem' }}>
+        {SECTIONS.map(sec => (
+          <div key={sec.key} style={{
+            background:sec.bg, border:'1.5px solid '+sec.bd,
+            borderRadius:18, padding:'1.5rem',
+          }}>
+            {/* Section header */}
+            <div style={{ marginBottom:'1.25rem' }}>
+              <div style={{ fontSize:15,fontWeight:700,color:sec.color }}>{sec.title}</div>
+              <div style={{ fontSize:11,color:'#94a3b8',marginTop:2 }}>{sec.subtitle}</div>
+            </div>
+            {/* Cards grid */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(195px,1fr))', gap:12 }}>
+              {sec.items.map(item => {
+                const hKey = sec.key+item.id;
+                const isHov = hover === hKey;
+                return (
+                  <button key={item.id}
+                    onClick={() => onNavigate(item.id)}
+                    onMouseEnter={() => setHover(hKey)}
+                    onMouseLeave={() => setHover(null)}
+                    style={{
+                      background: isHov ? '#fff' : 'rgba(255,255,255,.92)',
+                      border: '1.5px solid '+(isHov ? sec.color : '#e8eef4'),
+                      borderRadius:14, padding:'1.1rem 1rem', textAlign:'left',
+                      cursor:'pointer',
+                      transform: isHov ? 'translateY(-3px)' : 'translateY(0)',
+                      boxShadow: isHov ? '0 8px 24px rgba(0,0,0,.13)' : '0 1px 4px rgba(0,0,0,.06)',
+                      transition:'all .18s cubic-bezier(.34,1.56,.64,1)',
+                      position:'relative', overflow:'hidden',
+                    }}
+                  >
+                    {/* Color accent line */}
+                    <div style={{
+                      position:'absolute',top:0,left:0,right:0,height:3,
+                      background:'linear-gradient('+sec.grad+')',
+                      opacity: isHov ? 1 : 0.4,
+                      transition:'opacity .18s',
+                      borderRadius:'14px 14px 0 0',
+                    }} />
+                    <div style={{ fontSize:30, marginBottom:10 }}>{item.icon}</div>
+                    <div style={{ fontSize:13,fontWeight:700,color:'#0f172a',marginBottom:5 }}>{item.title}</div>
+                    <div style={{ fontSize:11,color:'#64748b',lineHeight:1.55 }}>{item.sub}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

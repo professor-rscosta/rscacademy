@@ -266,12 +266,14 @@ async function relatorioAluno(req, res, next) {
         const taxa    = pct(acertos, rsAl.length);
         const xp      = rsAl.reduce((s, r) => s + (r.xp_ganho || 0), 0);
 
+        const progresso = qs.length > 0 ? Math.round((new Set(rsAl.map(r=>r.questao_id)).size / qs.length) * 100) : 0;
         return {
           id: tid, nome: trilha.nome,
           disciplina: disc?.nome || 'Sem disciplina',
           total_questoes: qs.length,
           total_respondidas: rsAl.length,
           acertos, taxa_acerto: taxa,
+          progresso,
           xp_ganho: xp,
           evolucao,
           theta: theta,
@@ -309,93 +311,83 @@ async function turmaCompleto(req, res, next) {
 
     const discIds    = await tdRepo.disciplinaIds(turma.id);
     const matriculas = await turmaRepo.getAlunos(turma.id);
+    const alunoIds   = matriculas.map(m => m.aluno_id);
 
-    // Para cada disciplina, pegar trilhas e análise
-    const disciplinasAnalise = (await Promise.all(discIds.map(async discId => {
+    // For each disciplina
+    const disciplinasAnalise = (await Promise.all((discIds||[]).map(async discId => {
+      try {
+        const disc   = await discRepo.findById(discId);
+        if (!disc) return null;
+        const trilhas = await trilhaRepo.findByDisciplina(discId);
 
-      const disc   = await discRepo.findById(discId);
-      if (!disc) return null;
-      const trilhas = await trilhaRepo.findByDisciplina(discId);
+        const trilhasAnalise = await Promise.all((trilhas||[]).map(async t => {
+          try {
+            const qs = await questaoRepo.findByTrilha(t.id);
+            // Get all responses for this trilha from turma students
+            const allResps = (await Promise.all((qs||[]).map(q => respostaRepo.findByQuestao(q.id).catch(() => [])))).flat()
+              .filter(r => alunoIds.includes(r.aluno_id));
 
-      const trilhasAnalise = await Promise.all(trilhas.map(async t => {
-        const qs = await questaoRepo.findByTrilha(t.id);
-        const rsTotal = (await Promise.all((qs).map(async q => respostaRepo.findByQuestao(q.id)))).flat()
-          .filter(r => matriculas.some(m => m.aluno_id === r.aluno_id));
+            const acertos = allResps.filter(r => r.correto === 1).length;
+            const taxa    = pct(acertos, allResps.length);
 
-        const acertos = rsTotal.filter(r => r.correto).length;
+            // Critical questions (most wrong)
+            const questoesCriticas = (await Promise.all((qs||[]).map(async q => {
+              const rs = (await respostaRepo.findByQuestao(q.id).catch(() => [])).filter(r => alunoIds.includes(r.aluno_id));
+              if (!rs.length) return null;
+              const ac = rs.filter(r => r.correto === 1).length;
+              return { id: q.id, enunciado: (q.enunciado||'').slice(0, 80), tipo: q.tipo,
+                       total: rs.length, acertos: ac, taxa: pct(ac, rs.length) };
+            }))).filter(q => q && q.total > 0).sort((a, b) => a.taxa - b.taxa);
 
-        // Questões mais erradas (pontos críticos)
-        const questoesCriticas = await Promise.all(qs.map(async q => {
-          const rs = (await respostaRepo.findByQuestao(q.id)).filter(r => matriculas.some(m => m.aluno_id === r.aluno_id));
-          const ac = rs.filter(r => r.correto).length;
-          return { id: q.id, enunciado: q.enunciado.slice(0, 80), tipo: q.tipo,
-            total: rs.length, acertos: ac, taxa: pct(ac, rs.length) };
-        })).filter(q => q && q.total > 0).sort((a,b) => a.taxa - b.taxa);
+            return {
+              id: t.id, nome: t.nome,
+              total_questoes: qs.length,
+              total_respostas: allResps.length,
+              alunos_participaram: new Set(allResps.map(r => r.aluno_id)).size,
+              taxa_acerto: taxa,
+              desempenho: desempenhoLabel(taxa),
+              questoes_criticas: questoesCriticas.slice(0, 3),
+            };
+          } catch { return null; }
+        }));
 
         return {
-          id: t.id, nome: t.nome,
-          total_questoes: qs.length,
-          total_respostas_turma: rsTotal.length,
-          taxa_acerto_media: pct(acertos, rsTotal.length),
-          alunos_participaram: new Set(rsTotal.map(r=>r.aluno_id)).size,
-          questoes_criticas: questoesCriticas.slice(0, 3),
-          desempenho: desempenhoLabel(pct(acertos, rsTotal.length)),
+          id: discId, nome: disc.nome,
+          trilhas: trilhasAnalise.filter(Boolean),
         };
-      }));
+      } catch { return null; }
+    }))).filter(Boolean);
 
-      return { id: discId, nome: disc.nome, trilhas: trilhasAnalise };
-    
-}))).filter(Boolean);
-
-    // Ranking dos alunos
-    const ranking = (await Promise.all(matriculas.map(async mat => {
-
-      const u = await userRepo.findById(mat.aluno_id);
-      if (!u) return null;
-      const rs = await respostaRepo.findByAluno(u.id);
-      const t  = await calcTheta(u.id);
-      const ac = rs.filter(r => r.correto).length;
-      return {
-        id: u.id, nome: u.nome, ...t,
-        total_respostas: rs.length, acertos: ac,
-        taxa_acerto: pct(ac, rs.length),
-        xp_total: rs.reduce((s,r)=>s+(r.xp_ganho||0),0),
-        desempenho: desempenhoLabel(pct(ac, rs.length)),
-      };
-    
-}))).filter(Boolean).sort((a,b) => b.taxa_acerto - a.taxa_acerto);
-
-    // Estatísticas globais da turma
-    const totalResps  = ranking.reduce((s,a)=>s+a.total_respostas,0);
-    const totalAcerts = ranking.reduce((s,a)=>s+a.acertos,0);
-    const mediaTheta  = ranking.length > 0
-      ? round2(ranking.reduce((s,a)=>s+a.theta,0)/ranking.length) : 0;
-
-    // Distribuição de desempenho
-    const distribuicao = {
-      excelente: ranking.filter(a => a.taxa_acerto >= 80).length,
-      bom:       ranking.filter(a => a.taxa_acerto >= 60 && a.taxa_acerto < 80).length,
-      regular:   ranking.filter(a => a.taxa_acerto >= 40 && a.taxa_acerto < 60).length,
-      critico:   ranking.filter(a => a.taxa_acerto < 40).length,
-    };
+    // Per-student summary
+    const alunosResumo = (await Promise.all(alunoIds.map(async aid => {
+      try {
+        const u = await userRepo.findById(aid);
+        if (!u) return null;
+        const resps = await respostaRepo.findByAluno(aid);
+        const turmaResps = resps; // all their responses
+        const { theta, nivel } = await calcTheta(aid).catch(() => ({ theta: 0, nivel: 'iniciante' }));
+        const acertos = turmaResps.filter(r => r.correto === 1).length;
+        const { senha_hash, ...safe } = u;
+        return { ...safe, theta, nivel,
+          total_respostas: turmaResps.length,
+          acertos, taxa_acerto: pct(acertos, turmaResps.length),
+          xp_total: turmaResps.reduce((s, r) => s + (r.xp_ganho||0), 0) };
+      } catch { return null; }
+    }))).filter(Boolean).sort((a, b) => b.theta - a.theta);
 
     res.json({
-      turma,
-      estatisticas: {
-        total_alunos: ranking.length,
-        total_respostas: totalResps,
-        taxa_acerto_media: pct(totalAcerts, totalResps),
-        theta_medio: mediaTheta,
-        distribuicao,
-      },
+      turma: { id: turma.id, nome: turma.nome },
+      total_alunos: alunoIds.length,
       disciplinas: disciplinasAnalise,
-      ranking,
-      gerado_em: new Date().toISOString(),
+      alunos: alunosResumo,
     });
-  } catch(e){ next(e); }
+  } catch(e) {
+    console.error('[turmaCompleto 500]', e.message);
+    next(e);
+  }
 }
 
-// ── 6. Admin Geral ─────────────────────────────────────────────
+
 async function adminGeral(req, res, next) {
   try {
     const usuarios   = await userRepo.findAll();
