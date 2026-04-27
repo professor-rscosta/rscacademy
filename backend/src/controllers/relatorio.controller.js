@@ -232,143 +232,75 @@ async function relatorioAluno(req, res, next) {
     if (!aluno) return res.status(404).json({ error: 'Aluno não encontrado.' });
 
     const todasRespostas = await respostaRepo.findByAluno(targetId);
-    const { theta, nivel, emoji } = await calcTheta(targetId);
+    const { theta, nivel, emoji } = await calcTheta(targetId).catch(() => ({ theta: 0, nivel: 'iniciante', emoji: '🌱' }));
 
-    // Respostas agrupadas por trilha
-    const _qTrilhas = await Promise.all(todasRespostas.map(r => questaoRepo.findById(r.questao_id)));
-    const trilhasIds = [...new Set(_qTrilhas.map(q => q?.trilha_id).filter(Boolean))];
+    // Group by trilha
+    const questoesMap = {};
+    await Promise.all(todasRespostas.map(async r => {
+      if (!questoesMap[r.questao_id]) {
+        questoesMap[r.questao_id] = await questaoRepo.findById(r.questao_id).catch(() => null);
+      }
+    }));
+
+    const trilhasIds = [...new Set(
+      Object.values(questoesMap).map(q => q?.trilha_id).filter(Boolean)
+    )];
 
     const porTrilha = (await Promise.all(trilhasIds.map(async tid => {
+      try {
+        const trilha = await trilhaRepo.findById(tid);
+        if (!trilha) return null;
+        const disc  = trilha.disciplina_id ? await discRepo.findById(trilha.disciplina_id).catch(() => null) : null;
+        const qs    = await questaoRepo.findByTrilha(tid);
+        const rsAl  = await respostaRepo.findByAlunoTrilha(targetId, tid);
 
-      const trilha = await trilhaRepo.findById(tid);
-      if (!trilha) return null;
-      const disc   = await discRepo.findById(trilha.disciplina_id);
-      const qs     = await questaoRepo.findByTrilha(tid);
-      const rsAl   = await respostaRepo.findByAlunoTrilha(targetId, tid);
-
-      // Evolução temporal (por data)
-      const evolucao = rsAl.map(async r => {
-        const q = await questaoRepo.findById(r.questao_id);
-        return {
+        const evolucao = rsAl.map(r => ({
           data: r.created_at,
-          is_correct: r.correto,
-          score: round2(r.score||0),
-          tipo: q?.tipo,
-          tempo_seg: r.tempo_gasto_ms ? Math.round(r.tempo_gasto_ms/1000) : null,
-        };
-      }).sort((a,b) => new Date(a.data) - new Date(b.data));
+          is_correct: r.correto === 1,
+          score: round2(r.score || 0),
+          tipo: questoesMap[r.questao_id]?.tipo || 'desconhecido',
+          tempo_seg: r.tempo_gasto || null,
+        })).sort((a, b) => new Date(a.data) - new Date(b.data));
 
-      const acertos = rsAl.filter(r => r.correto).length;
-      const taxa    = pct(acertos, rsAl.length);
-      const xp      = rsAl.reduce((s, r) => s + (r.xp_ganho||0), 0);
+        const acertos = rsAl.filter(r => r.correto === 1).length;
+        const taxa    = pct(acertos, rsAl.length);
+        const xp      = rsAl.reduce((s, r) => s + (r.xp_ganho || 0), 0);
 
-      // Pontos fortes e fracos por tipo de questão
-      const porTipo = {};
-      for (const r of rsAl) {
-        const q = await questaoRepo.findById(r.questao_id);
-        if (!q) continue;
-        if (!porTipo[q.tipo]) porTipo[q.tipo] = { total: 0, acertos: 0 };
-        porTipo[q.tipo].total++;
-        if (r.correto) porTipo[q.tipo].acertos++;
-      }
-      const analise_por_tipo = Object.entries(porTipo).map(([tipo, d]) => ({
-        tipo, total: d.total, acertos: d.acertos,
-        taxa: pct(d.acertos, d.total),
-        classificacao: desempenhoLabel(pct(d.acertos, d.total)),
-      }));
-
-      // Detalhamento por questão
-      const questoes_detalhes = qs.map((q, qi) => {
-        // Pegar a resposta mais recente do aluno para esta questão
-        const respostasQ = rsAl.filter(r => r.questao_id === q.id)
-          .sort((a,b) => new Date(b.created_at)-new Date(a.created_at));
-        const resp = respostasQ[0];
         return {
-          numero: qi + 1,
-          enunciado: q.enunciado,
-          tipo: q.tipo,
-          alternativas: q.alternativas || null,
-          gabarito: q.gabarito ?? null,
-          explicacao: q.explicacao || null,
-          resposta_aluno: resp?.resposta ?? null,
-          is_correct: resp?.is_correct ?? null,
-          score: resp ? round2(resp.score||0) : null,
-          feedback_ia: resp?.feedback_ia || null,
-          data: resp?.created_at?.split('T')[0] || null,
-          hora: resp?.created_at ? new Date(resp.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : null,
-          tentativas: respostasQ.length,
-          xp_ganho: resp?.xp_ganho || 0,
+          id: tid, nome: trilha.nome,
+          disciplina: disc?.nome || 'Sem disciplina',
+          total_questoes: qs.length,
+          total_respondidas: rsAl.length,
+          acertos, taxa_acerto: taxa,
+          xp_ganho: xp,
+          evolucao,
+          theta: theta,
+          nivel,
+          desempenho: desempenhoLabel(taxa),
         };
-      });
-
-      // Sessões/tentativas do aluno nesta trilha (agrupadas por dia)
-      const diasMap = {};
-      rsAl.forEach((r) => {
-
-        const dia = r.created_at?.split('T')[0] || 'desconhecido';
-        if (!diasMap[dia]) diasMap[dia] = { data: dia, respostas: 0, acertos: 0 };
-        diasMap[dia].respostas++;
-        if (r.correto) diasMap[dia].acertos++;
-      
-    })
-      const tentativas = Object.values(diasMap).sort((a,b) => a.data.localeCompare(b.data))
-        .map((d, i) => ({ numero: i+1, ...d, taxa: pct(d.acertos, d.respostas) }));
-
-      return {
-        trilha_id: tid, nome: trilha.nome, disciplina: disc?.nome,
-        total_questoes: qs.length,
-        respondidas: rsAl.length,
-        progresso: pct(rsAl.length, qs.length),
-        acertos, erros: rsAl.length - acertos, taxa_acerto: taxa,
-        xp_ganho: xp,
-        desempenho: desempenhoLabel(taxa),
-        tempo_total_min: round2(rsAl.reduce((s,r)=>s+(r.tempo_gasto_ms||0),0)/60000),
-        evolucao,
-        analise_por_tipo,
-        questoes_detalhes,
-        tentativas,
-        ultima_atividade: rsAl.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))[0]?.created_at || null,
-        status: rsAl.length >= qs.length ? 'concluída' : rsAl.length > 0 ? 'em andamento' : 'não iniciada',
-      };
-    
-}))).filter(Boolean);
-
-    // Pontos fortes e dificuldades globais
-    const pontosFortes    = porTrilha.filter(t => t.taxa_acerto >= 70).map(t => t.nome);
-    const dificuldades    = porTrilha.filter(t => t.taxa_acerto < 50 && t.respondidas > 0).map(t => t.nome);
-    const trilhasCompletas= porTrilha.filter(t => t.status === 'concluída').length;
-
-    // Histórico de XP ao longo do tempo
-    const historicoXP = todasRespostas
-      .sort((a,b) => new Date(a.created_at)-new Date(b.created_at))
-      .reduce((acc, r) => {
-        const xpAcum = (acc[acc.length-1]?.xp_acumulado || 0) + (r.xp_ganho||0);
-        acc.push({ data: r.created_at.split('T')[0], xp_acumulado: xpAcum });
-        return acc;
-      }, []);
+      } catch (e) {
+        console.error('[relatorioAluno trilha]', tid, e.message);
+        return null;
+      }
+    }))).filter(Boolean);
 
     const { senha_hash, ...alunoSafe } = aluno;
     res.json({
-      aluno: { ...alunoSafe, theta, nivel, nivel_emoji: emoji },
-      resumo: {
-        total_respostas: todasRespostas.length,
-        acertos: todasRespostas.filter(r => r.correto).length,
-        taxa_acerto_geral: pct(todasRespostas.filter(r=>r.correto).length, todasRespostas.length),
-        trilhas_iniciadas: porTrilha.filter(t => t.respondidas > 0).length,
-        trilhas_completas: trilhasCompletas,
-        xp_total: todasRespostas.reduce((s,r)=>s+(r.xp_ganho||0),0),
-        tempo_total_min: round2(todasRespostas.reduce((s,r)=>s+(r.tempo_gasto_ms||0),0)/60000),
-      },
-      pontos_fortes: pontosFortes,
-      dificuldades,
+      aluno: alunoSafe,
+      theta, nivel, nivel_emoji: emoji,
+      total_respostas: todasRespostas.length,
+      total_acertos: todasRespostas.filter(r => r.correto === 1).length,
+      taxa_acerto_geral: pct(todasRespostas.filter(r => r.correto === 1).length, todasRespostas.length),
+      xp_total: todasRespostas.reduce((s, r) => s + (r.xp_ganho || 0), 0),
       por_trilha: porTrilha,
-      historico_xp: historicoXP,
-      gerado_em: new Date().toISOString(),
     });
-  } catch(e){ next(e); }
+  } catch(e) {
+    console.error('[relatorioAluno 500]', e.message);
+    next(e);
+  }
 }
 
-// ── 5. Relatório Completo da Turma (NOVO) ─────────────────────
+
 async function turmaCompleto(req, res, next) {
   try {
     const { turma_id } = req.params;
@@ -385,7 +317,7 @@ async function turmaCompleto(req, res, next) {
       if (!disc) return null;
       const trilhas = await trilhaRepo.findByDisciplina(discId);
 
-      const trilhasAnalise = trilhas.map(async t => {
+      const trilhasAnalise = await Promise.all(trilhas.map(async t => {
         const qs = await questaoRepo.findByTrilha(t.id);
         const rsTotal = (await Promise.all((qs).map(async q => respostaRepo.findByQuestao(q.id)))).flat()
           .filter(r => matriculas.some(m => m.aluno_id === r.aluno_id));
@@ -393,12 +325,12 @@ async function turmaCompleto(req, res, next) {
         const acertos = rsTotal.filter(r => r.correto).length;
 
         // Questões mais erradas (pontos críticos)
-        const questoesCriticas = qs.map(async q => {
+        const questoesCriticas = await Promise.all(qs.map(async q => {
           const rs = (await respostaRepo.findByQuestao(q.id)).filter(r => matriculas.some(m => m.aluno_id === r.aluno_id));
           const ac = rs.filter(r => r.correto).length;
           return { id: q.id, enunciado: q.enunciado.slice(0, 80), tipo: q.tipo,
             total: rs.length, acertos: ac, taxa: pct(ac, rs.length) };
-        }).filter(q => q.total > 0).sort((a,b) => a.taxa - b.taxa);
+        })).filter(q => q && q.total > 0).sort((a,b) => a.taxa - b.taxa);
 
         return {
           id: t.id, nome: t.nome,
@@ -409,7 +341,7 @@ async function turmaCompleto(req, res, next) {
           questoes_criticas: questoesCriticas.slice(0, 3),
           desempenho: desempenhoLabel(pct(acertos, rsTotal.length)),
         };
-      });
+      }));
 
       return { id: discId, nome: disc.nome, trilhas: trilhasAnalise };
     
@@ -586,17 +518,17 @@ async function boletimTurma(req, res, next) {
 
       const aluno = await userRepo.findById(mat.aluno_id);
       if (!aluno) return null;
-      const disciplinasAluno = disciplinas.map(async disc => {
+      const disciplinasAluno = await Promise.all(disciplinas.map(async disc => {
         const avsDisc = avaliacoesTurma.filter(av => !av.disciplina_id || av.disciplina_id===disc.id);
-        const notas = avsDisc.map(async av => {
-          const melhor = await avaliacaoRepo.findTentativaAlunoAvalia(aluno.id, av.id)
-            .filter(t=>t.status==='concluida').sort((a,b)=>(b.nota||0)-(a.nota||0))[0];
+        const notas = (await Promise.all(avsDisc.map(async av => {
+          const tentativas = await avaliacaoRepo.findTentativaAlunoAvalia(aluno.id, av.id).catch(() => []);
+          const melhor = (tentativas||[]).filter(t=>t.status==='concluida').sort((a,b)=>(b.nota||0)-(a.nota||0))[0];
           return melhor ? { av_id:av.id, titulo:av.titulo, nota:melhor.nota, aprovado:melhor.aprovado, peso:av.peso||10 } : null;
-        }).filter(Boolean);
+        }))).filter(Boolean);
         const pt = notas.reduce((s,n)=>s+n.peso,0);
         const media = pt>0 ? round2(notas.reduce((s,n)=>s+n.nota*n.peso,0)/pt) : null;
         return { disc_id:disc.id, disc_nome:disc.nome, media, notas, situacao: media===null?'-':media>=6?'A':'R' };
-      });
+      }));
       const { theta, nivel, emoji } = await calcTheta(aluno.id);
       const discComMedia = disciplinasAluno.filter(d=>d.media!==null);
       const mediaGeral = discComMedia.length>0
