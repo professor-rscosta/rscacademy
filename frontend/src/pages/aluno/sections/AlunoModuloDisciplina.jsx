@@ -15,7 +15,13 @@ function getYouTubeId(url) {
 
 function formatDate(d) {
   if (!d) return '—';
-  return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR');
+  try {
+    // Handle both 'YYYY-MM-DD' and full ISO datetime strings
+    var dateStr = typeof d === 'string' && d.length === 10 ? d + 'T12:00:00' : d;
+    var dt = new Date(dateStr);
+    if (isNaN(dt.getTime())) return '—';
+    return dt.toLocaleDateString('pt-BR');
+  } catch { return '—'; }
 }
 
 function diffDays(from, to) {

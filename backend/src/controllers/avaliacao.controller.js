@@ -314,14 +314,22 @@ async function concluir(req, res, next) {
     if (!tentativa || tentativa.aluno_id !== req.user.id)
       return res.status(404).json({ error: 'Tentativa não encontrada.' });
     if (tentativa.status === 'concluida') {
-      // Already concluded - return saved result instead of error
+      // Already concluded - return saved result with proper stats
+      const rc = tentativa.respostas_corrigidas || [];
+      const corr = rc.filter(r => r.score >= 0.8 || r.is_correct).length;
       return res.json({
         message: 'Tentativa já concluída anteriormente.',
         nota: tentativa.nota, aprovado: tentativa.aprovado,
         feedback_geral: tentativa.feedback_ia || 'Avaliação concluída.',
         xp_ganho: tentativa.xp_ganho || 0,
         ja_concluida: true,
-        respostas_corrigidas: tentativa.respostas_corrigidas || [],
+        respostas_corrigidas: rc,
+        estatisticas: {
+          total_questoes: rc.length,
+          corretas: corr,
+          erros: rc.length - corr,
+          taxa_acerto: rc.length > 0 ? Math.round(corr / rc.length * 100) : 0,
+        },
       });
     }
 
@@ -669,10 +677,24 @@ async function responderBatch(req, res, next) {
             feedback_ia: '⚠️ IA indisponível. Resultado salvo sem feedback automático.',
           });
         }
-        return res.status(503).json({ 
-          error: 'Avaliação concluída, mas feedback da IA indisponível. Configure OPENAI_API_KEY no servidor.',
-          concluida: true 
-        });
+        try {
+          const tentSaved = await avaliacaoRepo.findTentativaById(Number(req.params.tentativa_id));
+          const rc = tentSaved?.respostas_corrigidas || [];
+          const corr = rc.filter(r => r.score >= 0.8 || r.is_correct).length;
+          return res.status(200).json({
+            nota: tentSaved?.nota || 0, aprovado: tentSaved?.aprovado || false,
+            feedback_geral: tentSaved?.feedback_ia || '⚠️ IA indisponível.',
+            xp_ganho: tentSaved?.xp_ganho || 0,
+            respostas_corrigidas: rc,
+            estatisticas: {
+              total_questoes: rc.length, corretas: corr,
+              erros: rc.length - corr,
+              taxa_acerto: rc.length > 0 ? Math.round(corr / rc.length * 100) : 0,
+            },
+          });
+        } catch(_) {
+          return res.status(503).json({ error: 'Avaliação salva mas IA indisponível.', concluida: true });
+        }
       } catch(_) {}
     }
     next(e);
