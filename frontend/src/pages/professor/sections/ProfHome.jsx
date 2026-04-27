@@ -69,7 +69,11 @@ export default function ProfHome({ onNavigate }) {
 
   const hora = new Date().getHours();
   const saudacao = hora<12?'Bom dia':hora<18?'Boa tarde':'Boa noite';
-  const nome = user?.nome?.split(' ')[0]||'Professor';
+  // Get first real name word (skip "Prof.", "Dr.", "Me." prefixes)
+  // Extract first meaningful name (skip titles like Prof., Dr.)
+  const _prefixos = new Set(['prof','dr','dra','me','ms','esp','prof.','dr.','dra.','me.','ms.']);
+  const _partes = (user?.nome || '').split(' ').filter(p => p.length > 0);
+  const nome = _partes.find(p => !_prefixos.has(p.toLowerCase().replace('.',''))  && p.length > 1) || 'Professor(a)';
 
   return (
     <div style={{ width:'100%', padding:'0 0 3rem' }}>
