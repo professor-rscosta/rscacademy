@@ -156,9 +156,9 @@ function ModalCriar({ turmas, questoesDisp, onClose, onSalvar }) {
       const avId = r.data.avaliacao.id;
       // Vincular turmas adicionais (N:N)
       if (tids.length > 0) {
-        await api.post('/avaliações/'+avId+'/turmas', { turma_ids: tids.map(Number) }).catch(() => {});
+        await api.post('/avaliacoes/'+avId+'/turmas', { turma_ids: tids.map(Number) }).catch(() => {});
       }
-      if (publicar) await api.patch('/avaliações/'+avId+'/publicar');
+      if (publicar) await api.patch('/avaliacoes/'+avId+'/publicar');
       onSalvar({ ...r.data.avaliacao, status:publicar?'publicada':'rascunho', total_questoes:form.questoes_sel.length });
       onClose();
     } catch(e){ setError(e.response?.data?.error||'Erro ao salvar.'); }
@@ -475,7 +475,7 @@ function GerenciarQuestoes({ av, questoesDisp, trilhas, disciplinas = [], onBack
         .filter(q => q.questao_id && !isNaN(Number(q.questao_id)))
         .map(q => ({ questao_id: Number(q.questao_id), peso: Number(q.peso) || 1 }));
       if (!av.id) { setAlert({ type:'error', msg:'Avaliação inválida. Recarregue a página.' }); return; }
-      await api.put('/avaliações/' + av.id, { questoes: payload });
+      await api.put('/avaliacoes/' + av.id, { questoes: payload });
       setAlert({ type:'success', msg: '✅ Salvo! ' + payload.length + ' questão(ões) na avaliação.' });
       onUpdate({ ...av, questoes: payload, total_questoes: payload.length });
       setTimeout(() => setAlert(null), 3000);
@@ -731,7 +731,7 @@ function AlunoDetalhe({ av, alunoId, alunoNome, onBack }) {
 
   useEffect(function() {
     if (!av || !av.id || !alunoId) { setLoading(false); return; }
-    api.get('/avaliações/' + av.id + '/detalhe-aluno/' + alunoId)
+    api.get('/avaliacoes/' + av.id + '/detalhe-aluno/' + alunoId)
       .then(function(r) { setData(r.data); })
       .catch(function() {})
       .finally(function() { setLoading(false); });
@@ -855,7 +855,7 @@ function ResultadosView({ av, onBack }) {
 
   useEffect(function() {
     if (!av || !av.id) { setLoading(false); return; }
-    api.get('/avaliações/' + av.id + '/resultados')
+    api.get('/avaliacoes/' + av.id + '/resultados')
       .then(function(r) {
         setResultados(r.data.resultados || []);
         setMetricas(r.data.estatisticas || {});
@@ -867,7 +867,7 @@ function ResultadosView({ av, onBack }) {
   var carregarAnalise = function() {
     if (analiseIA || loadingIA) return;
     setLoadingIA(true);
-    api.get('/avaliações/' + av.id + '/analise-turma')
+    api.get('/avaliacoes/' + av.id + '/analise-turma')
       .then(function(r) {
         setQuestStats(r.data.questoes_stats || []);
         setAnaliseIA(r.data.analise_ia || null);
@@ -1161,7 +1161,7 @@ function EditAvaliacaoModal({ av, turmas, onClose, onSalvar }) {
       };
       if (!av || !av.id) { showToast('Erro: avaliação inválida.', 'error'); return; }
       payload.disciplina_id = form.disciplina_id ? Number(form.disciplina_id) : null;
-      const r = await api.put('/avaliações/' + av.id, payload);
+      const r = await api.put('/avaliacoes/' + av.id, payload);
       onSalvar(r.data.avaliacao || { ...av, ...payload });
       showToast('Avaliacao atualizada!', 'success');
     } catch(e) {
@@ -1274,7 +1274,7 @@ export default function ProfAvaliações({ autoCreate } = {}) {
   const load = async () => {
     try {
       const [avRes, tRes, qRes, trRes, dRes] = await Promise.all([
-        api.get('/avaliações?professor_id='+user.id),
+        api.get('/avaliacoes?professor_id='+user.id),
         api.get('/turmas?professor_id='+user.id),
         api.get('/questoes?professor_id='+user.id),
         api.get('/trilhas?professor_id='+user.id),
@@ -1297,7 +1297,7 @@ export default function ProfAvaliações({ autoCreate } = {}) {
   useEffect(() => { if (autoCreate) setShowCriar(true); }, [autoCreate]);
 
   const handlePublicar = async (id) => {
-    try { await api.patch('/avaliações/'+id+'/publicar'); setAvs(p=>p.map(a=>a.id===id?{...a,status:'publicada'}:a)); }
+    try { await api.patch('/avaliacoes/'+id+'/publicar'); setAvs(p=>p.map(a=>a.id===id?{...a,status:'publicada'}:a)); }
     catch(e){ alert(e.response?.data?.error||'Erro.'); }
   };
 
@@ -1305,7 +1305,7 @@ export default function ProfAvaliações({ autoCreate } = {}) {
     if (!id || isNaN(Number(id))) { showToast('Erro: ID da avaliação inválido.', 'error'); return; }
     confirmAlert('Excluir Avaliação', 'Esta ação não pode ser desfeita. A avaliação e todas as tentativas serão removidas permanentemente.', async () => {
       try {
-        await api.delete('/avaliações/'+id);
+        await api.delete('/avaliacoes/'+id);
         setAvs(p=>p.filter(a=>a.id!==id));
         showToast('✅ Avaliação excluída com sucesso!', 'success');
       } catch(e) {

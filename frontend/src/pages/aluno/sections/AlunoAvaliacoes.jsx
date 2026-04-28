@@ -125,7 +125,7 @@ export default function AlunoAvaliações({ initialAvaliacaoId, onReady }) {
   };
 
   var iniciar = function(av) {
-    api.post('/avaliações/' + av.id + '/iniciar').then(function(r) {
+    api.post('/avaliacoes/' + av.id + '/iniciar').then(function(r) {
       var qs = r.data.avaliacao.questoes_completas || [];
       setAvAtual(r.data.avaliacao);
       setTentativa(r.data.tentativa);
@@ -162,7 +162,7 @@ export default function AlunoAvaliações({ initialAvaliacaoId, onReady }) {
     setShowConfirm(false);
     setSub(true);
     var token = localStorage.getItem('rsc_token') || '';
-    var url   = window.location.origin + '/api/avaliações/tentativa/' + tentativaAtual.id + '/concluir';
+    var url   = window.location.origin + '/api/avaliacoes/tentativa/' + tentativaAtual.id + '/concluir';
     var respostasArray = Object.entries(respostas).map(function(entry) {
       var qid  = entry[0];
       var resp = entry[1];

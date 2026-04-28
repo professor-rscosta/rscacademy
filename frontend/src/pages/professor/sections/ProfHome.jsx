@@ -53,7 +53,7 @@ export default function ProfHome({ onNavigate }) {
       api.get('/disciplinas?professor_id='+id).catch(() =>({ data:{disciplinas:[]} })),
       api.get('/trilhas?professor_id='+id).catch(() =>({ data:{trilhas:[]} })),
       api.get('/questoes?professor_id='+id).catch(() =>({ data:{questoes:[]} })),
-      api.get('/avaliações?professor_id='+id).catch(() =>({ data:{avaliacoes:[]} })),
+      api.get('/avaliacoes?professor_id='+id).catch(() =>({ data:{avaliacoes:[]} })),
     ]).then(([t,d,tr,q,av]) => {
       const turmas = t.data.turmas||[];
       setStats({
@@ -62,7 +62,7 @@ export default function ProfHome({ onNavigate }) {
         disciplinas:(d.data.disciplinas||[]).length,
         trilhas:(tr.data.trilhas||[]).length,
         questoes:(q.data.questoes||[]).length,
-        avaliacoes:(av.data.avaliações||[]).length,
+        avaliacoes:(av.data.avaliacoes||[]).length,
       });
     });
   }, [user?.id]);
