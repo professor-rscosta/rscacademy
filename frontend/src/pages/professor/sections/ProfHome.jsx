@@ -109,7 +109,7 @@ export default function ProfHome({ onNavigate }) {
               { icon:'📚', label:'Disciplinas', val:stats.disciplinas, c:'#a78bfa' },
               { icon:'🗺️', label:'Trilhas',     val:stats.trilhas,     c:'#34d399' },
               { icon:'❓', label:'Questões',    val:stats.questoes,    c:'#fbbf24' },
-              { icon:'📝', label:'Avaliações',  val:stats.avaliações,  c:'#60a5fa' },
+              { icon:'📝', label:'Avaliações',  val:stats.avaliacoes,  c:'#60a5fa' },
             ].map(s => (
               <div key={s.label} style={{
                 background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.09)',
