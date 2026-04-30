@@ -25,9 +25,10 @@ async function boletimTurma(req, res, next) {
       return res.status(403).json({ error: 'Acesso negado.' });
 
     // Avaliações da turma (publicadas e encerradas)
-    const avaliacoes = await avaliacaoRepo.findByTurma(turma_id)
-      .filter(a => ['publicada','encerrada'].includes(a.status))
-      .sort((a,b) => new Date(a.disponivel_em) - new Date(b.disponivel_em));
+    const _avsTurma = await avaliacaoRepo.findByTurma(turma_id).catch(() => []);
+    const avaliacoes = (_avsTurma||[])
+      .filter(a => ['publicada','encerrada','concluida'].includes(a.status||''))
+      .sort((a,b) => new Date(a.disponivel_em||0) - new Date(b.disponivel_em||0));
 
     // Alunos matriculados
     const matriculas = await turmaRepo.getAlunos(turma_id);
@@ -99,106 +100,89 @@ async function boletimTurma(req, res, next) {
 // ── BOLETIM DO ALUNO (individual) ─────────────────────────────
 async function boletimAluno(req, res, next) {
   try {
-    const aluno_id = req.params.aluno_id || req.user.id;
-
-    // Apenas o próprio aluno ou prof/admin
-    if (req.user.perfil === 'aluno' && Number(aluno_id) !== req.user.id)
+    const aluno_id = Number(req.params.aluno_id || req.user.id);
+    if (req.user.perfil === 'aluno' && aluno_id !== req.user.id)
       return res.status(403).json({ error: 'Acesso negado.' });
 
     const aluno = await userRepo.findById(aluno_id);
     if (!aluno) return res.status(404).json({ error: 'Aluno não encontrado.' });
 
-    // Turmas do aluno
-    const turmaIds = (await turmaRepo.getTurmasAluno(aluno_id)).map(m => m.turma_id);
-    if (turmaIds.length === 0) return res.json({ aluno, turmas: [], resumo: { media_geral: null, total_aprovacoes: 0 } });
+    const mats = await turmaRepo.getTurmasAluno(aluno_id).catch(() => []);
+    const turmaIds = (mats||[]).map(m => Number(m.turma_id));
+    if (turmaIds.length === 0)
+      return res.json({ aluno, turmas: [], resumo: { media_geral: null, total_aprovacoes: 0 } });
 
     const resultado = [];
 
     for (const tid of turmaIds) {
-      const turma = await turmaRepo.findById(tid);
-      if (!turma) continue;
+      try {
+        const turma = await turmaRepo.findById(tid);
+        if (!turma) continue;
 
-      const discIds = await tdRepo.disciplinaIds(tid);
-      const disciplinas = (await Promise.all(discIds.map(id => discRepo.findById(id)))).filter(Boolean);
+        const discIds = await tdRepo.disciplinaIds(tid).catch(() => []);
+        const disciplinas = (await Promise.all(discIds.map(id => discRepo.findById(id).catch(() => null)))).filter(Boolean);
 
-      // Avaliações da turma (publicadas/encerradas)
-      const _avsRaw2 = await avaliacaoRepo.findByTurma(tid).catch(() => []);
-      const avaliacoes = (_avsRaw2||[])
-        .filter(a => ['publicada','encerrada','concluida'].includes(a.status||''))
-        .sort((a,b) => new Date(a.disponivel_em||0) - new Date(b.disponivel_em||0));
+        // Get all avaliacoes for this turma
+        const avsRaw = await avaliacaoRepo.findByTurma(tid).catch(() => []);
+        const avaliacoes = (avsRaw||[]).filter(a => ['publicada','encerrada','concluida'].includes(a.status||''));
 
-      // Notas do aluno em cada avaliação
-      let somaNotas = 0, totalPeso = 0;
-      const notasAv = await Promise.all(avaliacoes.map(async av => {
+        // Per-discipline data
+        const disciplinasData = await Promise.all(disciplinas.map(async disc => {
+          try {
+            // Filter avaliacoes for this discipline
+            const avsDisc = avaliacoes.filter(av => !av.disciplina_id || Number(av.disciplina_id) === disc.id);
 
-        const _tRaw = await avaliacaoRepo.findTentativaAlunoAvalia(aluno_id, av.id).catch(() => []);
-        const tentativas = (_tRaw||[]).filter(t => t.status === 'concluida')
-          .sort((a,b) => (b.nota||0) - (a.nota||0));
+            // Get aluno's best nota per avaliacao
+            const notasAv = (await Promise.all(avsDisc.map(async av => {
+              try {
+                const tents = await avaliacaoRepo.findTentativaAlunoAvalia(aluno_id, av.id).catch(() => []);
+                const conc = (tents||[]).filter(t => t.status === 'concluida').sort((a,b) => (b.nota||0)-(a.nota||0));
+                if (!conc.length) return null;
+                return { av_id: av.id, titulo: av.titulo, nota: conc[0].nota || 0, aprovado: conc[0].aprovado || false };
+              } catch { return null; }
+            }))).filter(Boolean);
 
-        if (tentativas.length === 0)
-          return { av_id: av.id, titulo: av.titulo, tipo: av.tipo, nota_minima: av.nota_minima, peso: av.peso||10, nota: null, aprovado: null, tentativas: 0, encerra_em: av.encerra_em, disponivel_em: av.disponivel_em };
+            const somaNotas = notasAv.reduce((s, n) => s + (n.nota||0), 0);
+            const media = notasAv.length > 0 ? round2(somaNotas / notasAv.length) : null;
+            const aprovado = media !== null && media >= (turma.nota_minima || 6);
 
-        const melhor = tentativas[0];
-        const nota = melhor.nota || 0;
-        const aprovado = nota >= (av.nota_minima || 6);
-        const peso = av.peso || 10;
-        somaNotas += nota * peso;
-        totalPeso += peso;
+            return {
+              id: disc.id, nome: disc.nome, codigo: disc.codigo,
+              avaliacoes: notasAv, media, aprovado,
+              situacao: media === null ? 'Em andamento' : aprovado ? 'Aprovado' : 'Reprovado',
+            };
+          } catch { return null; }
+        }));
 
-        return { av_id: av.id, titulo: av.titulo, tipo: av.tipo, nota_minima: av.nota_minima, peso, nota, aprovado, tentativas: tentativas.length, melhor_nota: nota, historico_tentativas: tentativas.map(t => ({ nota: t.nota, concluida_em: t.concluida_em, aprovado: (t.nota||0) >= (av.nota_minima||6) })), encerra_em: av.encerra_em, disponivel_em: av.disponivel_em };
-      
-}));
+        const discsValidas = disciplinasData.filter(Boolean);
+        const somaMedia = discsValidas.filter(d => d.media !== null).reduce((s, d) => s + (d.media||0), 0);
+        const totalComMedia = discsValidas.filter(d => d.media !== null).length;
+        const mediaGeral = totalComMedia > 0 ? round2(somaMedia / totalComMedia) : null;
 
-      const media = totalPeso > 0 ? Math.round(somaNotas / totalPeso * 100) / 100 : null;
-      const avaliadas = notasAv.filter(n => n.nota !== null);
-      const aprovadas = avaliadas.filter(n => n.aprovado).length;
-      const pendentes = notasAv.filter(n => n.nota === null);
-
-      // Desempenho nas trilhas
-      const trilhaIds = (await Promise.all(discIds.map(async did => (await trilhaRepo.findByDisciplina(did)).map(t => t.id)))).flat();
-      const respostas = await respostaRepo.findByAluno(aluno_id);
-      const _rsAll = respostas;
-        const respostasTrilhas = [];
-        for (const r of _rsAll) {
-          const q = await questaoRepo.findById(r.questao_id);
-          if (q && trilhaIds.includes(q.trilha_id)) respostasTrilhas.push(r);
-        }
-      const totalRespostas = respostasTrilhas.length;
-      const corretas = respostasTrilhas.filter(r => r.is_correct).length;
-
-      resultado.push({
-        turma,
-        disciplinas,
-        avaliacoes: notasAv,
-        media_turma: media,
-        aprovadas_turma: aprovadas,
-        total_avaliacoes: avaliacoes.length,
-        pendentes_count: pendentes.length,
-        situacao: avaliadas.length === 0 ? 'sem_notas' : aprovadas === avaliadas.length ? 'aprovado' : aprovadas > 0 ? 'parcial' : 'reprovado',
-        desempenho_trilhas: { total: totalRespostas, corretas, taxa: totalRespostas > 0 ? Math.round(corretas/totalRespostas*100) : 0 },
-      });
+        resultado.push({
+          turma: { id: turma.id, nome: turma.nome },
+          disciplinas: discsValidas,
+          media_geral: mediaGeral,
+          aprovacoes: discsValidas.filter(d => d.aprovado).length,
+        });
+      } catch(e) {
+        console.error('[boletimAluno turma]', tid, e.message);
+      }
     }
 
-    // Theta / nível geral
-    const todasRespostas = await respostaRepo.findByAluno(aluno_id);
-    const historico = (await Promise.all(todasRespostas.map(async r => {
+    const totalAprovacoes = resultado.reduce((s, t) => s + t.aprovacoes, 0);
+    const todasMedias = resultado.flatMap(t => t.disciplinas.map(d => d.media)).filter(m => m !== null);
+    const mediaGlobal = todasMedias.length > 0 ? round2(todasMedias.reduce((a,b)=>a+b,0) / todasMedias.length) : null;
 
-      const q = await questaoRepo.findById(r.questao_id);
-      return q ? { tri: q.tri, score: r.score } : null;
-    
-}))).filter(Boolean);
-    const theta = triService.estimateTheta(historico);
-    const nivel = triService.thetaToLevel(theta);
-
-    // Resumo geral
-    const todasNotas = resultado.flatMap(t => t.avaliacoes.filter(a => a.nota !== null).map(a => ({ nota: a.nota, peso: a.peso })));
-    const sumN = todasNotas.reduce((s,a) => s + a.nota * a.peso, 0);
-    const sumP = todasNotas.reduce((s,a) => s + a.peso, 0);
-    const mediaGeral = sumP > 0 ? Math.round(sumN / sumP * 100) / 100 : null;
-
-    const { senha_hash, ...safeAluno } = aluno;
-    res.json({ aluno: safeAluno, turmas: resultado, theta, nivel, resumo: { media_geral: mediaGeral, total_aprovacoes: resultado.reduce((s,t)=>s+t.aprovadas_turma,0), total_avaliacoes: resultado.reduce((s,t)=>s+t.total_avaliacoes,0), total_respondidas: todasNotas.length, xp_total: todasRespostas.reduce((s,r)=>s+(r.xp_ganho||0),0) } });
-  } catch(e){ next(e); }
+    const { senha_hash, ...alunoSafe } = aluno;
+    res.json({
+      aluno: alunoSafe, turmas: resultado,
+      resumo: { media_geral: mediaGlobal, total_aprovacoes: totalAprovacoes },
+    });
+  } catch(e) {
+    console.error('[boletimAluno 500]', e.message);
+    next(e);
+  }
 }
 
-module.exports = { boletimTurma, boletimAluno };
+
