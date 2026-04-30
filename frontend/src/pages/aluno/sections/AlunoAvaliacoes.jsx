@@ -583,7 +583,7 @@ export default function AlunoAvaliações({ initialAvaliacaoId, onReady }) {
         </div>
       ) : avs.length === 0 ? (
         <div className="card">
-          <EmptyState icon="[PROVA]" title="Nenhuma avaliação disponível" sub="Seu professor publicará avaliações em breve" />
+          <EmptyState icon="[PROVA]" title="Nenhuma avaliação disponível" sub="Seu professor publicará avaliacoes em breve" />
         </div>
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>

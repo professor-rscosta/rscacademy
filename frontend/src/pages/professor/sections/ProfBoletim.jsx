@@ -103,7 +103,7 @@ function BoletimIndividualModal({ alunoId, turmaId, onClose }) {
                       <div style={{ padding:'10px 14px', background:'var(--slate-50)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                         <div>
                           <div style={{ fontWeight:600, fontSize:13, color:'var(--navy)' }}>📚 {disc.nome}</div>
-                          <div style={{ fontSize:11, color:'var(--slate-400)' }}>{disc.avaliações_realizadas}/{disc.total_avaliacoes} avaliações realizadas</div>
+                          <div style={{ fontSize:11, color:'var(--slate-400)' }}>{disc.avaliacoes_realizadas}/{disc.total_avaliacoes} avaliacoes realizadas</div>
                         </div>
                         <div style={{ textAlign:'right' }}>
                           {disc.media_disciplina !== null && (
@@ -114,7 +114,7 @@ function BoletimIndividualModal({ alunoId, turmaId, onClose }) {
                       </div>
 
                       {/* Avaliações */}
-                      {disc.avaliações?.length > 0 && (
+                      {disc.avaliacoes?.length > 0 && (
                         <table style={{ width:'100%', borderCollapse:'collapse' }}>
                           <thead>
                             <tr style={{ background:'white' }}>
