@@ -186,3 +186,5 @@ async function boletimAluno(req, res, next) {
 }
 
 
+
+module.exports = { boletimTurma, boletimAluno };
