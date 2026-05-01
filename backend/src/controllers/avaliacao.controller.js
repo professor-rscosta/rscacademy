@@ -249,11 +249,14 @@ async function iniciar(req, res, next) {
         semGabarito.alternativas = altEmbaralhadas;
       }
 
-      // Normalize alternativas to array
-      if (semGabarito.alternativas && typeof semGabarito.alternativas === 'string') {
-        try { semGabarito.alternativas = JSON.parse(semGabarito.alternativas); } catch { semGabarito.alternativas = []; }
+      // Normalize alternativas - preserve objects for associacao type
+      const _rawAlts = semGabarito.alternativas;
+      if (_rawAlts === null || _rawAlts === undefined) {
+        semGabarito.alternativas = [];
+      } else if (typeof _rawAlts === 'string') {
+        try { semGabarito.alternativas = JSON.parse(_rawAlts); } catch { semGabarito.alternativas = []; }
       }
-      if (!Array.isArray(semGabarito.alternativas)) semGabarito.alternativas = [];
+      // Keep arrays as-is, keep objects as-is (e.g. {esquerda:[], direita:[]} for associacao)
       return { ...semGabarito, peso: qc.peso || 1, _mapeamento: mapeamentoAlternativas };
     
 }))).filter(Boolean);
