@@ -127,7 +127,7 @@ function DiscDetalhe({ disc, onBack }) {
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:12, fontWeight:500, color:'var(--slate-700)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{av.titulo}</div>
                 <div style={{ fontSize:10, color:'var(--slate-400)', marginTop:1 }}>
-                  {av.total_tentativas}/{av.tentativas_permitidas} tentativa(s)
+                  {av.total_tentativas}/{av.total_tentativas_permitidas||'?'} tentativa(s)
                   {av.realizada_em && ' · '+new Date(av.realizada_em).toLocaleDateString('pt-BR')}
                 </div>
               </div>

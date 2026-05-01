@@ -439,7 +439,16 @@ async function boletimAluno(req, res, next) {
         const disc = await discRepo.findById(discId);
         if (!disc) continue;
         const _avsT = await avaliacaoRepo.findByTurma(turma.id).catch(() => []);
-        const avsDisc = (_avsT||[]).filter(av => ['publicada','encerrada','concluida'].includes(av.status||''));
+        // Filter by disciplina - show only avaliacoes linked to this discipline
+        // OR avaliacoes without a specific discipline (general turma avaliacoes)
+        const avsDisc = (_avsT||[]).filter(av => {
+          const statusOk = ['publicada','encerrada','concluida'].includes(av.status||'');
+          if (!statusOk) return false;
+          // If avaliacao has disciplina_id, only show for that discipline
+          if (av.disciplina_id) return Number(av.disciplina_id) === disc.id;
+          // If no disciplina_id, show for ALL disciplines of the turma (general exam)
+          return true;
+        });
         const avaliacoesAluno = await Promise.all(avsDisc.map(async av => {
 
           const _tRaw = await avaliacaoRepo.findTentativaAlunoAvalia(targetId, av.id).catch(() => []);
@@ -450,6 +459,7 @@ async function boletimAluno(req, res, next) {
             id: av.id, titulo: av.titulo, tipo: av.tipo,
             nota_minima: av.nota_minima || 6, peso: av.peso || 10,
             total_tentativas: tentativas.length,
+            total_tentativas_permitidas: av.tentativas_permitidas || av.tentativas_maximas || null,
             melhor_nota: nota,
             aprovado: nota !== null ? nota >= (av.nota_minima||6) : null,
             status_aluno: tentativas.length===0 ? 'nao_realizada' : nota>=(av.nota_minima||6) ? 'aprovado' : 'reprovado',
@@ -506,7 +516,8 @@ async function boletimTurma(req, res, next) {
     const matriculas = await turmaRepo.getAlunos(turma.id);
     const discIds    = await tdRepo.disciplinaIds(turma.id);
     const disciplinas = (await Promise.all(discIds.map(id => discRepo.findById(id)))).filter(Boolean);
-    const avaliacoesTurma = (await avaliacaoRepo.findByTurma(turma.id)).filter(av => av.status === 'publicada');
+    const _avsAll = await avaliacaoRepo.findByTurma(turma.id).catch(() => []);
+    const avaliacoesTurma = (_avsAll||[]).filter(av => ['publicada','encerrada','concluida'].includes(av.status||''));
     const alunosBoletim = (await Promise.all(matriculas.map(async mat => {
 
       const aluno = await userRepo.findById(mat.aluno_id);
@@ -516,7 +527,10 @@ async function boletimTurma(req, res, next) {
         const notas = (await Promise.all(avsDisc.map(async av => {
           const tentativas = await avaliacaoRepo.findTentativaAlunoAvalia(aluno.id, av.id).catch(() => []);
           const melhor = (tentativas||[]).filter(t=>t.status==='concluida').sort((a,b)=>(b.nota||0)-(a.nota||0))[0];
-          return melhor ? { av_id:av.id, titulo:av.titulo, nota:melhor.nota, aprovado:melhor.aprovado, peso:av.peso||10 } : null;
+          return melhor ? { av_id:av.id, titulo:av.titulo, nota:melhor.nota, aprovado:melhor.aprovado, 
+            peso:av.peso||10, total_tentativas: (tentativas||[]).filter(t=>t.status==='concluida').length,
+            total_tentativas_permitidas: av.tentativas_permitidas || av.tentativas_maximas || null,
+            realizada_em: melhor.concluida_em || null } : null;
         }))).filter(Boolean);
         const pt = notas.reduce((s,n)=>s+n.peso,0);
         const media = pt>0 ? round2(notas.reduce((s,n)=>s+n.nota*n.peso,0)/pt) : null;

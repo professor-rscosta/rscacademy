@@ -129,7 +129,7 @@ function BoletimIndividualModal({ alunoId, turmaId, onClose }) {
                             {disc.avaliacoes.map((av, i) => (
                               <tr key={av.id} style={{ background:i%2===0?'white':'var(--slate-50)', borderBottom:'1px solid var(--slate-100)' }}>
                                 <td style={{ padding:'9px 14px', fontSize:13, fontWeight:500, color:'var(--slate-700)' }}>{av.titulo}</td>
-                                <td style={{ padding:'9px 10px', textAlign:'center', fontSize:12, color:'var(--slate-500)' }}>{av.total_tentativas}/{av.tentativas_permitidas}</td>
+                                <td style={{ padding:'9px 10px', textAlign:'center', fontSize:12, color:'var(--slate-500)' }}>{av.total_tentativas}/{av.total_tentativas_permitidas||'?'}</td>
                                 <CelulaNota nota={av.melhor_nota} minima={av.nota_minima} />
                                 <td style={{ padding:'9px 10px', textAlign:'center' }}><BadgeSit s={av.status_aluno} mini /></td>
                                 <td style={{ padding:'9px 10px', fontSize:11, color:'var(--slate-400)' }}>{av.realizada_em ? new Date(av.realizada_em).toLocaleDateString('pt-BR') : '–'}</td>
