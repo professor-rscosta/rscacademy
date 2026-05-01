@@ -87,10 +87,10 @@ function DiscDetalhe({ disc, onBack }) {
             <div style={{ fontSize:12, opacity:.6, marginTop:2 }}>{disc.codigo} · {disc.carga_horaria}h</div>
           </div>
           <div style={{ textAlign:'center' }}>
-            {disc.media_disciplina !== null ? (
+            {disc.media !== null ? (
               <>
-                <div style={{ fontFamily:'var(--font-head)', fontSize:42, fontWeight:700, lineHeight:1, color:cor(disc.media_disciplina) === '#10b981' ? '#34d399' : cor(disc.media_disciplina) === '#f59e0b' ? '#fbbf24' : '#f87171' }}>
-                  {disc.media_disciplina.toFixed(1)}
+                <div style={{ fontFamily:'var(--font-head)', fontSize:42, fontWeight:700, lineHeight:1, color:cor(disc.media) === '#10b981' ? '#34d399' : cor(disc.media) === '#f59e0b' ? '#fbbf24' : '#f87171' }}>
+                  {(disc.media != null ? disc.media.toFixed(1) : "–")}
                 </div>
                 <div style={{ fontSize:11, opacity:.6 }}>média</div>
               </>
@@ -164,7 +164,7 @@ function DiscDetalhe({ disc, onBack }) {
       </div>
 
       {/* Situação final */}
-      {disc.media_disciplina !== null && (
+      {disc.media !== null && (
         <div style={{ padding:'1.25rem 1.5rem', borderRadius:12, background:disc.situacao==='aprovado'?'#f0fdf4':'#fef2f2', border:'2px solid '+(disc.situacao==='aprovado'?'#86efac':'#fca5a5'), display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div>
             <div style={{ fontWeight:700, fontSize:15, color:disc.situacao==='aprovado'?'#15803d':'#b91c1c' }}>
@@ -175,7 +175,7 @@ function DiscDetalhe({ disc, onBack }) {
             </div>
           </div>
           <div style={{ fontFamily:'var(--font-head)', fontSize:40, fontWeight:700, color:disc.situacao==='aprovado'?'#10b981':'#ef4444' }}>
-            {disc.media_disciplina.toFixed(1)}
+            {(disc.media != null ? disc.media.toFixed(1) : "–")}
           </div>
         </div>
       )}
@@ -257,7 +257,7 @@ export default function AlunoBoletim() {
             <div style={{ fontFamily:'var(--font-head)', fontSize:14, fontWeight:400, opacity:.7, marginBottom:4 }}>Média Geral</div>
             <div style={{ fontFamily:'var(--font-head)', fontSize:52, fontWeight:700, lineHeight:1, marginBottom:12,
               color: turma.media_geral===null?'rgba(255,255,255,.3)':turma.media_geral>=7?'#34d399':turma.media_geral>=6?'#fbbf24':'#f87171' }}>
-              {turma.media_geral !== null ? turma.media_geral.toFixed(1) : '–'}
+              {turma.media_geral !== null ? (turma.media_geral != null ? turma.media_geral.toFixed(1) : "–") : '–'}
             </div>
 
             {/* Mini grid de stats */}
@@ -298,7 +298,7 @@ export default function AlunoBoletim() {
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:'0.875rem' }}>
           {disciplinas.map(disc => {
-            const notaColor = disc.media_disciplina===null?'var(--slate-300)':disc.media_disciplina>=7?'#10b981':disc.media_disciplina>=6?'#f59e0b':'#ef4444';
+            const notaColor = disc.media===null?'var(--slate-300)':disc.media>=7?'#10b981':disc.media>=6?'#f59e0b':'#ef4444';
             const aprovQ = disc.avaliacoes?.filter(a=>a.status_aluno==='aprovado').length||0;
             const reprovQ= disc.avaliacoes?.filter(a=>a.status_aluno==='reprovado').length||0;
             const pend   = disc.avaliacoes?.filter(a=>a.status_aluno==='nao_realizada').length||0;
@@ -340,7 +340,7 @@ export default function AlunoBoletim() {
                   {/* Nota */}
                   <div style={{ textAlign:'center', flexShrink:0 }}>
                     <div style={{ fontFamily:'var(--font-head)', fontSize:36, fontWeight:700, lineHeight:1, color:notaColor }}>
-                      {disc.media_disciplina !== null ? disc.media_disciplina.toFixed(1) : '–'}
+                      {disc.media !== null ? (disc.media != null ? disc.media.toFixed(1) : "–") : '–'}
                     </div>
                     <div style={{ fontSize:10, color:'var(--slate-400)', marginBottom:4 }}>média</div>
                     <Badge s={disc.situacao} mini />

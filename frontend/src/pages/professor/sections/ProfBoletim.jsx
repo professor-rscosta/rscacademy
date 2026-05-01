@@ -81,7 +81,7 @@ function BoletimIndividualModal({ alunoId, turmaId, onClose }) {
                   <div>
                     <div style={{ fontSize:11, color:'var(--slate-400)', textTransform:'uppercase', letterSpacing:.5, marginBottom:4 }}>Média Geral — {turma.nome}</div>
                     <div style={{ fontFamily:'var(--font-head)', fontSize:44, fontWeight:700, color:mgCor, lineHeight:1 }}>
-                      {turma.media_geral !== null ? turma.media_geral.toFixed(1) : '–'}
+                      {turma.media_geral !== null ? (turma.media_geral != null ? turma.media_geral.toFixed(1) : "–") : '–'}
                     </div>
                     <div style={{ marginTop:8 }}>
                       <BadgeSit s={turma.media_geral===null?'-':turma.media_geral>=6?'aprovado':'reprovado'} />
@@ -96,7 +96,7 @@ function BoletimIndividualModal({ alunoId, turmaId, onClose }) {
 
                 {/* Disciplinas */}
                 {turma.disciplinas.map(disc => {
-                  const dCor = cor(disc.media_disciplina);
+                  const dCor = cor(disc.media);
                   return (
                     <div key={disc.id} style={{ border:'1px solid var(--slate-200)', borderRadius:12, overflow:'hidden', marginBottom:'1rem', borderLeft:'4px solid '+(disc.situacao==='aprovado'?'#10b981':disc.situacao==='reprovado'?'#ef4444':'var(--slate-300)') }}>
                       {/* Header disciplina */}
@@ -106,8 +106,8 @@ function BoletimIndividualModal({ alunoId, turmaId, onClose }) {
                           <div style={{ fontSize:11, color:'var(--slate-400)' }}>{disc.avaliacoes_realizadas}/{disc.total_avaliacoes} avaliacoes realizadas</div>
                         </div>
                         <div style={{ textAlign:'right' }}>
-                          {disc.media_disciplina !== null && (
-                            <div style={{ fontFamily:'var(--font-head)', fontSize:24, fontWeight:700, color:dCor }}>{disc.media_disciplina.toFixed(1)}</div>
+                          {disc.media !== null && (
+                            <div style={{ fontFamily:'var(--font-head)', fontSize:24, fontWeight:700, color:dCor }}>{(disc.media != null ? disc.media.toFixed(1) : "–")}</div>
                           )}
                           <BadgeSit s={disc.situacao} mini />
                         </div>
