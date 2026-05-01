@@ -233,7 +233,7 @@ function RelatorioAluno({ alunoId, onVoltar }) {
   if (loading) return <div style={{ textAlign:'center', padding:'3rem' }}><div className="spinner" style={{ margin:'auto' }} /></div>;
   if (!data)   return null;
 
-  const { aluno, resumo, pontos_fortes=[], dificuldades=[], por_trilha=[], historico_xp=[] } = data || {};
+  const { aluno, resumo, pontos_fortes=[], dificuldades=[], por_trilha=[], por_avaliacao=[], historico_xp=[] } = data || {};
   if (!aluno) return (
     <div style={{ textAlign:'center', padding:'3rem', color:'var(--slate-500)' }}>
       <button onClick={onVoltar} style={{ padding:'6px 14px', border:'1px solid var(--slate-200)', borderRadius:8, background:'white', cursor:'pointer', fontSize:13, marginBottom:'1rem', display:'block', margin:'0 auto 1rem' }}>← Voltar</button>
