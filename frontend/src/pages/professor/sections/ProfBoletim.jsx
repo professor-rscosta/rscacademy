@@ -17,7 +17,7 @@ function CelulaNota({ nota, minima = 6 }) {
   return (
     <td style={{ textAlign:'center', padding:'10px 6px' }}>
       <span style={{ fontFamily:'var(--font-head)', fontSize:14, fontWeight:700, color:cor, padding:'3px 9px', borderRadius:7, background:bg, display:'inline-block' }}>
-        {nota.toFixed(1)}
+        {nota != null ? Number(nota).toFixed(1) : "–"}
       </span>
     </td>
   );
@@ -89,7 +89,7 @@ function BoletimIndividualModal({ alunoId, turmaId, onClose }) {
                   </div>
                   <div style={{ textAlign:'center' }}>
                     <div style={{ fontSize:32, marginBottom:4 }}>{turma.nivel_emoji}</div>
-                    <div style={{ fontFamily:'var(--font-head)', fontSize:18, fontWeight:700, color:'var(--navy)' }}>θ {turma.theta.toFixed(2)}</div>
+                    <div style={{ fontFamily:'var(--font-head)', fontSize:18, fontWeight:700, color:'var(--navy)' }}>θ {turma.theta != null ? Number(turma.theta).toFixed(2) : "0.00"}</div>
                     <div style={{ fontSize:11, color:'var(--slate-400)' }}>{turma.nivel}</div>
                   </div>
                 </div>
@@ -237,7 +237,7 @@ export default function ProfBoletim() {
               {/* Stats */}
               <div className="stats-grid" style={{ marginBottom:'1.5rem' }}>
                 <StatCard label="Alunos"       value={stats.total_alunos}                 icon="👥" accent="accent-sky" />
-                <StatCard label="Média Geral"  value={(stats.media_geral||0).toFixed(1)+'/10'} icon="📊" accent="accent-amber" />
+                <StatCard label="Média Geral"  value={(Number(stats.media_geral||0).toFixed(1))+'/10'} icon="📊" accent="accent-amber" />
                 <StatCard label="Aprovados"    value={stats.aprovados||0}                  icon="✅" accent="accent-green" />
                 <StatCard label="Taxa Aprovação" value={(stats.taxa_aprovacao||0)+'%'}      icon="🎯" accent="accent-coral" />
               </div>
@@ -306,7 +306,7 @@ export default function ProfBoletim() {
                               })}
                               <td style={{ textAlign:'center', padding:'11px 12px' }}>
                                 <span style={{ fontFamily:'var(--font-head)', fontSize:18, fontWeight:700, color:mgCor }}>
-                                  {aluno.media_geral !== null ? aluno.media_geral.toFixed(1) : '–'}
+                                  {aluno.media_geral !== null ? (aluno.media_geral!=null?Number(aluno.media_geral).toFixed(1):"–") : '–'}
                                 </span>
                               </td>
                               <td style={{ textAlign:'center', padding:'11px 8px' }}>
@@ -314,7 +314,7 @@ export default function ProfBoletim() {
                               </td>
                               <td style={{ textAlign:'center', padding:'11px 8px', fontSize:12, color:'var(--slate-500)' }}>
                                 <span>{aluno.nivel_emoji}</span>
-                                <div style={{ fontSize:10, fontFamily:'var(--font-head)', fontWeight:600, color:'var(--slate-400)' }}>{aluno.theta?.toFixed(1)}</div>
+                                <div style={{ fontSize:10, fontFamily:'var(--font-head)', fontWeight:600, color:'var(--slate-400)' }}>{(aluno.theta!=null?Number(aluno.theta).toFixed(1):"–")}</div>
                               </td>
                               <td style={{ textAlign:'center', padding:'11px 10px' }}>
                                 <button onClick={e => { e.stopPropagation(); setAlunoModal({ alunoId:aluno.id, turmaId }); }}

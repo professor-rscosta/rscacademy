@@ -17,7 +17,7 @@ function NotaBar({ nota, minima = 6, peso, grande }) {
   if (grande) return (
     <div style={{ textAlign:'center' }}>
       <div style={{ fontFamily:'var(--font-head)', fontSize:42, fontWeight:700, color:cor, lineHeight:1 }}>
-        {nota.toFixed(1)}
+        {nota != null ? Number(nota).toFixed(1) : "–"}
       </div>
       <div style={{ fontSize:11, color:cor, fontWeight:600, marginTop:2 }}>/10</div>
     </div>
@@ -29,7 +29,7 @@ function NotaBar({ nota, minima = 6, peso, grande }) {
         <div style={{ position:'absolute', left:(minima*10)+'%', top:0, height:7, width:2, background:'rgba(0,0,0,.15)' }} />
       </div>
       <span style={{ fontFamily:'var(--font-head)', fontSize:15, fontWeight:700, color:cor, padding:'1px 8px', borderRadius:6, background:bg }}>
-        {nota.toFixed(1)}
+        {nota != null ? Number(nota).toFixed(1) : "–"}
       </span>
       {peso && <span style={{ fontSize:10, color:'var(--slate-400)' }}>×{peso}</span>}
     </div>
@@ -59,12 +59,12 @@ function ThetaGauge({ theta, nivel, emoji }) {
   return (
     <div style={{ textAlign:'center', minWidth:120 }}>
       <div style={{ fontSize:36, marginBottom:4 }}>{emoji||'🌱'}</div>
-      <div style={{ fontFamily:'var(--font-head)', fontSize:26, fontWeight:700, color:cor }}>{theta.toFixed(2)}</div>
+      <div style={{ fontFamily:'var(--font-head)', fontSize:26, fontWeight:700, color:cor }}>{(Number(theta)||0).toFixed(2)}</div>
       <div style={{ fontSize:12, fontWeight:600, color:cor, marginBottom:6 }}>{nivel}</div>
       <div style={{ height:6, background:'rgba(255,255,255,.2)', borderRadius:99, overflow:'hidden' }}>
         <div style={{ height:6, width:pct+'%', background:cor, borderRadius:99, transition:'width .8s' }} />
       </div>
-      <div style={{ fontSize:10, color:'rgba(255,255,255,.5)', marginTop:3 }}>θ = {theta.toFixed(2)} · {pct}%</div>
+      <div style={{ fontSize:10, color:'rgba(255,255,255,.5)', marginTop:3 }}>θ = {(Number(theta)||0).toFixed(2)} · {pct}%</div>
     </div>
   );
 }
