@@ -17,7 +17,13 @@ async function list(req, res, next) {
     else                    questoes = await questaoRepo.findAll();
     if (tipo_uso) questoes = questoes.filter(q => q.uso === tipo_uso || q.uso === 'ambos' || (!q.uso && tipo_uso === 'trilha'));
     // Remove senha_hash se vier por join
-    res.json({ questoes, total: questoes.length });
+    // Ensure alternativas is always an array in response
+    const questoesNorm = questoes.map(q => ({
+      ...q,
+      alternativas: Array.isArray(q.alternativas) ? q.alternativas :
+        (typeof q.alternativas === 'string' ? (() => { try { return JSON.parse(q.alternativas); } catch { return []; } })() : []),
+    }));
+    res.json({ questoes: questoesNorm, total: questoesNorm.length });
   } catch (err) { next(err); }
 }
 

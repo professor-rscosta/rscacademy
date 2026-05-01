@@ -438,11 +438,12 @@ async function boletimAluno(req, res, next) {
       for (const discId of discIds) {
         const disc = await discRepo.findById(discId);
         if (!disc) continue;
-        const avsDisc = (await avaliacaoRepo.findByTurma(turma.id)).filter(av => av.status === 'publicada');
+        const _avsT = await avaliacaoRepo.findByTurma(turma.id).catch(() => []);
+        const avsDisc = (_avsT||[]).filter(av => ['publicada','encerrada','concluida'].includes(av.status||''));
         const avaliacoesAluno = await Promise.all(avsDisc.map(async av => {
 
-          const tentativas = await avaliacaoRepo.findTentativaAlunoAvalia(targetId, av.id)
-            .filter(t => t.status === 'concluida').sort((a,b)=>(b.nota||0)-(a.nota||0));
+          const _tRaw = await avaliacaoRepo.findTentativaAlunoAvalia(targetId, av.id).catch(() => []);
+          const tentativas = (_tRaw||[]).filter(t => t.status === 'concluida').sort((a,b)=>(b.nota||0)-(a.nota||0));
           const melhor = tentativas[0] || null;
           const nota   = melhor?.nota ?? null;
           return {

@@ -326,12 +326,23 @@ export default function CriarQuestaoModal({ trilhas = [], disciplinas = [], tril
                 <div key={col}>
                   <label style={{fontSize:12,fontWeight:600,color:'var(--slate-600)',display:'block',marginBottom:6}}>{col==='esquerda'?'Coluna A':'Coluna B'}</label>
                   {(alts[col]||['','','','']).map((item,i)=>(
-                    <input key={i} value={item}
-                      onChange={e=>{const a={...alts};a[col]=[...(a[col]||[])];a[col][i]=e.target.value;setForm(f=>({...f,alternativas:a}));}}
-                      placeholder={'Item '+(i+1)}
-                      style={{width:'100%',padding:'7px 10px',border:'1.5px solid var(--slate-200)',borderRadius:8,marginBottom:5,fontFamily:'var(--font-body)',fontSize:13,outline:'none'}}
-                    />
+                    <div key={i} style={{display:'flex',gap:4,marginBottom:5}}>
+                      <input value={item}
+                        onChange={e=>{const a={...alts};a[col]=[...(a[col]||[])];a[col][i]=e.target.value;setForm(f=>({...f,alternativas:a}));}}
+                        placeholder={'Item '+(i+1)}
+                        style={{flex:1,padding:'7px 10px',border:'1.5px solid var(--slate-200)',borderRadius:8,fontFamily:'var(--font-body)',fontSize:13,outline:'none'}}
+                      />
+                      {(alts[col]||[]).length > 2 && (
+                        <button type="button" onClick={()=>{const a={...alts};a[col]=(a[col]||[]).filter((_,j)=>j!==i);setForm(f=>({...f,alternativas:a}));}}
+                          style={{padding:'4px 8px',background:'#fee2e2',border:'none',borderRadius:6,cursor:'pointer',color:'#dc2626',fontSize:14}}>✕</button>
+                      )}
+                    </div>
                   ))}
+                  <button type="button"
+                    onClick={()=>{const a={...alts};a[col]=[...(a[col]||[]),''];setForm(f=>({...f,alternativas:a}));}}
+                    style={{width:'100%',padding:'6px',background:'rgba(124,58,237,.07)',border:'1.5px dashed var(--violet)',borderRadius:8,cursor:'pointer',color:'var(--violet)',fontSize:12,fontWeight:600}}>
+                    + Adicionar item
+                  </button>
                 </div>
               ))}
             </div>
