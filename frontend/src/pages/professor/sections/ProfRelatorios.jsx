@@ -338,6 +338,71 @@ function RelatorioAluno({ alunoId, onVoltar }) {
       {/* ── ABA RELATÓRIO DETALHADO ── */}
       {aba === 'detalhado' && (
         <div>
+          {/* ── AVALIAÇÕES REALIZADAS ── */}
+          {por_avaliacao.length > 0 && (
+            <div style={{ marginBottom:'1.5rem' }}>
+              <h4 style={{ fontSize:14, fontWeight:700, color:'var(--navy)', margin:'0 0 10px', display:'flex', alignItems:'center', gap:8 }}>
+                📝 Avaliações Realizadas <span style={{ fontSize:12, fontWeight:500, color:'var(--slate-400)' }}>({por_avaliacao.length})</span>
+              </h4>
+              {por_avaliacao.map(av => (
+                <div key={av.id} style={{ background:'white', border:'1px solid var(--slate-200)', borderRadius:12, padding:'1rem', marginBottom:10 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:10 }}>
+                    <span style={{ fontSize:22 }}>📝</span>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontWeight:700, color:'var(--navy)', marginBottom:4 }}>{av.titulo}</div>
+                      <div style={{ display:'flex', gap:8, fontSize:12, color:'var(--slate-500)' }}>
+                        <span>{new Date(av.concluida_em||Date.now()).toLocaleDateString('pt-BR')}</span>
+                        <span>·</span>
+                        <span>✅ {av.corretas}/{av.total_questoes}</span>
+                        <span>·</span>
+                        <span>🔁 {av.total_tentativas}/{av.total_tentativas_permitidas||'?'} tent.</span>
+                      </div>
+                    </div>
+                    <div style={{ textAlign:'center', minWidth:60 }}>
+                      <div style={{ fontSize:22, fontWeight:800, color:av.aprovado?'#10b981':'#ef4444' }}>{Number(av.nota||0).toFixed(1)}</div>
+                      <div style={{ fontSize:10, color:'var(--slate-400)', fontWeight:600 }}>/10</div>
+                    </div>
+                  </div>
+                  {/* Barra de taxa */}
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                    <div style={{ flex:1, height:6, background:'var(--slate-100)', borderRadius:99 }}>
+                      <div style={{ height:6, width:`${av.taxa_acerto||0}%`, background:av.aprovado?'#10b981':'#ef4444', borderRadius:99 }} />
+                    </div>
+                    <span style={{ fontSize:11, fontWeight:700, color:av.aprovado?'#10b981':'#ef4444' }}>{av.taxa_acerto||0}%</span>
+                  </div>
+                  {/* Questão por questão */}
+                  {(av.respostas||[]).length > 0 && (
+                    <div style={{ marginTop:8 }}>
+                      <div style={{ fontSize:12, fontWeight:600, color:'var(--slate-500)', marginBottom:6 }}>Questão por questão:</div>
+                      {(av.respostas||[]).map((r, qi) => {
+                        const ok = r.is_correct || (r.score||0)>=0.8;
+                        const parcial = !ok && (r.score||0)>=0.4;
+                        return (
+                          <div key={qi} style={{ display:'flex', gap:8, padding:'6px 8px', borderRadius:6, marginBottom:4,
+                            background: ok?'#f0fdf4':parcial?'#fffbeb':'#fef2f2',
+                            border:'1px solid '+(ok?'#a7f3d0':parcial?'#fde68a':'#fca5a5') }}>
+                            <span style={{ fontSize:13 }}>{ok?'✅':parcial?'⚡':'❌'}</span>
+                            <div style={{ flex:1, minWidth:0 }}>
+                              <div style={{ fontSize:12, fontWeight:600, color:'var(--navy)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                                {r.questao_enunciado ? r.questao_enunciado.slice(0,60)+(r.questao_enunciado.length>60?'…':'') : `Q${qi+1}`}
+                              </div>
+                              <div style={{ fontSize:11, color:'var(--slate-500)', marginTop:1 }}>
+                                Resposta: {r.resposta_aluno!=null?String(r.resposta_aluno):'—'}
+                                {r.questao_gabarito!=null && !ok && <span style={{color:'#10b981'}}> · Gabarito: {String(r.questao_gabarito)}</span>}
+                              </div>
+                              {r.feedback_ia && <div style={{ fontSize:11, color:'#6d28d9', marginTop:2, fontStyle:'italic' }}>{typeof r.feedback_ia==='string'?r.feedback_ia.slice(0,100)+(r.feedback_ia.length>100?'…':''):''}</div>}
+                            </div>
+                            <div style={{ fontSize:11, fontWeight:700, color:ok?'#10b981':parcial?'#f59e0b':'#ef4444', whiteSpace:'nowrap' }}>{Math.round((r.score||0)*100)}%</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {/* ── TRILHAS ── */}
           {por_trilha.length === 0 ? (
             <div style={{ textAlign:'center', padding:'3rem', color:'var(--slate-400)' }}>
               <div style={{ fontSize:36, marginBottom:8 }}>📝</div>

@@ -1,344 +1,257 @@
 /**
- * AlunoRelatorios — Relatório completo com histórico detalhado
- * Inclui: respostas, feedback, acertos/erros por avaliação/trilha
+ * AlunoRelatorios — Relatório individual completo
+ * Avaliações + Trilhas com questão por questão
  */
 import { useState, useEffect } from 'react';
 import api from '../../../hooks/useApi';
-import { StatCard } from '../../../components/ui';
 
-// ── Helpers ──────────────────────────────────────────────────
-const pct = (a, b) => b > 0 ? Math.round(a/b*100) : 0;
-function formatDate(d) {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
-}
-function scoreColor(score) {
-  if (score >= 0.8) return { bg:'#dcfce7', cor:'#166534', label:'✅ Correto' };
-  if (score >= 0.4) return { bg:'#fef3c7', cor:'#92400e', label:'⚡ Parcial' };
-  return { bg:'#fee2e2', cor:'#991b1b', label:'❌ Incorreto' };
-}
+const pct = (a, b) => (b > 0 ? Math.round((a / b) * 100) : 0);
+const fmt = (d) => { try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return '—'; } };
 
-// ── Theta Bar ────────────────────────────────────────────────
-function ThetaBar({ theta, max=4 }) {
-  const pctV = Math.round(((theta + max) / (max * 2)) * 100);
-  const cor = theta <= -2 ? '#94a3b8' : theta <= -1 ? '#60a5fa' : theta <= 0 ? '#34d399' : theta <= 1 ? '#fbbf24' : theta <= 2 ? '#f97316' : '#a855f7';
+function Bar({ v, cor }) {
+  const c = cor || (v >= 70 ? '#10b981' : v >= 50 ? '#3b82f6' : v >= 30 ? '#f59e0b' : '#ef4444');
   return (
     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-      <div style={{ flex:1, height:6, background:'var(--slate-200)', borderRadius:99 }}>
-        <div style={{ height:6, borderRadius:99, background:cor, width:pctV+'%', transition:'width .4s' }} />
+      <div style={{ flex:1, height:6, background:'#e2e8f0', borderRadius:99 }}>
+        <div style={{ height:6, width:`${Math.min(100,v)}%`, background:c, borderRadius:99, transition:'width .4s' }} />
       </div>
-      <span style={{ fontSize:11, fontWeight:700, color:cor, minWidth:40 }}>θ={theta.toFixed(2)}</span>
+      <span style={{ fontSize:11, fontWeight:700, color:c, minWidth:32 }}>{v}%</span>
     </div>
   );
 }
 
-// ── Card de resposta individual ───────────────────────────────
-function RespostaCard({ r, idx }) {
-  const [expandido, setExpandido] = useState(false);
-  const sc = scoreColor(r.score || 0);
-
-  const renderResposta = (resp, tipo) => {
-    if (resp === null || resp === undefined) return <em style={{ color:'var(--slate-400)' }}>Sem resposta</em>;
-    if (typeof resp === 'boolean') return resp ? 'Verdadeiro' : 'Falso';
-    if (Array.isArray(resp)) return resp.join(', ');
-    if (typeof resp === 'object') return JSON.stringify(resp);
-    return String(resp);
-  };
-
-  const renderGabarito = (gab, tipo) => {
-    if (gab === null || gab === undefined) return null;
-    if (typeof gab === 'boolean') return gab ? 'Verdadeiro' : 'Falso';
-    if (Array.isArray(gab)) return gab.join(', ');
-    if (typeof gab === 'object') return JSON.stringify(gab);
-    return String(gab);
-  };
-
+function QCard({ r, idx }) {
+  const [open, setOpen] = useState(false);
+  const ok = r.is_correct || r.correto === 1 || (r.score||0) >= 0.8;
+  const parcial = !ok && (r.score||0) >= 0.4;
+  const border = ok ? '#a7f3d0' : parcial ? '#fde68a' : '#fca5a5';
+  const bg = ok ? '#f0fdf4' : parcial ? '#fffbeb' : '#fef2f2';
+  const rv = (v) => { if (v == null) return <em style={{color:'#94a3b8'}}>—</em>; if (typeof v==='object') return JSON.stringify(v); return String(v); };
   return (
-    <div style={{
-      border:'1px solid '+(r.is_correct?'#a7f3d0':r.score>=0.4?'#fde68a':'#fca5a5'),
-      borderRadius:10, overflow:'hidden', marginBottom:8,
-    }}>
-      {/* Header */}
-      <div
-        onClick={() => setExpandido(e => !e)}
-        style={{
-          display:'flex', alignItems:'center', gap:10, padding:'10px 14px',
-          background: r.is_correct?'#f0fdf4':r.score>=0.4?'#fffbeb':'#fef2f2',
-          cursor:'pointer', userSelect:'none',
-        }}
-      >
-        <span style={{ fontSize:16, fontWeight:700, color:sc.cor, minWidth:24 }}>
-          {r.is_correct ? '✅' : r.score >= 0.4 ? '⚡' : '❌'}
-        </span>
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontSize:13, fontWeight:600, color:'var(--navy)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-            {r.questao_enunciado ? r.questao_enunciado.slice(0,90)+(r.questao_enunciado.length>90?'...':'') : `Questão #${r.questao_id}`}
+    <div style={{ border:`1px solid ${border}`, borderRadius:10, overflow:'hidden', marginBottom:6 }}>
+      <div onClick={()=>setOpen(o=>!o)} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px',
+        background:bg, cursor:'pointer', userSelect:'none' }}>
+        <span style={{fontSize:16}}>{ok?'✅':parcial?'⚡':'❌'}</span>
+        <div style={{flex:1, minWidth:0}}>
+          <div style={{fontSize:13, fontWeight:600, color:'#0f172a', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+            Q{idx+1}. {r.questao_enunciado ? r.questao_enunciado.slice(0,80)+(r.questao_enunciado.length>80?'…':'') : `Questão #${idx+1}`}
           </div>
-          <div style={{ fontSize:11, color:'var(--slate-500)', marginTop:1, display:'flex', gap:8, flexWrap:'wrap' }}>
-            <span>{r.trilha_nome || '—'}</span>
-            <span>•</span>
-            <span>{r.questao_tipo || '—'}</span>
-            <span>•</span>
-            <span>{formatDate(r.created_at)}</span>
-          </div>
+          <div style={{fontSize:11, color:'#64748b', marginTop:2}}>{r.questao_tipo||'questão'} · {Math.round((r.score||0)*100)}%</div>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
-          <span style={{ fontSize:11, padding:'3px 10px', borderRadius:99, background:sc.bg, color:sc.cor, fontWeight:700 }}>
-            {sc.label} ({Math.round((r.score||0)*100)}%)
-          </span>
-          <span style={{ fontSize:14, color:'#f59e0b', fontWeight:700 }}>⚡+{r.xp_ganho||0}</span>
-          <span style={{ fontSize:12, color:'var(--slate-400)' }}>{expandido ? '▲' : '▼'}</span>
-        </div>
+        <span style={{fontSize:11, color:'#94a3b8'}}>{open?'▲':'▼'}</span>
       </div>
-
-      {/* Detalhes expandidos */}
-      {expandido && (
-        <div style={{ padding:'14px', background:'white', borderTop:'1px solid var(--slate-100)' }}>
-          {/* Enunciado completo */}
-          {r.questao_enunciado && (
-            <div style={{ marginBottom:12 }}>
-              <div style={{ fontSize:11, fontWeight:700, color:'var(--slate-500)', marginBottom:4, textTransform:'uppercase', letterSpacing:.5 }}>📝 Questão</div>
-              <div style={{ fontSize:13, color:'var(--slate-700)', lineHeight:1.6, background:'var(--slate-50)', padding:'10px 12px', borderRadius:8 }}>
-                {r.questao_enunciado}
-              </div>
+      {open && (
+        <div style={{padding:'12px 14px', borderTop:`1px solid ${border}`, background:'#fff'}}>
+          {r.questao_enunciado && <div style={{fontSize:13,color:'#334155',background:'#f8fafc',padding:'8px 10px',borderRadius:6,marginBottom:10,lineHeight:1.6}}>{r.questao_enunciado}</div>}
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8}}>
+            <div style={{background:'#f1f5f9', padding:'8px 10px', borderRadius:6}}>
+              <div style={{fontSize:10, fontWeight:700, color:'#94a3b8', marginBottom:3}}>SUA RESPOSTA</div>
+              <div style={{fontSize:13, color:'#334155'}}>{rv(r.resposta_aluno)}</div>
             </div>
-          )}
-
-          {/* Resposta do aluno vs Gabarito */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:10, marginBottom:12 }}>
-            <div style={{ background: r.is_correct?'#f0fdf4':'#fef2f2', borderRadius:8, padding:'10px 12px', border:'1px solid '+(r.is_correct?'#a7f3d0':'#fca5a5') }}>
-              <div style={{ fontSize:11, fontWeight:700, color:r.is_correct?'#166534':'#991b1b', marginBottom:4 }}>
-                {r.is_correct ? '✅ Sua resposta (Correta)' : '❌ Sua resposta'}
-              </div>
-              <div style={{ fontSize:13, color:'var(--navy)', fontWeight:600 }}>
-                {renderResposta(r.resposta, r.questao_tipo)}
-              </div>
-            </div>
-            {!r.is_correct && r.questao_gabarito !== null && r.questao_gabarito !== undefined && (
-              <div style={{ background:'#f0fdf4', borderRadius:8, padding:'10px 12px', border:'1px solid #a7f3d0' }}>
-                <div style={{ fontSize:11, fontWeight:700, color:'#166534', marginBottom:4 }}>✅ Resposta Correta</div>
-                <div style={{ fontSize:13, color:'#166534', fontWeight:600 }}>
-                  {renderGabarito(r.questao_gabarito, r.questao_tipo)}
-                </div>
+            {r.questao_gabarito != null && (
+              <div style={{background:'#f0fdf4', padding:'8px 10px', borderRadius:6}}>
+                <div style={{fontSize:10, fontWeight:700, color:'#86efac', marginBottom:3}}>GABARITO</div>
+                <div style={{fontSize:13, color:'#166534'}}>{rv(r.questao_gabarito)}</div>
               </div>
             )}
           </div>
-
-          {/* Explicação */}
           {r.questao_explicacao && (
-            <div style={{ background:'#eff6ff', borderRadius:8, padding:'10px 12px', border:'1px solid #bfdbfe', marginBottom:10 }}>
-              <div style={{ fontSize:11, fontWeight:700, color:'#1d4ed8', marginBottom:4 }}>💡 Explicação</div>
-              <div style={{ fontSize:13, color:'#1e40af', lineHeight:1.6 }}>{r.questao_explicacao}</div>
+            <div style={{background:'#eff6ff', padding:'8px 10px', borderRadius:6, marginBottom:8}}>
+              <div style={{fontSize:10, fontWeight:700, color:'#93c5fd', marginBottom:3}}>💡 EXPLICAÇÃO</div>
+              <div style={{fontSize:12, color:'#1e40af', lineHeight:1.6}}>{r.questao_explicacao}</div>
             </div>
           )}
-
-          {/* Feedback IA */}
           {r.feedback_ia && (
-            <div style={{ background:'#f5f3ff', borderRadius:8, padding:'10px 12px', border:'1px solid #ddd6fe' }}>
-              <div style={{ fontSize:11, fontWeight:700, color:'#6d28d9', marginBottom:4 }}>🤖 Feedback da IA</div>
-              <div style={{ fontSize:13, color:'#5b21b6', lineHeight:1.6 }}>{r.feedback_ia}</div>
+            <div style={{background:'#faf5ff', padding:'8px 10px', borderRadius:6}}>
+              <div style={{fontSize:10, fontWeight:700, color:'#c4b5fd', marginBottom:3}}>🤖 FEEDBACK IA</div>
+              <div style={{fontSize:12, color:'#6d28d9', lineHeight:1.6}}>{typeof r.feedback_ia==='string'?r.feedback_ia:JSON.stringify(r.feedback_ia)}</div>
             </div>
           )}
-
-          {/* Meta */}
-          <div style={{ display:'flex', gap:12, marginTop:10, paddingTop:10, borderTop:'1px solid var(--slate-100)', fontSize:11, color:'var(--slate-400)' }}>
-            <span>Score: {Math.round((r.score||0)*100)}%</span>
-            <span>•</span>
-            <span>θ antes: {r.theta_antes?.toFixed(2)??'—'} → depois: {r.theta_depois?.toFixed(2)??'—'}</span>
-            {r.tempo_gasto_ms && <><span>•</span><span>⏱ {Math.round(r.tempo_gasto_ms/1000)}s</span></>}
-          </div>
         </div>
       )}
     </div>
   );
 }
 
-// ── Componente Principal ──────────────────────────────────────
 export default function AlunoRelatorios() {
-  const [stats, setStats]     = useState(null);
-  const [respostas, setResp]  = useState([]);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [aba, setAba]         = useState('historico');
-  const [filtroTrilha, setFT] = useState('');
-  const [filtroRes, setFR]    = useState('todas'); // todas | corretas | incorretas
-  const [busca, setBusca]     = useState('');
+  const [aba, setAba] = useState('avaliacoes');
+  const [sel, setSel] = useState(null);
 
   useEffect(() => {
-    Promise.all([
-      api.get('/respostas/stats/'),
-      api.get('/respostas/minhas'),
-    ]).then(([sRes, rRes]) => {
-      setStats(sRes.data);
-      setResp(rRes.data.respostas || []);
-    }).catch(console.error).finally(() => setLoading(false));
+    api.get('/relatorios/aluno').then(r => setData(r.data)).catch(console.error).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div style={{ textAlign:'center', padding:'3rem' }}><div className="spinner" style={{ margin:'auto' }} /></div>;
+  if (loading) return <div style={{textAlign:'center', padding:'3rem', color:'#94a3b8'}}>📊 Carregando...</div>;
+  if (!data) return <div style={{textAlign:'center', padding:'3rem', color:'#ef4444'}}>Erro ao carregar relatório.</div>;
 
-  const respostasOrdenadas = [...respostas].reverse();
-
-  // Trilhas disponíveis para filtro
-  const trilhas = [...new Set(respostas.map(r => r.trilha_nome).filter(Boolean))];
-
-  // Filtros aplicados
-  const respostasFiltradas = respostasOrdenadas.filter(r => {
-    if (filtroTrilha && r.trilha_nome !== filtroTrilha) return false;
-    if (filtroRes === 'corretas' && !r.is_correct) return false;
-    if (filtroRes === 'incorretas' && r.is_correct) return false;
-    if (busca && !(r.questao_enunciado||'').toLowerCase().includes(busca.toLowerCase()) &&
-        !(r.trilha_nome||'').toLowerCase().includes(busca.toLowerCase())) return false;
-    return true;
-  });
-
-  // Agrupado por trilha para aba de trilhas
-  const porTrilha = respostas.reduce((acc, r) => {
-    const k = r.trilha_nome || 'Sem trilha';
-    if (!acc[k]) acc[k] = { corretas:0, total:0 };
-    acc[k].total++;
-    if (r.is_correct) acc[k].corretas++;
-    return acc;
-  }, {});
-
-  // Estatísticas por tipo de questão
-  const porTipo = respostas.reduce((acc, r) => {
-    const t = r.questao_tipo || 'desconhecido';
-    if (!acc[t]) acc[t] = { total:0, corretas:0 };
-    acc[t].total++;
-    if (r.is_correct) acc[t].corretas++;
-    return acc;
-  }, {});
-
-  const TABS = [
-    { id:'historico',  label:'📋 Histórico', count: respostas.length },
-    { id:'trilhas',    label:'🗺️ Por Trilha', count: Object.keys(porTrilha).length },
-    { id:'tipos',      label:'🎯 Por Tipo', count: Object.keys(porTipo).length },
-  ];
+  const { theta=0, nivel='iniciante', nivel_emoji='🌱', total_respostas=0, total_acertos=0, taxa_acerto_geral=0, xp_total=0, por_trilha=[], por_avaliacao=[] } = data;
+  const tCor = theta<=-1?'#64748b':theta<=0?'#3b82f6':theta<=1?'#10b981':'#f59e0b';
 
   return (
-    <>
-      <div className="page-header">
-        <div className="page-title">📊 Meu Desempenho</div>
-        <div className="page-sub">Histórico detalhado de respostas, acertos e feedbacks</div>
-      </div>
+    <div style={{maxWidth:900, margin:'0 auto'}}>
+      <h2 style={{fontSize:20, fontWeight:800, color:'#0f172a', marginBottom:'1.25rem'}}>📈 Meu Desempenho</h2>
 
       {/* Stats */}
-      {stats && (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))', gap:12, marginBottom:'1.5rem' }}>
-          <StatCard label="Total Respostas" value={stats.total_respostas||0} icon="📝" accent="accent-sky" />
-          <StatCard label="Acertos" value={stats.corretas||0} icon="✅" accent="accent-green" />
-          <StatCard label="Taxa de Acerto" value={(stats.taxa_acerto||0)+'%'} icon="🎯" accent="accent-emerald" />
-          <StatCard label="XP Total" value={'⚡'+( stats.xp_total||0)} icon="🏆" accent="accent-yellow" />
-          <StatCard label="Nível TRI" value={stats.nivel?.label||'—'} icon={stats.nivel?.emoji||'🌱'} accent="accent-purple" />
-        </div>
-      )}
-
-      {stats && (
-        <div className="card" style={{ marginBottom:'1.5rem' }}>
-          <div style={{ fontSize:13, fontWeight:600, color:'var(--slate-600)', marginBottom:8 }}>
-            Habilidade TRI (θ = {stats.theta?.toFixed(2)})
+      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(130px,1fr))', gap:10, marginBottom:'1.25rem'}}>
+        {[
+          {l:'Respostas', v:total_respostas, c:'#7c3aed', i:'📝'},
+          {l:'Acertos', v:total_acertos, c:'#10b981', i:'✅'},
+          {l:'Taxa', v:taxa_acerto_geral+'%', c:'#0ea5e9', i:'🎯'},
+          {l:'XP Total', v:xp_total, c:'#f59e0b', i:'⭐'},
+        ].map(s=>(
+          <div key={s.l} style={{background:'#fff', border:'1.5px solid #e2e8f0', borderRadius:12, padding:'12px', textAlign:'center'}}>
+            <div style={{fontSize:20}}>{s.i}</div>
+            <div style={{fontSize:20, fontWeight:800, color:s.c, lineHeight:1.2}}>{s.v}</div>
+            <div style={{fontSize:10, color:'#94a3b8', fontWeight:600, marginTop:2}}>{s.l}</div>
           </div>
-          <ThetaBar theta={stats.theta || 0} />
-          <div style={{ fontSize:11, color:'var(--slate-400)', marginTop:6 }}>
-            Calculado via EAP com base em {stats.total_respostas||0} respostas
-          </div>
-        </div>
-      )}
-
-      {/* Abas */}
-      <div style={{ display:'flex', gap:4, borderBottom:'2px solid var(--slate-200)', marginBottom:'1.25rem' }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setAba(t.id)} style={{
-            padding:'9px 16px', border:'none', background:'none', cursor:'pointer',
-            fontWeight: aba===t.id?800:400, color: aba===t.id?'var(--emerald)':'var(--slate-500)',
-            borderBottom: aba===t.id?'2px solid var(--emerald)':'2px solid transparent', marginBottom:-2, fontSize:13,
-          }}>{t.label} <span style={{ fontSize:11, opacity:.6 }}>({t.count})</span></button>
         ))}
       </div>
 
-      {/* ── ABA HISTÓRICO ── */}
-      {aba === 'historico' && (
+      {/* TRI */}
+      <div style={{background:'#fff', border:'1px solid #e2e8f0', borderRadius:12, padding:'1rem 1.25rem', marginBottom:'1.25rem', display:'flex', alignItems:'center', gap:12}}>
+        <span style={{fontSize:24}}>{nivel_emoji}</span>
+        <div style={{flex:1}}>
+          <div style={{fontSize:13, fontWeight:700, color:'#0f172a', marginBottom:4}}>Nível TRI: <span style={{color:tCor}}>{nivel}</span></div>
+          <Bar v={Math.round(((Number(theta)+4)/8)*100)} cor={tCor} />
+        </div>
+        <span style={{fontSize:13, fontWeight:700, color:tCor}}>θ={Number(theta).toFixed(2)}</span>
+      </div>
+
+      {/* Abas */}
+      <div style={{display:'flex', gap:8, marginBottom:'1.25rem'}}>
+        {[{id:'avaliacoes',label:`📝 Avaliações (${por_avaliacao.length})`},{id:'trilhas',label:`🗺️ Trilhas (${por_trilha.length})`}].map(t=>(
+          <button key={t.id} onClick={()=>{setAba(t.id);setSel(null);}}
+            style={{padding:'8px 18px', borderRadius:20, fontWeight:700, fontSize:13, cursor:'pointer',
+              border:'2px solid '+(aba===t.id?'#7c3aed':'#e2e8f0'),
+              background:aba===t.id?'#7c3aed':'#fff', color:aba===t.id?'#fff':'#334155', transition:'all .15s'}}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Avaliações list */}
+      {aba==='avaliacoes' && !sel && (
         <div>
-          {/* Filtros */}
-          <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:'1rem', alignItems:'center' }}>
-            <input
-              value={busca} onChange={e => setBusca(e.target.value)}
-              placeholder="🔍 Buscar questão..."
-              style={{ flex:1, minWidth:180, padding:'8px 12px', border:'1.5px solid var(--slate-200)', borderRadius:8, fontSize:13, outline:'none' }}
-              onFocus={e=>e.target.style.borderColor='var(--emerald)'}
-              onBlur={e=>e.target.style.borderColor='var(--slate-200)'}
-            />
-            <select value={filtroTrilha} onChange={e => setFT(e.target.value)}
-              style={{ padding:'8px 12px', border:'1.5px solid var(--slate-200)', borderRadius:8, fontSize:13, outline:'none' }}>
-              <option value="">Todas as trilhas</option>
-              {trilhas.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <div style={{ display:'flex', gap:4 }}>
-              {[['todas','Todas'],['corretas','✅ Acertos'],['incorretas','❌ Erros']].map(([v,l]) => (
-                <button key={v} onClick={() => setFR(v)} style={{
-                  padding:'7px 12px', border:'1px solid var(--slate-200)', borderRadius:8,
-                  background: filtroRes===v ? 'var(--navy)' : 'white',
-                  color: filtroRes===v ? 'white' : 'var(--slate-600)',
-                  fontSize:12, fontWeight:600, cursor:'pointer',
-                }}>{l}</button>
+          {por_avaliacao.length===0
+            ? <div style={{textAlign:'center', padding:'3rem', color:'#94a3b8'}}>Nenhuma avaliação realizada.</div>
+            : por_avaliacao.map(av=>(
+              <div key={av.id} onClick={()=>setSel(av)}
+                style={{background:'#fff', border:'1.5px solid #e2e8f0', borderRadius:12, padding:'1rem 1.25rem', marginBottom:10, cursor:'pointer', transition:'all .15s'}}
+                onMouseOver={e=>e.currentTarget.style.borderColor='#7c3aed'}
+                onMouseOut={e=>e.currentTarget.style.borderColor='#e2e8f0'}>
+                <div style={{display:'flex', alignItems:'center', gap:12}}>
+                  <span style={{fontSize:26}}>📝</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:700, color:'#0f172a', marginBottom:4}}>{av.titulo}</div>
+                    <Bar v={av.taxa_acerto||0} />
+                  </div>
+                  <div style={{textAlign:'right'}}>
+                    <div style={{fontSize:22, fontWeight:800, color:av.aprovado?'#10b981':'#ef4444'}}>{Number(av.nota||0).toFixed(1)}/10</div>
+                    <div style={{fontSize:11, color:'#94a3b8'}}>{fmt(av.concluida_em)}</div>
+                  </div>
+                </div>
+                <div style={{display:'flex', gap:14, marginTop:8, fontSize:12, color:'#64748b'}}>
+                  <span>✅ {av.corretas} acertos</span>
+                  <span>❌ {av.erros} erros</span>
+                  <span>🔁 {av.total_tentativas}/{av.total_tentativas_permitidas||'?'}</span>
+                  <span style={{marginLeft:'auto', color:'#7c3aed', fontWeight:700}}>Ver detalhes →</span>
+                </div>
+              </div>
+            ))}
+        </div>
+      )}
+
+      {/* Avaliação detalhe */}
+      {aba==='avaliacoes' && sel && (
+        <div>
+          <button onClick={()=>setSel(null)} style={{padding:'6px 14px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', cursor:'pointer', marginBottom:'1rem', fontSize:13, fontWeight:600}}>← Voltar</button>
+          <div style={{background:'#fff', border:'1.5px solid #e2e8f0', borderRadius:12, padding:'1.25rem', marginBottom:'1rem'}}>
+            <h3 style={{margin:'0 0 12px', fontSize:16, fontWeight:800, color:'#0f172a'}}>{sel.titulo}</h3>
+            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(110px,1fr))', gap:8, marginBottom:12}}>
+              {[
+                {l:'Nota', v:Number(sel.nota||0).toFixed(1)+'/10', c:sel.aprovado?'#10b981':'#ef4444'},
+                {l:'Situação', v:sel.aprovado?'✅ Aprovado':'❌ Reprovado', c:sel.aprovado?'#10b981':'#ef4444'},
+                {l:'Acertos', v:`${sel.corretas}/${sel.total_questoes}`, c:'#10b981'},
+                {l:'Taxa', v:(sel.taxa_acerto||0)+'%', c:'#3b82f6'},
+              ].map(s=>(
+                <div key={s.l} style={{textAlign:'center', background:s.c+'10', border:'1px solid '+s.c+'30', borderRadius:10, padding:'10px'}}>
+                  <div style={{fontSize:15, fontWeight:800, color:s.c}}>{s.v}</div>
+                  <div style={{fontSize:10, color:'#94a3b8', marginTop:2, fontWeight:600}}>{s.l}</div>
+                </div>
               ))}
             </div>
-            <span style={{ fontSize:12, color:'var(--slate-500)', whiteSpace:'nowrap' }}>{respostasFiltradas.length} resultado(s)</span>
+            <Bar v={sel.taxa_acerto||0} />
           </div>
-
-          {respostasFiltradas.length === 0 ? (
-            <div style={{ textAlign:'center', padding:'3rem', color:'var(--slate-400)' }}>
-              <div style={{ fontSize:40, marginBottom:8 }}>📝</div>
-              <div style={{ fontWeight:600 }}>Nenhuma resposta encontrada</div>
-            </div>
-          ) : (
-            respostasFiltradas.map((r, i) => <RespostaCard key={r.id || i} r={r} idx={i} />)
-          )}
+          <h4 style={{fontSize:14, fontWeight:700, color:'#334155', margin:'0 0 8px'}}>Questão por questão ({(sel.respostas||[]).length}):</h4>
+          {(sel.respostas||[]).length===0
+            ? <div style={{textAlign:'center', padding:'2rem', color:'#94a3b8'}}>Sem detalhes disponíveis.</div>
+            : (sel.respostas||[]).map((r,i)=><QCard key={i} r={r} idx={i} />)}
         </div>
       )}
 
-      {/* ── ABA POR TRILHA ── */}
-      {aba === 'trilhas' && (
-        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-          {Object.entries(porTrilha).sort((a,b) => b[1].total - a[1].total).map(([nome, d]) => {
-            const taxa = pct(d.corretas, d.total);
-            const cor  = taxa>=70?'#10b981':taxa>=50?'#3b82f6':taxa>=30?'#f59e0b':'#ef4444';
-            return (
-              <div key={nome} style={{ background:'white', border:'1px solid var(--slate-200)', borderRadius:12, padding:'14px 16px' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8, flexWrap:'wrap', gap:8 }}>
-                  <div>
-                    <div style={{ fontWeight:700, fontSize:14, color:'var(--navy)' }}>🗺️ {nome}</div>
-                    <div style={{ fontSize:12, color:'var(--slate-500)', marginTop:2 }}>{d.total} respostas · {d.corretas} acertos · {d.total-d.corretas} erros</div>
+      {/* Trilhas list */}
+      {aba==='trilhas' && !sel && (
+        <div>
+          {por_trilha.length===0
+            ? <div style={{textAlign:'center', padding:'3rem', color:'#94a3b8'}}>Nenhuma trilha iniciada.</div>
+            : por_trilha.map(t=>(
+              <div key={t.id} onClick={()=>setSel(t)}
+                style={{background:'#fff', border:'1.5px solid #e2e8f0', borderRadius:12, padding:'1rem 1.25rem', marginBottom:10, cursor:'pointer', transition:'all .15s'}}
+                onMouseOver={e=>e.currentTarget.style.borderColor='#7c3aed'}
+                onMouseOut={e=>e.currentTarget.style.borderColor='#e2e8f0'}>
+                <div style={{display:'flex', alignItems:'center', gap:12}}>
+                  <span style={{fontSize:26}}>🗺️</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:700, color:'#0f172a', marginBottom:2}}>{t.nome}</div>
+                    <div style={{fontSize:11, color:'#94a3b8', marginBottom:4}}>{t.disciplina}</div>
+                    <Bar v={t.progresso||0} />
                   </div>
-                  <span style={{ fontSize:20, fontWeight:800, color:cor }}>{taxa}%</span>
+                  <div style={{textAlign:'right'}}>
+                    <div style={{fontSize:20, fontWeight:800, color:'#7c3aed'}}>{t.taxa_acerto}%</div>
+                    <div style={{fontSize:11, color:'#94a3b8'}}>{t.total_respondidas}/{t.total_questoes}q</div>
+                  </div>
                 </div>
-                <div style={{ height:8, background:'var(--slate-100)', borderRadius:99, overflow:'hidden' }}>
-                  <div style={{ height:'100%', width:taxa+'%', background:cor, borderRadius:99, transition:'width .5s' }} />
+                <div style={{display:'flex', gap:14, marginTop:8, fontSize:12, color:'#64748b'}}>
+                  <span>✅ {t.acertos} acertos</span>
+                  <span>❌ {(t.total_respondidas||0)-(t.acertos||0)} erros</span>
+                  <span>⭐ +{t.xp_ganho} XP</span>
+                  <span style={{marginLeft:'auto', color:'#7c3aed', fontWeight:700}}>Ver detalhes →</span>
                 </div>
               </div>
-            );
-          })}
+            ))}
         </div>
       )}
 
-      {/* ── ABA POR TIPO ── */}
-      {aba === 'tipos' && (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:10 }}>
-          {Object.entries(porTipo).sort((a,b) => b[1].total - a[1].total).map(([tipo, d]) => {
-            const taxa = pct(d.corretas, d.total);
-            const cor  = taxa>=70?'#10b981':taxa>=50?'#3b82f6':'#ef4444';
-            return (
-              <div key={tipo} style={{ background:'white', border:'1px solid var(--slate-200)', borderRadius:12, padding:'14px' }}>
-                <div style={{ fontWeight:700, fontSize:14, color:'var(--navy)', marginBottom:4 }}>{tipo.replace('_',' ')}</div>
-                <div style={{ fontSize:24, fontWeight:800, color:cor, marginBottom:4 }}>{taxa}%</div>
-                <div style={{ fontSize:12, color:'var(--slate-500)', marginBottom:8 }}>{d.corretas}/{d.total} acertos</div>
-                <div style={{ height:6, background:'var(--slate-100)', borderRadius:99 }}>
-                  <div style={{ height:'100%', width:taxa+'%', background:cor, borderRadius:99 }} />
+      {/* Trilha detalhe */}
+      {aba==='trilhas' && sel && (
+        <div>
+          <button onClick={()=>setSel(null)} style={{padding:'6px 14px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', cursor:'pointer', marginBottom:'1rem', fontSize:13, fontWeight:600}}>← Voltar</button>
+          <div style={{background:'#fff', border:'1.5px solid #e2e8f0', borderRadius:12, padding:'1.25rem', marginBottom:'1rem'}}>
+            <h3 style={{margin:'0 0 4px', fontSize:16, fontWeight:800}}>{sel.nome}</h3>
+            <div style={{fontSize:12, color:'#94a3b8', marginBottom:12}}>{sel.disciplina}</div>
+            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(110px,1fr))', gap:8, marginBottom:12}}>
+              {[
+                {l:'Progresso', v:(sel.progresso||0)+'%', c:'#7c3aed'},
+                {l:'Acertos', v:`${sel.acertos}/${sel.total_respondidas}`, c:'#10b981'},
+                {l:'Taxa', v:sel.taxa_acerto+'%', c:'#3b82f6'},
+                {l:'XP', v:'+'+sel.xp_ganho, c:'#f59e0b'},
+              ].map(s=>(
+                <div key={s.l} style={{textAlign:'center', background:s.c+'10', border:'1px solid '+s.c+'30', borderRadius:10, padding:'10px'}}>
+                  <div style={{fontSize:15, fontWeight:800, color:s.c}}>{s.v}</div>
+                  <div style={{fontSize:10, color:'#94a3b8', marginTop:2, fontWeight:600}}>{s.l}</div>
                 </div>
-              </div>
-            );
-          })}
+              ))}
+            </div>
+            <Bar v={sel.progresso||0} />
+          </div>
+          <h4 style={{fontSize:14, fontWeight:700, color:'#334155', margin:'0 0 8px'}}>Questão por questão ({(sel.respostas||[]).length}):</h4>
+          {(sel.respostas||[]).length===0
+            ? <div style={{textAlign:'center', padding:'2rem', color:'#94a3b8'}}>Sem respostas registradas.</div>
+            : (sel.respostas||[]).map((r,i)=><QCard key={i} r={r} idx={i} />)}
         </div>
       )}
-    </>
+    </div>
   );
 }

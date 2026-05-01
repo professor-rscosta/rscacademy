@@ -231,10 +231,10 @@ async function relatorioAluno(req, res, next) {
     const aluno = await userRepo.findById(targetId);
     if (!aluno) return res.status(404).json({ error: 'Aluno não encontrado.' });
 
-    const todasRespostas = await respostaRepo.findByAluno(targetId);
-    const { theta, nivel, emoji } = await calcTheta(targetId).catch(() => ({ theta: 0, nivel: 'iniciante', emoji: '🌱' }));
+    // ── Respostas de TRILHA ──────────────────────────────────────
+    const todasRespostas = await respostaRepo.findByAluno(targetId).catch(() => []);
 
-    // Group by trilha
+    // Build questoes map
     const questoesMap = {};
     await Promise.all(todasRespostas.map(async r => {
       if (!questoesMap[r.questao_id]) {
@@ -252,41 +252,103 @@ async function relatorioAluno(req, res, next) {
         if (!trilha) return null;
         const disc  = trilha.disciplina_id ? await discRepo.findById(trilha.disciplina_id).catch(() => null) : null;
         const qs    = await questaoRepo.findByTrilha(tid);
-        const rsAl  = await respostaRepo.findByAlunoTrilha(targetId, tid);
+        const rsAl  = todasRespostas.filter(r => {
+          const q = questoesMap[r.questao_id];
+          return q?.trilha_id === tid;
+        });
 
-        const evolucao = rsAl.map(r => ({
-          data: r.created_at,
-          is_correct: r.correto === 1,
-          score: round2(r.score || 0),
-          tipo: questoesMap[r.questao_id]?.tipo || 'desconhecido',
-          tempo_seg: r.tempo_gasto || null,
-        })).sort((a, b) => new Date(a.data) - new Date(b.data));
-
+        const progresso = qs.length > 0
+          ? Math.round((new Set(rsAl.map(r=>r.questao_id)).size / qs.length) * 100) : 0;
         const acertos = rsAl.filter(r => r.correto === 1).length;
-        const taxa    = pct(acertos, rsAl.length);
-        const xp      = rsAl.reduce((s, r) => s + (r.xp_ganho || 0), 0);
 
-        const progresso = qs.length > 0 ? Math.round((new Set(rsAl.map(r=>r.questao_id)).size / qs.length) * 100) : 0;
+        // Enrich respostas with questao info
+        const respostasDetalhadas = rsAl.map(r => ({
+          ...r,
+          is_correct: r.correto === 1,
+          questao_enunciado: questoesMap[r.questao_id]?.enunciado || null,
+          questao_tipo: questoesMap[r.questao_id]?.tipo || null,
+          questao_gabarito: questoesMap[r.questao_id]?.gabarito || null,
+          questao_explicacao: questoesMap[r.questao_id]?.explicacao || null,
+        }));
+
         return {
           id: tid, nome: trilha.nome,
           disciplina: disc?.nome || 'Sem disciplina',
           total_questoes: qs.length,
           total_respondidas: rsAl.length,
-          acertos, taxa_acerto: taxa,
+          acertos, taxa_acerto: pct(acertos, rsAl.length),
           progresso,
-          xp_ganho: xp,
-          evolucao,
-          theta: theta,
-          nivel,
-          desempenho: desempenhoLabel(taxa),
+          xp_ganho: rsAl.reduce((s, r) => s + (r.xp_ganho || 0), 0),
+          respostas: respostasDetalhadas,
         };
-      } catch (e) {
+      } catch(e) {
         console.error('[relatorioAluno trilha]', tid, e.message);
         return null;
       }
     }))).filter(Boolean);
 
+    // ── Tentativas de AVALIAÇÃO ──────────────────────────────────
+    const turmaIds = (await turmaRepo.getTurmasAluno(targetId).catch(() => [])).map(m => m.turma_id);
+    let porAvaliacao = [];
+
+    if (turmaIds.length > 0) {
+      const avsRaw = (await Promise.all(turmaIds.map(tid =>
+        avaliacaoRepo.findByTurma(tid).catch(() => [])
+      ))).flat();
+
+      const avsUniq = avsRaw.filter((av, i, arr) => arr.findIndex(a => a.id === av.id) === i);
+
+      porAvaliacao = (await Promise.all(avsUniq.map(async av => {
+        try {
+          const tents = await avaliacaoRepo.findTentativaAlunoAvalia(targetId, av.id).catch(() => []);
+          const conc = (tents||[]).filter(t => t.status === 'concluida');
+          if (conc.length === 0) return null;
+
+          const melhor = conc.sort((a,b)=>(b.nota||0)-(a.nota||0))[0];
+          const rc = melhor.respostas_corrigidas || [];
+          const corretas = rc.filter(r => (r.score||0) >= 0.8 || r.is_correct).length;
+
+          // Enrich questao data in respostas
+          const respostasDetalhadas = await Promise.all(rc.map(async r => {
+            const q = await questaoRepo.findById(r.questao_id).catch(() => null);
+            const rawResp = (melhor.respostas||[]).find(rr => rr.questao_id === r.questao_id);
+            return {
+              questao_id: r.questao_id,
+              questao_enunciado: q?.enunciado || null,
+              questao_tipo: q?.tipo || null,
+              questao_gabarito: q?.gabarito || null,
+              questao_explicacao: q?.explicacao || null,
+              resposta_aluno: rawResp?.resposta || r.resposta_aluno || null,
+              score: r.score || 0,
+              is_correct: (r.score||0) >= 0.8 || r.is_correct,
+              correto: (r.score||0) >= 0.8 ? 1 : 0,
+              feedback_ia: r.feedback_ia || null,
+            };
+          }));
+
+          return {
+            id: av.id, titulo: av.titulo, tipo: av.tipo || 'prova',
+            disciplina_id: av.disciplina_id,
+            nota: melhor.nota, aprovado: melhor.aprovado,
+            nota_minima: av.nota_minima || 6,
+            total_tentativas: conc.length,
+            total_tentativas_permitidas: av.tentativas_permitidas || null,
+            concluida_em: melhor.concluida_em,
+            total_questoes: rc.length,
+            corretas, erros: rc.length - corretas,
+            taxa_acerto: pct(corretas, rc.length),
+            respostas: respostasDetalhadas,
+          };
+        } catch(e) {
+          console.error('[relatorioAluno av]', av.id, e.message);
+          return null;
+        }
+      }))).filter(Boolean);
+    }
+
+    const { theta, nivel, emoji } = await calcTheta(targetId).catch(() => ({ theta: 0, nivel: 'iniciante', emoji: '🌱' }));
     const { senha_hash, ...alunoSafe } = aluno;
+
     res.json({
       aluno: alunoSafe,
       theta, nivel, nivel_emoji: emoji,
@@ -295,6 +357,7 @@ async function relatorioAluno(req, res, next) {
       taxa_acerto_geral: pct(todasRespostas.filter(r => r.correto === 1).length, todasRespostas.length),
       xp_total: todasRespostas.reduce((s, r) => s + (r.xp_ganho || 0), 0),
       por_trilha: porTrilha,
+      por_avaliacao: porAvaliacao,
     });
   } catch(e) {
     console.error('[relatorioAluno 500]', e.message);
