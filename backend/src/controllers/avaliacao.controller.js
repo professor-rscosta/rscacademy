@@ -249,6 +249,11 @@ async function iniciar(req, res, next) {
         semGabarito.alternativas = altEmbaralhadas;
       }
 
+      // Normalize alternativas to array
+      if (semGabarito.alternativas && typeof semGabarito.alternativas === 'string') {
+        try { semGabarito.alternativas = JSON.parse(semGabarito.alternativas); } catch { semGabarito.alternativas = []; }
+      }
+      if (!Array.isArray(semGabarito.alternativas)) semGabarito.alternativas = [];
       return { ...semGabarito, peso: qc.peso || 1, _mapeamento: mapeamentoAlternativas };
     
 }))).filter(Boolean);

@@ -144,8 +144,14 @@ export default function AlunoDesafio({ trilha_id, onConcluir }) {
   const _q = questoes[idx];
   const questaoAtual = _q ? {
     ..._q,
-    alternativas: Array.isArray(_q.alternativas) ? _q.alternativas :
-      (typeof _q.alternativas === 'string' ? (() => { try { return JSON.parse(_q.alternativas); } catch { return []; } })() : []),
+    alternativas: (() => {
+      const raw = _q.alternativas;
+      if (raw === null || raw === undefined) return [];
+      if (Array.isArray(raw)) return raw;
+      if (typeof raw === 'object') return raw; // object like {esquerda:[], direita:[]}
+      if (typeof raw === 'string') { try { return JSON.parse(raw); } catch { return []; } }
+      return [];
+    })(),
     gabarito: _q.gabarito,
   } : _q;
   const Comp = questaoAtual ? TIPO_COMP[questaoAtual.tipo] : null;

@@ -322,7 +322,18 @@ export default function AlunoAvaliações({ initialAvaliacaoId, onReady }) {
   }
 
   if (fase === 'fazendo' && avAtual) {
-    var questaoAtual = questoes[idx];
+    var _qRaw = questoes[idx];
+    var questaoAtual = _qRaw ? {
+      ..._qRaw,
+      alternativas: (function() {
+        var raw = _qRaw.alternativas;
+        if (!raw) return [];
+        if (Array.isArray(raw)) return raw;
+        if (typeof raw === 'object') return raw;
+        if (typeof raw === 'string') { try { return JSON.parse(raw); } catch { return []; } }
+        return [];
+      })()
+    } : _qRaw;
     var Comp = questaoAtual ? TIPO_COMP[questaoAtual.tipo] : null;
     var respondidas = Object.keys(respostas).length;
 

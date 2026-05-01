@@ -442,11 +442,11 @@ async function boletimAluno(req, res, next) {
         // Filter by disciplina - show only avaliacoes linked to this discipline
         // OR avaliacoes without a specific discipline (general turma avaliacoes)
         const avsDisc = (_avsT||[]).filter(av => {
-          const statusOk = ['publicada','encerrada','concluida'].includes(av.status||'');
-          if (!statusOk) return false;
+          // Skip drafts
+          if ((av.status||'') === 'rascunho') return false;
           // If avaliacao has disciplina_id, only show for that discipline
           if (av.disciplina_id) return Number(av.disciplina_id) === disc.id;
-          // If no disciplina_id, show for ALL disciplines of the turma (general exam)
+          // If no disciplina_id, show for ALL disciplines of the turma
           return true;
         });
         const avaliacoesAluno = await Promise.all(avsDisc.map(async av => {
@@ -517,7 +517,8 @@ async function boletimTurma(req, res, next) {
     const discIds    = await tdRepo.disciplinaIds(turma.id);
     const disciplinas = (await Promise.all(discIds.map(id => discRepo.findById(id)))).filter(Boolean);
     const _avsAll = await avaliacaoRepo.findByTurma(turma.id).catch(() => []);
-    const avaliacoesTurma = (_avsAll||[]).filter(av => ['publicada','encerrada','concluida'].includes(av.status||''));
+    // Include all non-draft avaliacoes that have been attempted by students
+    const avaliacoesTurma = (_avsAll||[]).filter(av => (av.status||'') !== 'rascunho');
     const alunosBoletim = (await Promise.all(matriculas.map(async mat => {
 
       const aluno = await userRepo.findById(mat.aluno_id);
